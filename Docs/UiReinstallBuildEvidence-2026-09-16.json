@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-09-16T10:17:16.6449434+02:00",
+  "target": "GalaxyXRNative x64 Release",
+  "compiler": "MSVC 19.44.35229",
+  "sdk": "10.0.26100.0",
+  "result": "42 project compilation units plus 4 MinHook sources compiled and linked; HmdDriverFactory export verified",
+  "nativeIdentityDefault": "true for VENDOR_GALAXYXR",
+  "command": "tools/Build-Portable.ps1 -DriverOnly -OutputDirectory output/CustomHeadset-UI-Reinstall-Test-20260916",
+  "artifact": {
+    "path": "output/CustomHeadset-UI-Reinstall-Test-20260916/GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll",
+    "bytes": 1541632,
+    "sha256": "7077D14E962DEC84A0C642D65480DDCB4FC3CC0B228D34AF0FF53F08BD076F13"
+  },
+  "nativeSourceHashes": [
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/Config.h",
+      "sha256": "2FA4CEE2E88D07D75C2423D4C59D996CF18D0F8669D28CAA09E71188A74FD8B2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/SteamVRSettingsJournal.h",
+      "sha256": "250F34E5819AC12BC840635CD0D672B0264E052A9E672A2FC3A347A119F261F1"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GalaxyXR.cpp",
+      "sha256": "CA20DB0FA754B1C00FBFDF7BD7C285311B21147D2ED9D7464923177188655164"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DriverLockout.cpp",
+      "sha256": "78B3DF24B16A3DBE2203CD1BF4C5F846B12D5649F8E8C374DAB012FE9B5FBB5A"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/VrlinkCapabilities.h",
+      "sha256": "5DB99920B1F8730F6C07CAC8FD197AC79163C3766AF2474B179EB9F837B6A543"
+    }
+  ],
+  "warnings": "Existing easywsclient.cpp:96 WCHAR pointer formatted with %s",
+  "gui": {
+    "result": "Angular production and Tauri optimized release compile/link passed",
+    "timestamp": "2026-09-16T10:24:01.1887974+02:00",
+    "rust": "1.98.1",
+    "artifact": {
+      "path": "output/CustomHeadset-UI-Reinstall-Test-20260916/CustomHeadsetGUI/custom-headset-gui.exe",
+      "bytes": 15084544,
+      "sha256": "B8B2AE03A5FE080410227A87A5FEDF02A44668EFE55B1A644B81C8E34B28F65F"
+    },
+    "sourceSnapshot": {
+      "path": "Docs/UiReinstallSourceSnapshot-2026-09-16.json",
+      "files": 100,
+      "sha256": "F5E9620D6BDE99FD79F737062B5640330576A2CEAAFD20D758335CDB7DC7BBB3",
+      "verification": "Every recorded GUI source/config/manifest hash matched after final build"
+    },
+    "warnings": "Missing translations; informational MSVC library/export creation message surfaced as Rust warning"
+  },
+  "runtime": "Not deployed or run in SteamVR",
+  "cleanup": "Prior denied cleanup was not retried. No deletion was performed by the build/packaging agent. Previous comparison ZIP was not found at its prior output path.",
+  "tests": {
+    "rustBackend": "32 passed",
+    "readiness": "18 passed",
+    "angularDOM": "7 passed",
+    "nativeGuiDefaults": "Parity check passed",
+    "evidenceOwner": "Task root and implementation agents",
+    "liveRuntime": "Not run"
+  },
+  "cleanupRecord": "Docs/UiReinstallCleanup-2026-09-16.json"
+}

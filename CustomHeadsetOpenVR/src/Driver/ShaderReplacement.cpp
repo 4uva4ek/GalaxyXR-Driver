@@ -1,0 +1,972 @@
+#include "ShaderReplacement.h"
+#include "DriverLog.h"
+#include "Hooking/Hooking.h"
+#include "../Config/ConfigLoader.h"
+#include <mutex>
+#include <map>
+#include <unordered_map>
+#include <list>
+#include <algorithm>
+#include <vector>
+#include <locale>
+#include <codecvt>
+#include <filesystem>
+#include <fstream>
+#include <thread>
+#include <cstdint>
+
+#include "../../../ThirdParty/easywsclient/easywsclient.hpp"
+
+#ifdef _WIN32
+#include "d3d11.h"
+#include "d3dcompiler.h"
+#pragma comment(lib, "D3D11.lib")
+#pragma comment(lib, "D3DCompiler.lib")
+
+#include "../../../ThirdParty/minhook/include/MinHook.h"
+
+
+// this could probably use macros to get the current project location instead of hard coding it for my computer
+// std::string shaderDevPath = "C:/Users/Admin/Desktop/stuff/projects/meganex/CustomHeadsetOpenVR/CustomHeadsetOpenVR/DriverFiles/resources/shaders/d3d11/";
+// treats the current file as a directory to get relative paths
+std::string shaderDevPath = __FILE__ "/../../../DriverFiles/resources/shaders/d3d11/";
+
+std::string getShaderPath(){
+	std::string shaderPath = driverConfigLoader.info.driverResources + "shaders/d3d11/";
+	if(std::filesystem::exists(shaderDevPath)){
+		// pull from my dev path instead
+		shaderPath = shaderDevPath;
+	}
+	return shaderPath;
+}
+
+/*
+virtual HRESULT STDMETHODCALLTYPE CreatePixelShader( 
+_In_reads_(BytecodeLength)  const void *pShaderBytecode,
+_In_  SIZE_T BytecodeLength,
+_In_opt_  ID3D11ClassLinkage *pClassLinkage,
+_COM_Outptr_opt_  ID3D11PixelShader **ppPixelShader) = 0;
+*/
+static Hook<void(*)(ID3D11Device*, const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11PixelShader** ppPixelShader)> 
+	CreatePixelShaderHook("ID3D11Device::CreatePixelShader");
+
+// holder for bytecode
+struct Bytecode{
+	char* data;
+	size_t length;
+};
+
+// map of functions to replace shader bytecode with based on the first 32 bytes of the shader bytecode
+static std::map<std::string, Bytecode(*)()> shaderReplacements;
+
+// Shader cache configuration
+static const size_t MAX_SHADER_CACHE_SIZE = 100;
+
+// Mutex for thread-safe access to the shader cache
+static std::mutex shaderCacheMutex;
+
+// Cached shader bytecode structure
+struct CachedShader {
+	char* data;
+	size_t length;
+	CachedShader() : data(nullptr), length(0) {}
+	~CachedShader() {
+		delete[] data;
+	}
+	// Move constructor
+	CachedShader(CachedShader&& other) noexcept : data(other.data), length(other.length) {
+		other.data = nullptr;
+		other.length = 0;
+	}
+	// Move assignment operator
+	CachedShader& operator=(CachedShader&& other) noexcept {
+		if(this != &other){
+			delete[] data;
+			data = other.data;
+			length = other.length;
+			other.data = nullptr;
+			other.length = 0;
+		}
+		return *this;
+	}
+	// Disable copy constructor and copy assignment
+	CachedShader(const CachedShader&) = delete;
+	CachedShader& operator=(const CachedShader&) = delete;
+};
+
+// Hash map for quick lookup of compiled shaders by configuration hash
+static std::unordered_map<uint64_t, CachedShader> shaderCache;
+
+// Ordered list of hashes for LRU eviction (oldest at front)
+static std::list<uint64_t> shaderCacheOrder;
+
+// FNV-1a hash function for generating unique hashes from data
+static uint64_t FNV1aHash(const void* data, size_t length){
+	uint64_t hash = 0xCBF29CE484222325; // FNV offset basis
+	for(size_t i = 0; i < length; i++){
+		hash ^= ((const uint8_t*)data)[i];
+		hash *= 0x100000001B3; // FNV prime
+	}
+	return hash;
+}
+
+// Combine multiple hashes into a single hash
+static uint64_t CombineHashes(uint64_t hash1, uint64_t hash2){
+	// XOR the second hash into the first and then hash the result
+	uint64_t combined = hash1 ^ hash2;
+	combined ^= combined >> 33;
+	combined *= 0xFF51AFD7ED558CCD;
+	combined ^= combined >> 33;
+	combined *= 0xC4CEB9FE1A85EC53;
+	combined ^= combined >> 33;
+	return combined;
+}
+
+// Remove the oldest cached shader entry when the cache exceeds the maximum size
+static void EvictOldestShaderCacheEntry(){
+	if(shaderCacheOrder.empty()){
+		return;
+	}
+	uint64_t oldestHash = shaderCacheOrder.front();
+	shaderCacheOrder.pop_front();
+	auto it = shaderCache.find(oldestHash);
+	if(it != shaderCache.end()){
+		shaderCache.erase(it);
+	}
+}
+
+// Compile a shader from file with caching based on file content and defines
+// Hashes all shader files in the directory together with all defines to create a unique cache key
+// Returns the compiled shader bytecode (either from cache or newly compiled)
+// Failures are not cached
+// errorBlob is optionally output on failure for error reporting
+static Bytecode D3DCompileFromFileCached(const wchar_t* filePath, D3D_SHADER_MACRO* defines, LPCSTR entryPoint, LPCSTR shaderModel, UINT flags, ID3DBlob** errorBlob = nullptr){
+	// Hash all shader files in the directory to detect any changes to included files
+	uint64_t directoryHash = 0;
+	std::string shaderDir = getShaderPath();
+	std::vector<std::filesystem::directory_entry> entries;
+	for(const auto& entry : std::filesystem::directory_iterator(shaderDir)){
+		if(entry.is_regular_file()){
+			entries.push_back(entry);
+		}
+	}
+	std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b){
+		return a.path() < b.path();
+	});
+	for(const auto& entry : entries){
+		std::string fullPath = entry.path().string();
+		std::ifstream file(fullPath, std::ios::binary);
+		if(file){
+			file.seekg(0, std::ios::end);
+			size_t fileSize = file.tellg();
+			file.seekg(0, std::ios::beg);
+			std::vector<char> fileData(fileSize);
+			file.read(fileData.data(), fileSize);
+			
+			// Hash the filename to ensure different filenames produce different hashes
+			uint64_t fileNameHash = FNV1aHash(fullPath.c_str(), fullPath.length());
+			// Hash the file contents
+			uint64_t fileContentsHash = FNV1aHash(fileData.data(), fileSize);
+			// Combine into directory hash
+			directoryHash = CombineHashes(directoryHash, CombineHashes(fileNameHash, fileContentsHash));
+		}
+	}
+	
+	// Hash all the defines to create a unique configuration hash
+	uint64_t definesHash = 0;
+	if(defines){
+		for(int i = 0; defines[i].Name != nullptr && defines[i].Name[0] != '\0'; i++){
+			uint64_t nameHash = FNV1aHash(defines[i].Name, strlen(defines[i].Name));
+			uint64_t valueHash = 0;
+			if(defines[i].Definition){
+				valueHash = FNV1aHash(defines[i].Definition, strlen(defines[i].Definition));
+			}
+			definesHash = CombineHashes(definesHash, CombineHashes(nameHash, valueHash));
+		}
+	}
+	
+	// Combine directory hash and defines hash into a single cache key
+	uint64_t cacheKey = CombineHashes(directoryHash, definesHash);
+	
+	// Check cache with lock
+	{
+		std::lock_guard<std::mutex> lock(shaderCacheMutex);
+		auto it = shaderCache.find(cacheKey);
+		if(it != shaderCache.end()){
+			// Cache hit - return a copy of the cached bytecode
+			DriverLog("Shader cache hit for key %llu", (unsigned long long)cacheKey);
+			Bytecode result = {new char[it->second.length], it->second.length};
+			memcpy(result.data, it->second.data, it->second.length);
+			return result;
+		}
+	}
+	
+	// Cache miss - compile the shader using D3DCompileFromFile
+	ID3DBlob* shaderBlob = nullptr;
+	ID3DBlob* localErrorBlob = nullptr;
+	HRESULT hr = D3DCompileFromFile(
+		filePath,
+		defines,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		entryPoint,
+		shaderModel,
+		flags,
+		0,
+		&shaderBlob,
+		&localErrorBlob
+	);
+	
+	if(FAILED(hr) || !shaderBlob){
+		DriverLog("Failed to compile shader file: %ls", filePath);
+		if(localErrorBlob){
+			DriverLog("Error: %s", (char*)localErrorBlob->GetBufferPointer());
+			if(errorBlob){
+				*errorBlob = localErrorBlob;
+			}else{
+				localErrorBlob->Release();
+			}
+		}else if(errorBlob){
+			*errorBlob = nullptr;
+		}
+		if(shaderBlob){
+			shaderBlob->Release();
+		}
+		return {nullptr, 0};
+	}
+	
+	// Store in cache
+	{
+		std::lock_guard<std::mutex> lock(shaderCacheMutex);
+		
+		// Evict oldest entries if cache is full
+		while(shaderCache.size() >= MAX_SHADER_CACHE_SIZE){
+			EvictOldestShaderCacheEntry();
+		}
+		
+		CachedShader cached;
+		cached.data = new char[shaderBlob->GetBufferSize()];
+		cached.length = shaderBlob->GetBufferSize();
+		memcpy(cached.data, shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+		
+		shaderCache[cacheKey] = std::move(cached);
+		shaderCacheOrder.push_back(cacheKey);
+		
+		DriverLog("Shader cached with key %llu, cache size: %zu", (unsigned long long)cacheKey, shaderCache.size());
+	}
+	
+	// Return the compiled bytecode
+	Bytecode result = {new char[shaderBlob->GetBufferSize()], shaderBlob->GetBufferSize()};
+	memcpy(result.data, shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+	
+	shaderBlob->Release();
+	return result;
+}
+
+// debug shaders by logging the first 32 bytes of the shader bytecode
+void LogShaderIdentifier(std::string identifierString, size_t length){
+	DriverLog("Shader identifier: %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c, length: %zu", identifierString[0], identifierString[1], identifierString[2], identifierString[3], identifierString[4], identifierString[5], identifierString[6], identifierString[7], identifierString[8], identifierString[9], identifierString[10], identifierString[11], identifierString[12], identifierString[13], identifierString[14], identifierString[15], identifierString[16], identifierString[17], identifierString[18], identifierString[19], identifierString[20], identifierString[21], identifierString[22], identifierString[23], identifierString[24], identifierString[25], identifierString[26], identifierString[27], identifierString[28], identifierString[29], identifierString[30], identifierString[31], length);
+}
+
+int dumpId = 0;
+
+// function that hooks the CreatePixelShader function of the ID3D11Device interface
+static void DetourCreatePixelShader(ID3D11Device* _this, const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11PixelShader** ppPixelShader){
+ 	// DriverLog("DetourCreatePixelShader Called");
+	if(pShaderBytecode == nullptr || BytecodeLength < 32){
+		CreatePixelShaderHook.originalFunc(_this, pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
+		return;
+	}
+	// identify shader by first 32 bytes which contains includes a hash
+	std::string identifierString((char*)pShaderBytecode, 32);
+	// LogShaderIdentifier(identifierString, BytecodeLength);
+	if(driverConfig.customShader.enable && shaderReplacements.find(identifierString) != shaderReplacements.end()){
+		Bytecode newBytecode = shaderReplacements[identifierString]();
+		// DriverLog("==================================");
+		if(newBytecode.data == nullptr || newBytecode.length == 0){
+			DriverLog("Failed to get new bytecode");
+		}else{
+			DriverLog("Replacing shader bytecode");
+			CreatePixelShaderHook.originalFunc(_this, newBytecode.data, newBytecode.length, pClassLinkage, ppPixelShader);
+			delete[] newBytecode.data;
+			return;
+		}
+	}
+	// dump shader bytecode to file
+	// std::string dumpPath = driverConfigLoader.info.driverResources + "shaders/dump/" + std::to_string(dumpId++) + ".fxo";
+	// FILE* dumpFile = fopen(dumpPath.c_str(), "wb+");
+	// if(dumpFile){
+	// 	fwrite(pShaderBytecode, 1, BytecodeLength, dumpFile);
+	// 	fclose(dumpFile);
+	// 	DriverLog("Dumped shader bytecode to %s", dumpPath.c_str());
+	// }else{
+	// 	DriverLog("Failed to dump shader bytecode to %s", dumpPath.c_str());
+	// }
+	// if no replacement is found, call the original function with the original bytecode
+	CreatePixelShaderHook.originalFunc(_this, pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
+}
+
+/*
+virtual void STDMETHODCALLTYPE CopySubresourceRegion( 
+_In_  ID3D11Resource *pDstResource,
+_In_  UINT DstSubresource,
+_In_  UINT DstX,
+_In_  UINT DstY,
+_In_  UINT DstZ,
+_In_  ID3D11Resource *pSrcResource,
+_In_  UINT SrcSubresource,
+_In_opt_  const D3D11_BOX *pSrcBox) = 0;
+*/
+// typedef void(*CopySubresourceRegionFunction)(ID3D11DeviceContext*, ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox);
+// CopySubresourceRegionFunction originalCopySubresourceRegion = nullptr;
+// static Hook<CopySubresourceRegionFunction> 
+// 	CopySubresourceRegionHook("ID3D11DeviceContext::CopySubresourceRegion");
+// // bool hookFound = false;
+// void DetourCopySubresourceRegion(ID3D11DeviceContext* _this, ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox){
+// 	// hookFound = true;
+// 	DriverLog("DetourCopySubresourceRegion Called");
+// 	DriverLog("CopySubresourceRegion(%p, %u, %u, %u, %u, %p, %u, %p) ptr: %p", pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox, originalCopySubresourceRegion);
+// 	D3D11_BOX newSrcBox = {0};
+// 	if(pSrcBox != nullptr){
+// 		DriverLog("Box: %u, %u, %u, %u, %u, %u", pSrcBox->left, pSrcBox->top, pSrcBox->front, pSrcBox->right, pSrcBox->bottom, pSrcBox->back);
+// 		newSrcBox = *pSrcBox;
+// 		// half in size
+// 		if(pSrcBox->right > 1){
+// 			newSrcBox.right = (newSrcBox.right - newSrcBox.left) / 2 + newSrcBox.left;
+// 		}
+// 		if(pSrcBox->bottom > 1){
+// 			newSrcBox.bottom = (newSrcBox.bottom - newSrcBox.top) / 2 + newSrcBox.top;
+// 		}
+// 		pSrcBox = &newSrcBox;
+// 	}
+// 	if(originalCopySubresourceRegion){
+// 		// deep hook of fuction the vtable points to
+// 		originalCopySubresourceRegion(_this, pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox);
+// 	}else{
+// 		// vtable hook, unused in actual usage as ID3D11DeviceContext has multiple instances
+// 		CopySubresourceRegionHook.originalFunc(_this, pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox);
+// 	}
+// }
+
+std::string ConvertWideToUtf8(const std::wstring& wstr){
+	int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), NULL, 0, NULL, NULL);
+	std::string str(count, 0);
+	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], (int)count, NULL, NULL);
+	return str;
+}
+
+std::wstring ConvertUtf8ToWide(const std::string& str){
+	int count = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.length(), NULL, 0);
+	std::wstring wstr(count, 0);
+	MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.length(), &wstr[0], count);
+	return wstr;
+}
+
+
+static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionMatrices = {
+	{Config::HeadsetType::MeganeX8K, {
+		// convert sRGB into the section of the dci-p3 color space it occupies
+		0.8224619687143621, 0.17753803128563772, 0.0, 
+		0.033194198850961636, 0.9668058011490385, -1.3877787807814457e-17, 
+		0.01708263072112004, 0.07239744066396342, 0.9105199286149167
+
+	}},
+	
+	// {Config::HeadsetType::DreamAir, {
+	// }},
+	{Config::HeadsetType::DreamAir, {
+		// convert sRGB into the section of the dci-p3 color space it occupies
+		0.7304695448285958, 0.2440673763281347, 0.025463078843269038,
+		0.03779320999796168, 0.9518287439140447, 0.010378046087993819,
+		0.01344114195073836, 0.0475204153264534, 0.9390384427228086
+	}},
+};
+
+
+// corrects to the official white point but results in a warmer image
+static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionWithWhiteMatrices = {
+	{Config::HeadsetType::MeganeX8K, {
+		// best guess for an official white point
+		// the data sheet list it as a mixture of infrared and ultraviolet
+		// convert sRGB into the section of the dci-p3 color space it occupies
+		0.8224619687143621, 0.17753803128563772, 0.0, 
+		0.033194198850961636, 0.9668058011490385, -1.3877787807814457e-17, 
+		0.01708263072112004, 0.07239744066396342, 0.9105199286149167
+
+	}},
+	
+	// {Config::HeadsetType::DreamAir, {
+	// }},
+	{Config::HeadsetType::DreamAir, {
+		// convert sRGB into the section of the dci-p3 color space it occupies
+		0.8086585139263373, 0.2701921842418791, 0.02818862968779734,
+		0.037776947709785444, 0.9514191752817748, 0.010373580450483824,
+		0.009672316745800479, 0.03419594187859908, 0.6757370235197377
+	}},
+};
+
+// compile the new distortion shader from source
+Bytecode DistortionShader(bool muraCorrection = false, bool noDistortion = false){
+	if(!IsCustomShaderEnabled()){
+		// don't replace
+		return {nullptr, 0};
+	}
+	
+	
+	std::string fullPath = getShaderPath() + "distort_ps_layered.hlsl";
+	// FILE* file = fopen(fullPath.c_str(), "rb");
+	// if(!file){
+	// 	DriverLog("Failed to open shader file: %s", fullPath.c_str());
+	// 	return {nullptr, 0};
+	// }
+	// fseek(file, 0, SEEK_END);
+	// size_t length = ftell(file);
+	// fseek(file, 0, SEEK_SET);
+	// char* data = new char[length];
+	// fread(data, 1, length, file);
+	// fclose(file);
+	
+	// ID3DBlob* blob;
+	// // std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	// // std::wstring shaderPath = converter.from_bytes(fullPath);
+	// std::wstring shaderPath = std::wstring(fullPath.begin(), fullPath.end());
+	// if(FAILED(D3DReadFileToBlob(shaderPath.c_str(), &blob))){
+	// 	DriverLog("Failed to read shader file: %s", fullPath.c_str());
+	// 	return {nullptr, 0};
+	// }
+	// char* data = new char[blob->GetBufferSize()];
+	// memcpy(data, blob->GetBufferPointer(), blob->GetBufferSize());
+	// size_t length = blob->GetBufferSize();
+	// blob->Release();
+	
+	
+	// create defines for shader settings
+	D3D_SHADER_MACRO defines[50] = {};
+	int definesCount = 0;
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K){
+		defines[definesCount++] = {"MEGANEX8K", "1"};
+		if(driverConfig.customShader.subpixelShift && driverConfig.meganeX8K.subpixelShift != 0 && driverConfig.meganeX8K.resolutionY == 3552){
+			// only do this if the subpixel shift is not zero and it is running at full resolution
+			defines[definesCount++] = {"SUBPIXEL_SHIFT_MEGANEX8K", "1"};
+		}
+	}
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::Vive){
+		defines[definesCount++] = {"VIVE", "1"};
+		if(driverConfig.customShader.subpixelShift){
+			defines[definesCount++] = {"SUBPIXEL_SHIFT_VIVE", "1"};
+		}
+	}
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::DreamAir){
+		defines[definesCount++] = {"DREAMAIR", "1"};
+		if(driverConfig.customShader.subpixelShift && driverConfig.dreamAir.subpixelShift != 0 ){
+			defines[definesCount++] = {"SUBPIXEL_SHIFT_DREAMAIR", "1"};
+		}
+	}
+	std::string resolutionX = std::to_string(driverConfigLoader.info.outputResolutionX);
+	std::string resolutionY = std::to_string(driverConfigLoader.info.outputResolutionY);
+	if(driverConfigLoader.info.outputResolutionX && driverConfigLoader.info.outputResolutionY){
+		// currently only the MeganeX8K can get the resolution to define these but it also the only one that uses it.
+		defines[definesCount++] = {"OUTPUT_RESOLUTION_X", resolutionX.c_str()};
+		defines[definesCount++] = {"OUTPUT_RESOLUTION_Y", resolutionY.c_str()};
+	}
+	double contrastMultiplier = driverConfig.customShader.contrast / 50.0;
+	std::string contrastMultiplierString = std::to_string(contrastMultiplier);
+	if(contrastMultiplier != 1){
+		defines[definesCount++] = {"CONTRAST_MULTIPLIER", contrastMultiplierString.c_str()};
+	}
+	double contrastOffset = driverConfig.customShader.contrastMidpoint / 100.0;
+	contrastOffset = -contrastOffset  * contrastMultiplier + contrastOffset;
+	std::string contrastOffsetString = std::to_string(contrastOffset);
+	if(contrastOffset != 0){
+		defines[definesCount++] = {"CONTRAST_OFFSET", contrastOffsetString.c_str()};
+	}
+	if(driverConfig.customShader.contrastLinear){
+		defines[definesCount++] = {"CONTRAST_LINEAR", "1"};
+	}
+	std::string contrastMultiplierLeft = "";
+	std::string contrastOffsetLeft = "";
+	std::string contrastMultiplierRight = "";
+	std::string contrastOffsetRight = "";
+	if(driverConfig.customShader.contrastPerEye){
+		double contrastMultiplierLeftValue = driverConfig.customShader.contrastLeft / 50.0;
+		double contrastOffsetLeftValue = driverConfig.customShader.contrastMidpointLeft / 100.0;
+		contrastOffsetLeftValue = -contrastOffsetLeftValue  * contrastMultiplierLeftValue + contrastOffsetLeftValue;
+		double contrastMultiplierRightValue = driverConfig.customShader.contrastRight / 50.0;
+		double contrastOffsetRightValue = driverConfig.customShader.contrastMidpointRight / 100.0;
+		contrastOffsetRightValue = -contrastOffsetRightValue  * contrastMultiplierRightValue + contrastOffsetRightValue;
+		if(contrastMultiplierLeftValue != 1){
+			contrastMultiplierLeft = std::to_string(contrastMultiplierLeftValue);
+			defines[definesCount++] = {"CONTRAST_MULTIPLIER_LEFT", contrastMultiplierLeft.c_str()};
+		}
+		if(contrastOffsetLeftValue != 0){
+			contrastOffsetLeft = std::to_string(contrastOffsetLeftValue);
+			defines[definesCount++] = {"CONTRAST_OFFSET_LEFT", contrastOffsetLeft.c_str()};
+		}
+		if(contrastMultiplierRightValue != 1){
+			contrastMultiplierRight = std::to_string(contrastMultiplierRightValue);
+			defines[definesCount++] = {"CONTRAST_MULTIPLIER_RIGHT", contrastMultiplierRight.c_str()};
+		}
+		if(contrastOffsetRightValue != 0){
+			contrastOffsetRight = std::to_string(contrastOffsetRightValue);
+			defines[definesCount++] = {"CONTRAST_OFFSET_RIGHT", contrastOffsetRight.c_str()};
+		}
+		if(driverConfig.customShader.contrastPerEyeLinear){
+			defines[definesCount++] = {"CONTRAST_PER_EYE_LINEAR", "1"};
+		}
+	}
+	double saturation = driverConfig.customShader.saturation / 50.0;
+	std::string saturationString = std::to_string(saturation);
+	if(saturation != 1){
+		defines[definesCount++] = {"SATURATION", saturationString.c_str()};
+	}
+	std::string gammaString = std::to_string(driverConfig.customShader.gamma);
+	if(driverConfig.customShader.gamma != 2.2){
+		defines[definesCount++] = {"GAMMA", gammaString.c_str()};
+	}
+	if(muraCorrection){
+		defines[definesCount++] = {"MURA_CORRECTION", "1"};
+		if(driverConfig.customShader.disableMuraCorrection){
+			defines[definesCount++] = {"DISABLE_MURA_CORRECTION", "1"};
+		}
+	}
+	if(driverConfig.customShader.disableBlackLevels){
+		defines[definesCount++] = {"DISABLE_BLACK_LEVELS", "1"};
+	}
+	std::string colorMatrixString = "";
+	if(driverConfig.customShader.srgbColorCorrection){
+		std::vector<double>* colorMatrix = nullptr;
+		if(driverConfig.customShader.srgbWhitePointCorrection && srgbColorCorrectionWithWhiteMatrices.find(driverConfigLoader.info.connectedHeadset) != srgbColorCorrectionWithWhiteMatrices.end()){
+			colorMatrix = &srgbColorCorrectionWithWhiteMatrices[driverConfigLoader.info.connectedHeadset];
+		}else{
+			if(srgbColorCorrectionMatrices.find(driverConfigLoader.info.connectedHeadset) != srgbColorCorrectionMatrices.end()){
+				colorMatrix = &srgbColorCorrectionMatrices[driverConfigLoader.info.connectedHeadset];
+			}
+		}
+		if(driverConfig.customShader.srgbColorCorrectionMatrix.size() == 9){
+			colorMatrix = &driverConfig.customShader.srgbColorCorrectionMatrix;
+		}
+		if(colorMatrix){
+			for(int i = 0; i < 9; i++){
+				colorMatrixString += std::to_string((*colorMatrix)[i]);
+				if(i < 8){
+					colorMatrixString += ", ";
+				}
+			}
+			defines[definesCount++] = {"COLOR_CORRECTION_MATRIX", colorMatrixString.c_str()};
+		}
+	}
+	if(driverConfig.customShader.lensColorCorrection){
+		defines[definesCount++] = {"LENS_COLOR_CORRECTION", "1"};
+	}
+	if(driverConfig.customShader.dither10Bit){
+		defines[definesCount++] = {"DITHER_10BIT", "1"};
+	}
+	if(!driverConfig.customShader.enableFilterForOverlay && !(driverConfig.customShader.enableFilterForDashboard && driverConfigLoader.info.isDashboardOpen)){
+		defines[definesCount++] = {"NO_OVERLAY_FILTER", "1"};
+	}
+	std::string samplingFilterString = "FILTER_" + driverConfig.customShader.samplingFilter;
+	std::transform(samplingFilterString.begin(), samplingFilterString.end(), samplingFilterString.begin(), ::toupper);
+	defines[definesCount++] = {samplingFilterString.c_str(), "1"};
+	std::string sharpStrengthString, sharpClampString, patternString, radiusString, contrastString;
+	if(driverConfig.customShader.samplingFilter == "FXAA2" && driverConfig.customShader.samplingFilterFXAA2SharpenStrength != 0){
+		sharpStrengthString = std::to_string(driverConfig.customShader.samplingFilterFXAA2SharpenStrength);
+		defines[definesCount++] = {"sharp_strength", sharpStrengthString.c_str()};
+		sharpClampString = std::to_string(driverConfig.customShader.samplingFilterFXAA2SharpenClamp);
+		defines[definesCount++] = {"sharp_clamp", sharpClampString.c_str()};
+	}
+	if(driverConfig.customShader.samplingFilter == "FXAA2CAS" && driverConfig.customShader.samplingFilterFXAA2CASStrength != 0){
+		sharpStrengthString = std::to_string(driverConfig.customShader.samplingFilterFXAA2CASStrength);
+		defines[definesCount++] = {"CAS_SHARPENING", sharpStrengthString.c_str()};
+		contrastString = std::to_string(driverConfig.customShader.samplingFilterFXAA2CASContrast);
+		defines[definesCount++] = {"CAS_CONTRAST", contrastString.c_str()};
+	}
+	if(driverConfig.customShader.samplingFilter == "LumaSharpen"){
+		sharpStrengthString = std::to_string(driverConfig.customShader.samplingFilterLumaSharpenStrength);
+		defines[definesCount++] = {"sharp_strength", sharpStrengthString.c_str()};
+		sharpClampString = std::to_string(driverConfig.customShader.samplingFilterLumaSharpenClamp);
+		defines[definesCount++] = {"sharp_clamp", sharpClampString.c_str()};
+		patternString = std::to_string(driverConfig.customShader.samplingFilterLumaSharpenPattern);
+		defines[definesCount++] = {"pattern", patternString.c_str()};
+		radiusString = std::to_string(driverConfig.customShader.samplingFilterLumaSharpenRadius);
+		defines[definesCount++] = {"offset_bias", radiusString.c_str()};
+	}
+	if(driverConfig.customShader.samplingFilter == "CAS"){
+		sharpStrengthString = std::to_string(driverConfig.customShader.samplingFilterCASStrength);
+		defines[definesCount++] = {"CAS_SHARPENING", sharpStrengthString.c_str()};
+		contrastString = std::to_string(driverConfig.customShader.samplingFilterCASContrast);
+		defines[definesCount++] = {"CAS_CONTRAST", contrastString.c_str()};
+	}
+	std::string colorMultiplierString = "";
+	if(driverConfig.customShader.colorMultiplier.r != 1.0 || driverConfig.customShader.colorMultiplier.g != 1.0 || driverConfig.customShader.colorMultiplier.b != 1.0) {
+		colorMultiplierString = std::to_string(driverConfig.customShader.colorMultiplier.r) + ", " + std::to_string(driverConfig.customShader.colorMultiplier.g) + ", " + std::to_string(driverConfig.customShader.colorMultiplier.b);
+		defines[definesCount++] = {"COLOR_MULTIPLIER", colorMultiplierString.c_str()};
+	}
+	if(noDistortion){
+		defines[definesCount++] = {"NO_DISTORTION", "1"};
+		defines[definesCount++] = {"NO_LAYER", "1"};
+	}
+	if(std::filesystem::exists(getShaderPath() + "distort_ps_layered_after_test.hlsl")){
+		defines[definesCount++] = {"AFTER_TEST", "1"};
+	}
+	
+	defines[definesCount++] = {nullptr, nullptr}; // end of array
+	
+	
+	std::string errorPath = fullPath + "_error" + (muraCorrection ? "_mura" : "") + (noDistortion ? "_nd" : "") + ".txt";
+	
+	// compile shader from hlsl using cached compilation
+	ID3DBlob* errorBlob = nullptr;
+	Bytecode bytecode = D3DCompileFromFileCached(
+		ConvertUtf8ToWide(fullPath).c_str(),
+		defines,
+		"main",
+		"ps_5_0",
+		D3DCOMPILE_OPTIMIZATION_LEVEL3,
+		&errorBlob
+	);
+	if(bytecode.data == nullptr || bytecode.length == 0){
+		DriverLog("Failed to compile shader file: %s", fullPath.c_str());
+		if(errorBlob){
+			DriverLog("Error: %s", (char*)errorBlob->GetBufferPointer());
+			// output to file beside shader
+			FILE* errorFile = fopen(errorPath.c_str(), "wb+");
+			if(errorFile){
+				fwrite(errorBlob->GetBufferPointer(), 1, errorBlob->GetBufferSize() - 1, errorFile);
+				fclose(errorFile);
+			}
+			errorBlob->Release();
+		}
+		return {nullptr, 0};
+	}else{
+		DriverLog("Successfully compiled shader file: %s", fullPath.c_str());
+		// delete error file
+		remove(errorPath.c_str());
+		return bytecode;
+	}
+}
+
+
+// same as DistortionShader
+Bytecode DistortionShaderPlain(){ 
+	return DistortionShader();
+}
+
+// same as DistortionShader but with mura correction enabled
+Bytecode DistortionShaderMuraCorrection(){
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K){
+		// don't compile for headsets that will not use it
+		return {nullptr, 0};
+	}
+	return DistortionShader(true);
+}
+
+// same as DistortionShader but with no distortion enabled
+Bytecode DistortionShaderNoDistortion(){
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K || driverConfigLoader.info.connectedHeadset == Config::HeadsetType::Vive){
+		// don't compile for headsets that will not use it
+		return {nullptr, 0};
+	}
+	return DistortionShader(false, true);
+}
+
+// Precompile all registered shaders to populate the cache before they are needed in the hot path
+void PrecompileShaders(){
+	if(!IsCustomShaderEnabled()){
+		return;
+	}
+	DriverLog("Precompiling all registered shaders...");
+	// Iterate over all registered shader replacement functions and call them to populate the cache
+	for(auto& pair : shaderReplacements){
+		Bytecode bytecode = pair.second();
+		// Free the returned bytecode since we only need the cache entry
+		if(bytecode.data){
+			delete[] bytecode.data;
+			bytecode.data = nullptr;
+		}
+	}
+	DriverLog("Precompiled all registered shaders, cache size: %zu", shaderCache.size());
+}
+
+
+
+// get first 32 bytes of an existing shader for identification
+std::string GetExistingShaderIdentifier(std::string name){
+	std::string fullPath = driverConfigLoader.info.steamvrResources + "shaders/d3d11/" + name;
+	FILE* file = fopen(fullPath.c_str(), "rb");
+	if(!file){
+		DriverLog("Failed to open shader file: %s", fullPath.c_str());
+		return "";
+	}
+	DriverLog("Reading shader file: %s", fullPath.c_str());
+	char buffer[32];
+	fread(buffer, 1, 32, file);
+	fclose(file);
+	// ID3DBlob* blob;
+	// // std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	// // std::wstring shaderPath = converter.from_bytes(fullPath);
+	// std::wstring shaderPath = std::wstring(fullPath.begin(), fullPath.end());
+	// if(FAILED(D3DReadFileToBlob(shaderPath.c_str(), &blob))){
+	// 	DriverLog("Failed to read shader file: %s", fullPath.c_str());
+	// 	return "";
+	// }
+	// if(blob->GetBufferSize() < 32){
+	// 	DriverLog("Shader file too small: %s", fullPath.c_str());
+	// 	blob->Release();
+	// 	return "";
+	// }
+	// char buffer[32];
+	// memcpy(buffer, blob->GetBufferPointer(), 32);
+	// blob->Release();
+	return std::string(buffer, 32);
+}
+
+void ShaderReplacement::Initialize(){
+	if(started){
+		return;
+	}
+	started = true;
+	DriverLog("ShaderReplacement::Initialize called");
+	
+	// get and shim ID3D11Device
+	ID3D11Device* device;
+	ID3D11DeviceContext* context;
+	HRESULT hr = D3D11CreateDevice(
+		NULL,
+		D3D_DRIVER_TYPE_HARDWARE,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		D3D11_SDK_VERSION,
+		&device,
+		NULL,
+		&context
+	);
+	if(FAILED(hr)){
+		DriverLog("ShaderReplacement::Initialize Failed to create D3D11 device and context");
+		return;
+	}else{
+		DriverLog("ShaderReplacement::Initialize Successfully created D3D11 device and context");
+	}
+	// device->CreatePixelShader
+	CreatePixelShaderHook.CreateHookInObjectVTable(device, 15, &DetourCreatePixelShader);
+	IHook::Register(&CreatePixelShaderHook);
+	// }
+	
+	// // context->CopySubresourceRegion
+	// CopySubresourceRegionHook.CreateHookInObjectVTable(context, 39 + 7, &DetourCopySubresourceRegion);
+	// IHook::Register(&CopySubresourceRegionHook);
+	// context->CopySubresourceRegion(NULL, NULL, 0, NULL, NULL, 0, NULL, 0); // test hook
+	// // int vtablePosition = 39;
+	// // while(hookFound == false){
+	// // 	CopySubresourceRegionHook.Destroy();
+	// // 	CopySubresourceRegionHook.CreateHookInObjectVTable(context, vtablePosition, &DetourCopySubresourceRegion);
+	// // 	IHook::Register(&CopySubresourceRegionHook);
+	// // 	context->CopySubresourceRegion(NULL, NULL, 0, NULL, NULL, 0, NULL, 0); // test hook
+	// // 	if(hookFound){
+	// // 		DriverLog("ShaderReplacement::Initialize found hook position: %i", vtablePosition);
+	// // 		break;
+	// // 	}
+	// // 	vtablePosition++;
+	// // 	if(vtablePosition > 100){
+	// // 		DriverLog("ShaderReplacement::Initialize failed to find hook position");
+	// // 		break;
+	// // 	}
+	// // }
+	
+	// DriverLog("ShaderReplacement::Initialize CopySubresourceRegion function pointer %p %p", (void (ID3D11DeviceContext::*)())&ID3D11DeviceContext::CopySubresourceRegion, CopySubresourceRegionHook.originalFunc);
+	
+	// // There are multiple ID3D11DeviceContexts, so hook the function that it points to
+	// auto err = MH_Initialize();
+	// if(err == MH_OK){
+	// 	if(MH_CreateHook(CopySubresourceRegionHook.originalFunc, &DetourCopySubresourceRegion, reinterpret_cast<LPVOID*>(&originalCopySubresourceRegion)) == MH_OK){
+	// 		if(MH_EnableHook(CopySubresourceRegionHook.originalFunc) == MH_OK){
+	// 			DriverLog("ShaderReplacement::Initialize successfully enabled deep CopySubresourceRegion hook");
+	// 		}
+	// 	}
+	// }
+	
+	
+	DriverLog("ShaderReplacement::Initialize loading shader replacement table");
+	// LogShaderIdentifier(GetExistingShaderIdentifier("distort_ps_layered.fxo"), 32);
+	shaderReplacements[GetExistingShaderIdentifier("distort_ps_layered.fxo")] = DistortionShaderPlain;
+	shaderReplacements[GetExistingShaderIdentifier("distort_ps_layered_mc.fxo")] = DistortionShaderMuraCorrection;
+	// this is for headsets with custom compositors
+	// this only works for games when there is an overlay open, otherwise there the textures never seem to pass through a shader
+	// a transparent overlay could be opened to force this
+	shaderReplacements[GetExistingShaderIdentifier("distort_ps_achromatic_nd.fxo")] = DistortionShaderNoDistortion;
+	
+	#ifdef _WIN32
+		// startup winsock for websocket connections
+		WSADATA wsaData;
+		int wsaStartupResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+		if(wsaStartupResult){
+			printf("WSAStartup Failed %i.\n", wsaStartupResult);
+		}
+	#endif
+	
+	// start threads
+	
+	std::thread watchShadersThread(&ShaderReplacement::WatchShadersThread, this);
+	watchShadersThread.detach();
+	
+	std::thread checkSettingsThread(&ShaderReplacement::CheckSettingsThread, this);
+	checkSettingsThread.detach();
+	
+	
+	// reloading shaders immediately does not seem to work so try a few times with delays
+	std::this_thread::sleep_for(std::chrono::seconds(5));
+	if(driverConfig.customShader.enable){
+		ReloadShaders();
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(5));
+	if(driverConfig.customShader.enable){
+		ReloadShaders();
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(5));
+	if(driverConfig.customShader.enable){
+		ReloadShaders();
+	}
+}
+
+
+
+void ShaderReplacement::WatchShadersThread(){
+	std::string shaderPath = getShaderPath();
+	HANDLE hDir = CreateFileA(shaderPath.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if(hDir == INVALID_HANDLE_VALUE){
+		DriverLog("Failed to open distortion shaders for watching: %d", GetLastError());
+		return;
+	}
+	while(started){
+		DWORD bytesReturned;
+		char buffer[1024] = {0};
+		FILE_NOTIFY_INFORMATION* pNotify;
+		BOOL success = ReadDirectoryChangesW(hDir, buffer, sizeof(buffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME, &bytesReturned, NULL, NULL);
+		if(!success){
+			DriverLog("Failed to read directory changes: %d", GetLastError());
+			break;
+		}
+		pNotify = (FILE_NOTIFY_INFORMATION*)buffer;
+		do{
+			std::wstring fileName(pNotify->FileName, pNotify->FileNameLength / sizeof(wchar_t));
+			if(fileName.size() >= 5 && fileName.substr(fileName.size() - 5) == L".hlsl" && (pNotify->Action == FILE_ACTION_MODIFIED || pNotify->Action == FILE_ACTION_ADDED || pNotify->Action == FILE_ACTION_RENAMED_NEW_NAME)){
+				DriverLog("Shader changed, reloading... %ls %i", fileName.c_str(), pNotify->Action);
+				std::this_thread::sleep_for(std::chrono::milliseconds(200));
+				ReloadShaders();
+				break;
+			}
+			pNotify = (FILE_NOTIFY_INFORMATION*)((char*)pNotify + pNotify->NextEntryOffset);
+		}while(pNotify->NextEntryOffset != 0);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	}
+}
+
+#elif __linux__
+void ShaderReplacement::Initialize(){
+}
+#endif
+
+
+
+void ShaderReplacement::ReloadShaders(){
+	// Precompile all shaders before sending the reload signal to populate the cache
+	PrecompileShaders();
+	
+	DriverLog("ShaderReplacement::ReloadShaders called");
+	easywsclient::WebSocket* websocket = easywsclient::WebSocket::from_url("ws://127.0.0.1:27062/", "http://127.0.0.1:27062");
+	if(websocket == nullptr){
+		DriverLog("Failed to create websocket");
+		return;
+	}
+	websocket->send("mailbox_send vrcompositor_mailbox {\"type\":\"shaders_force_reload\"}");
+	websocket->poll();
+	websocket->close();
+	websocket->poll(); // final poll to close the connection
+	delete websocket;
+}
+
+void ShaderReplacement::CheckSettingsThread(){
+	while(started){
+		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		{
+			std::lock_guard<std::mutex> lock(driverConfigLock);
+			if(!driverConfig.hasBeenUpdated && !driverConfigLoader.info.hasBeenUpdated){
+				continue;
+			}
+			bool reloadShaders = false;
+			bool isNowEnabled = IsCustomShaderEnabled();
+			reloadShaders |= isNowEnabled != enabled;
+			enabled = isNowEnabled;
+			if(isNowEnabled && driverConfig.hasBeenUpdated){
+				reloadShaders |= driverConfig.meganeX8K.subpixelShift != driverConfigOld.meganeX8K.subpixelShift;
+				reloadShaders |= driverConfig.dreamAir.subpixelShift != driverConfigOld.dreamAir.subpixelShift;
+				reloadShaders |= driverConfig.customShader.enable != driverConfigOld.customShader.enable;
+				reloadShaders |= driverConfig.customShader.contrast != driverConfigOld.customShader.contrast;
+				reloadShaders |= driverConfig.customShader.contrastMidpoint != driverConfigOld.customShader.contrastMidpoint;
+				reloadShaders |= driverConfig.customShader.contrastLinear != driverConfigOld.customShader.contrastLinear;
+				reloadShaders |= driverConfig.customShader.contrastPerEye != driverConfigOld.customShader.contrastPerEye;
+				reloadShaders |= driverConfig.customShader.contrastPerEyeLinear != driverConfigOld.customShader.contrastPerEyeLinear;
+				reloadShaders |= driverConfig.customShader.contrastLeft != driverConfigOld.customShader.contrastLeft;
+				reloadShaders |= driverConfig.customShader.contrastMidpointLeft != driverConfigOld.customShader.contrastMidpointLeft;
+				reloadShaders |= driverConfig.customShader.contrastRight != driverConfigOld.customShader.contrastRight;
+				reloadShaders |= driverConfig.customShader.contrastMidpointRight != driverConfigOld.customShader.contrastMidpointRight;
+				reloadShaders |= driverConfig.customShader.saturation != driverConfigOld.customShader.saturation;
+				reloadShaders |= driverConfig.customShader.gamma != driverConfigOld.customShader.gamma;
+				reloadShaders |= driverConfig.customShader.subpixelShift != driverConfigOld.customShader.subpixelShift;
+				reloadShaders |= driverConfig.customShader.disableMuraCorrection != driverConfigOld.customShader.disableMuraCorrection;
+				reloadShaders |= driverConfig.customShader.disableBlackLevels != driverConfigOld.customShader.disableBlackLevels;
+				reloadShaders |= driverConfig.customShader.srgbColorCorrection != driverConfigOld.customShader.srgbColorCorrection;
+				reloadShaders |= driverConfig.customShader.srgbWhitePointCorrection != driverConfigOld.customShader.srgbWhitePointCorrection;
+				reloadShaders |= driverConfig.customShader.srgbColorCorrectionMatrix.size() != driverConfigOld.customShader.srgbColorCorrectionMatrix.size();
+				reloadShaders |= driverConfig.customShader.lensColorCorrection != driverConfigOld.customShader.lensColorCorrection;
+				reloadShaders |= driverConfig.customShader.dither10Bit != driverConfigOld.customShader.dither10Bit;
+				reloadShaders |= driverConfig.customShader.enableFilterForOverlay != driverConfigOld.customShader.enableFilterForOverlay;
+				reloadShaders |= driverConfig.customShader.enableFilterForDashboard != driverConfigOld.customShader.enableFilterForDashboard;
+				reloadShaders |= driverConfig.customShader.samplingFilter != driverConfigOld.customShader.samplingFilter;
+				reloadShaders |= driverConfig.customShader.samplingFilterFXAA2SharpenStrength != driverConfigOld.customShader.samplingFilterFXAA2SharpenStrength;
+				reloadShaders |= driverConfig.customShader.samplingFilterFXAA2SharpenClamp != driverConfigOld.customShader.samplingFilterFXAA2SharpenClamp;
+				reloadShaders |= driverConfig.customShader.samplingFilterFXAA2CASStrength != driverConfigOld.customShader.samplingFilterFXAA2CASStrength;
+				reloadShaders |= driverConfig.customShader.samplingFilterFXAA2CASContrast != driverConfigOld.customShader.samplingFilterFXAA2CASContrast;
+				reloadShaders |= driverConfig.customShader.samplingFilterLumaSharpenStrength != driverConfigOld.customShader.samplingFilterLumaSharpenStrength;
+				reloadShaders |= driverConfig.customShader.samplingFilterLumaSharpenClamp != driverConfigOld.customShader.samplingFilterLumaSharpenClamp;
+				reloadShaders |= driverConfig.customShader.samplingFilterLumaSharpenPattern != driverConfigOld.customShader.samplingFilterLumaSharpenPattern;
+				reloadShaders |= driverConfig.customShader.samplingFilterLumaSharpenRadius != driverConfigOld.customShader.samplingFilterLumaSharpenRadius;
+				reloadShaders |= driverConfig.customShader.samplingFilterCASStrength != driverConfigOld.customShader.samplingFilterCASStrength;
+				reloadShaders |= driverConfig.customShader.samplingFilterCASContrast != driverConfigOld.customShader.samplingFilterCASContrast;
+				reloadShaders |= driverConfig.customShader.colorMultiplier.r != driverConfigOld.customShader.colorMultiplier.r || 
+					driverConfig.customShader.colorMultiplier.g != driverConfigOld.customShader.colorMultiplier.g || 
+					driverConfig.customShader.colorMultiplier.b != driverConfigOld.customShader.colorMultiplier.b;
+				if(driverConfig.customShader.srgbColorCorrectionMatrix.size() == 9 && driverConfigOld.customShader.srgbColorCorrectionMatrix.size() == 9){
+					for(int i = 0; i < 9; i++){
+						reloadShaders |= driverConfig.customShader.srgbColorCorrectionMatrix[i] != driverConfigOld.customShader.srgbColorCorrectionMatrix[i];
+					}
+				}
+			}
+			
+			
+			if(isNowEnabled && driverConfigLoader.info.hasBeenUpdated){
+				reloadShaders |= driverConfigLoader.info.connectedHeadset != lastConnectedHeadset;
+				lastConnectedHeadset = driverConfigLoader.info.connectedHeadset;
+				// reload shaders when dashboard state changes and dashboard filter is enabled
+				if(driverConfig.customShader.enableFilterForDashboard && !driverConfig.customShader.enableFilterForOverlay && driverConfig.customShader.samplingFilter != "None"){
+					bool dashboardStateChanged = driverConfigLoader.info.isDashboardOpen != lastDashboardOpenState;
+					lastDashboardOpenState = driverConfigLoader.info.isDashboardOpen;
+					if(dashboardStateChanged){
+						reloadShaders = true;
+					}
+				}
+			}
+			
+			
+			
+			if(reloadShaders){
+				DriverLog("Shader settings changed, reloading...");
+				ReloadShaders();
+			}
+			
+			
+			driverConfig.hasBeenUpdated = false;
+			driverConfigLoader.info.hasBeenUpdated = false;
+		}
+	}
+}

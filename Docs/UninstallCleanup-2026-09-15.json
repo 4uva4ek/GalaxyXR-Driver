@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-15",
+  "validation": "Final native DLL linked and copied; 36 journal checks, 19 frontend checks, 20 Rust filesystem tests passed",
+  "evidence": "Docs/UninstallBuildEvidence-2026-09-15.json",
+  "paths": [
+    {
+      "path": "build/portable-objects-20260915-201743",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\portable-objects-20260915-201743",
+      "bytes": 33099115.0,
+      "status": "deferred",
+      "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
+    },
+    {
+      "path": "build/portable-objects-20260915-202629",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\portable-objects-20260915-202629",
+      "bytes": 33279717.0,
+      "status": "deferred",
+      "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
+    },
+    {
+      "path": "build/steamvr-settings-journal-test",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\steamvr-settings-journal-test",
+      "bytes": 2756716.0,
+      "status": "deferred",
+      "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
+    },
+    {
+      "path": "output/CustomHeadset-Uninstall-Test-20260915",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\output\\CustomHeadset-Uninstall-Test-20260915",
+      "bytes": 17452209.0,
+      "status": "deferred",
+      "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
+    },
+    {
+      "path": "build/Build-Portable.ps1",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\Build-Portable.ps1",
+      "bytes": 4854.0,
+      "status": "deferred",
+      "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
+    },
+    {
+      "path": "output/CustomHeadsetGUI",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\output\\CustomHeadsetGUI",
+      "bytes": 2304685633.0,
+      "status": "deferred",
+      "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
+    },
+    {
+      "path": "CustomHeadsetGUI/dist",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\CustomHeadsetGUI\\dist",
+      "bytes": 6293826.0,
+      "status": "deferred",
+      "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
+    },
+    {
+      "path": "CustomHeadsetGUI/.angular",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\CustomHeadsetGUI\\.angular",
+      "bytes": 4542718.0,
+      "status": "deferred",
+      "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
+    },
+    {
+      "path": "build/toolchains/downloads",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\toolchains\\downloads",
+      "bytes": 479380683.0,
+      "status": "deferred",
+      "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
+    },
+    {
+      "path": "build/toolchains/rustup-init.exe",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\build\\toolchains\\rustup-init.exe",
+      "bytes": 12721664.0,
+      "status": "deferred",
+      "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
+    }
+  ],
+  "retained": [
+    "Final test package and ZIP: required user deliverable",
+    "MSVC/SDK/Rust and npm/cargo dependencies: required rebuild inputs",
+    "build/vrlink-capabilities-test and build/vrlink-capabilities-validation: prior 33103157 bytes; deletion blocked by automatic approval review",
+    "Compact logs, test source, cleanup and build evidence retained"
+  ],
+  "reclaimedBytes": 0,
+  "completionCondition": "Delete inventoried disposable outputs when policy permits; retain sources, dependencies, evidence, and test deliverable",
+  "deferredBytes": 2927320292.0
+}

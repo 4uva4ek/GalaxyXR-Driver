@@ -1,0 +1,402 @@
+[
+  {
+    "path": "CustomHeadsetGUI/angular.json",
+    "sha256": "94C9BD48459752FC1B8A47A96EB6A81C6E3484939F8C2FDB2CFED2E7DA6425A4"
+  },
+  {
+    "path": "CustomHeadsetGUI/package-lock.json",
+    "sha256": "C53D7E2FAFE05A87A34E85ACCC0567BB63B22F2E2D3754E3A947BBC053EF4A09"
+  },
+  {
+    "path": "CustomHeadsetGUI/package.json",
+    "sha256": "8410E8EAF9DBFA8FD875AE48EE1ADCADD1C56F671FD30128B434793102AD4679"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/Cargo.lock",
+    "sha256": "93D231E6DEFFC0449B3FFFA7F00D7ADB04E9C9362A3E89C7AD7F854CCB3F5E58"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/Cargo.toml",
+    "sha256": "377B15912EC5A4D3E810C11DEF805DF1105949021A3E92F1CB4F411531935AB9"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/src/driver_installation.rs",
+    "sha256": "7B452E1404CCEC6CA8FA1FB7708E49543CAD4BB2746FEC6044292A3C2C290AFF"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/src/i18n.rs",
+    "sha256": "F5375DBD974198B0DA381F2CBE2B72BA9FFF7B693643E682960E98678A2B6AD2"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/src/js_api.rs",
+    "sha256": "A348CEC43F6AEA593AACFDC474D94E9724721594E72A9269DF34227C2375B09C"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/src/lib.rs",
+    "sha256": "9EE19B4F38C32EDCA811623AD257694BDC2877B1EEDB1A4E7EA590C07C2DC3B6"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/src/main.rs",
+    "sha256": "4E2F0B2DF7D602C353248D9C9C49FD26C65194EF06ACB4BBBEF6496E34CD199D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src-tauri/tauri.conf.json",
+    "sha256": "F08728CF9FB93F521A2E6911BCF56B8AE337694C08C4B18CDF01F57913A7165E"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/app.component.html",
+    "sha256": "D2901A88DF5E0D13C9AC9B9A0548417AB852D409665035E16C8931B96F5FDE6E"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/app.component.scss",
+    "sha256": "95E11AE4FFBDEF4FB8476CB33B43035C37024CF823D434A8824A8DD03FAAB3FF"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/app.component.ts",
+    "sha256": "F8412D92AF88BFAFAB5CA5C5B795C5D47EA2303A946918072DCCF6AE9B9FEEC0"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/app.config.ts",
+    "sha256": "0F43462C169CE6C7AA48BBC4274E801CD7548CCEA1284B5A74F2A0A228D70425"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/app.routes.ts",
+    "sha256": "4487468072835254E3B61973BEC0C1CE145C626D7F2E244D42546996E90670E1"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/appInitializer.ts",
+    "sha256": "BAAF662CF61D16D10D470240694223EC3EE90DC235057A2753ED41AD023E109A"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/confirm/confirm.component.html",
+    "sha256": "4F3AD5DABCBFBDE1D974D7ED2B0502EDA0EC2799CBB7A91AE2629AD63946AEC1"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/confirm/confirm.component.scss",
+    "sha256": "B0ED3CC01EF37EF0F116AFF4AF23D376B8D1F41F673CF724F2350B7A9B493474"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/confirm/confirm.component.spec.ts",
+    "sha256": "7664F1BAD65597D08C69F137D1EB8D055FFD1158662C1293F2D55DB3D69A7817"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/confirm/confirm.component.ts",
+    "sha256": "D0DBD1C24C43493CC01C2A83C4909076B09CAF2F344B1D28120CD4BC632BCF59"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/message/message.component.html",
+    "sha256": "E958A4FBEE220DCC57CC71DDAE7323136021E56DD1810D3C57FBB2C7A345CB25"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/message/message.component.scss",
+    "sha256": "B0ED3CC01EF37EF0F116AFF4AF23D376B8D1F41F673CF724F2350B7A9B493474"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/message/message.component.spec.ts",
+    "sha256": "A4773489729085B54E51224FF5836DD52369F4576BB2E09D6A382B56721F1D65"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/dialogs/message/message.component.ts",
+    "sha256": "24856900A8AFEBEAC6A3D545562B3A5169461CC6BFA1755B8874C71DC3BB0A06"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/helpers.ts",
+    "sha256": "4C32EAE5CA5E7F939BA5D5C0078C84510E66BD1CA735D9787D8EFD8AC189BB3D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/about/about.component.html",
+    "sha256": "1A84055253C56979835C8C740F0E7E60FDE61AC082E63ADA4277609133FB3896"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/about/about.component.scss",
+    "sha256": "87D8EBAC3D84C57769F586456E7E0042B3FCCF4D21E8D525B42A87689685ACD7"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/about/about.component.spec.ts",
+    "sha256": "15169D3467595659455581729EF8BA1C1292026B1A71AE7C35601C1DAAD5C34D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/about/about.component.ts",
+    "sha256": "0F88979803CA61F049B8997E1BF31E8147FF4D77D0BB6E51DD43A9D6F8151528"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/app-settings/app-settings.component.html",
+    "sha256": "E00D87C06F82D72273BE9C41BCB82F3CD17A66EDCB2418040F3353E9709394B1"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/app-settings/app-settings.component.scss",
+    "sha256": "96401ECA61F17AD7517168C40684EAA2098E08D451CF2DF07A26F8EE28D3DB9D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/app-settings/app-settings.component.ts",
+    "sha256": "B74E07CD1040904CD9816AFD24ABD17D25FDAD3597C2A754116794314C21B024"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/distortion-profile/distortion-profile.component.html",
+    "sha256": "9BF9E0E3DFC08EAEA158292BAED786CC54F74E17595F59CB71404643DF23327D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/distortion-profile/distortion-profile.component.ts",
+    "sha256": "71642E06B073F7C09B5D6DB81A4C1E48954087F83B87182D11E99180415186D6"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/driver-settings/driver-settings.component.html",
+    "sha256": "205933C4E2DB4470FF1170DE9117549AE7A1B4079F6B11FB362AAFCA4CACA526"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/driver-settings/driver-settings.component.ts",
+    "sha256": "9DD341C67640B137CF8732C36788B602090DF1894F09D2B41E4FCD05EA7252A8"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/galaxy-settings/galaxy-settings.base.ts",
+    "sha256": "7BA0585FE5F7549A381CB28CAE1F6859A27A9FB3A17D4A5C09999687134E5255"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/galaxy-settings/galaxy-settings.scss",
+    "sha256": "12A1C1B4F1876493756141EC73D1847FA43AED8F7EF5D7DC37FA4FB1F7221954"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/galaxy-settings/galaxy-settings.spec.ts",
+    "sha256": "D817C6360255763B73D107819FBBD650B88CA617894570F2951BBD507A5607C0"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/stream-frame/stream-frame.component.html",
+    "sha256": "31B87E6C6878C2745EDBAFE9598C870B721069784C046107F438D8B565FAE884"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/pages/stream-frame/stream-frame.component.ts",
+    "sha256": "F84B04F694BE750AD325932A8F5819071D7F41D974871A8EDC9CA9961F5D2368"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/app-setting.service.ts",
+    "sha256": "FC5A9E3FBB846558A1BB9000854A20DC3A33395F93A9B869BD27C8C8597D9D1F"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/app-update.service.ts",
+    "sha256": "EA1DA263EDDFDB5803D15E5E8A149E4A22BA8EED08B456C42FF7D1C081056C50"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/AppSettingAccessor.ts",
+    "sha256": "C05868E6F32AA2797E4A976E1DA058653E454F2150FC50EFE4B3F8E321C98456"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/dialog.service.ts",
+    "sha256": "017E06F9AEEBCAFBCC860632F40B7E69271FAE696654E55E78F26EB0EC089D1B"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/driver-defaults.ts",
+    "sha256": "6C35599BFF20B845BA196027E4C682D70A85746F6B5ECB4B674F8A141C0F9F1B"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/driver-info.service.ts",
+    "sha256": "39501E7E8AEE14AB8E88073CFC1DC6620D2BDFE8713DC2184AEA065617F43A78"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/driver-setting.service.ts",
+    "sha256": "12F56AE86DD5C26DF5F1F7A71543AAF24C97CAA00BA6A622732C287199BD110A"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/JsonFileDefines.ts",
+    "sha256": "A5B470606AF3F1030BD6E48C3B6620B9595700C4880D1C118D7C028A61F41E71"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/JsonSettingServiceBase.ts",
+    "sha256": "A7EB7B3A0D97209914A147BE350B8110F82F0FED10B2BFCBAFB3FFB15520795E"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/paths.service.ts",
+    "sha256": "F148417A6F052794DD680384F15A7A99E89EF7A8A0700A3AD28CC3D98B245C35"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/PullingService.ts",
+    "sha256": "FDC918B9416ADC76C1B73BEF4ACACFF91BDB1D2AD565C7DE955034829D1757DB"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/steamvr-settings-diff.ts",
+    "sha256": "840E2697ADCD47FD91522699F7718C284AB834AF084D411DEA6745D5F54853CC"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/services/system-diagnostic.service.ts",
+    "sha256": "750FF2885CA477F9410B36FFF886D772CF20C621EA82BAD28151BAC82D53F3B5"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/tauri_wrapper.ts",
+    "sha256": "098FC007C69B54310C23F98D145302A2EFE97FE698F2DC9EFC7EFC17DA80A18D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-enable-banner/driver-enable-banner.component.html",
+    "sha256": "B80146A79C1D0592E99BCD6B2526703BDF722E25B8BC2BF58CEA5692679EC35B"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-enable-banner/driver-enable-banner.component.scss",
+    "sha256": "EE0DD4021AD7B2D2EAC759E3536D99801F888CDBAD1B7D614A3E0B6CF9F90B3F"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-enable-banner/driver-enable-banner.component.ts",
+    "sha256": "89A5CD75CBC9DBF9C93CD3FF0C04CC9A404D33D7ECCD1E5303E6972275D3CE86"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-troubleshooter/driver-troubleshooter.component.html",
+    "sha256": "09028B15D89E6B11686BD64774B97283454CAEDAF667809EB4953350D7016003"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-troubleshooter/driver-troubleshooter.component.scss",
+    "sha256": "EDF8DDA5B931007E98D1B9B47F23A16DB53044D088D00312F0F8241169558340"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-troubleshooter/driver-troubleshooter.component.spec.ts",
+    "sha256": "8F0CC2404FCCDB880D2C3D28C61710962BEF16E8CBEC8949760411F004168615"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/driver-troubleshooter/driver-troubleshooter.component.ts",
+    "sha256": "B727F01B54E1A69B79D2989930F45CB66FCDDD4757E837A03809C82923BCB22F"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/field-tip/field-tip.component.html",
+    "sha256": "BDD84E4BAE27DB1B0110925078F2DD855434C86FB9014A98DAF061C33ED43CDC"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/field-tip/field-tip.component.scss",
+    "sha256": "E26435DFEAB0A4159E21B7E93215A4A73E90FB75FD746609FD9E4CC024893141"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/field-tip/field-tip.component.spec.ts",
+    "sha256": "706C01AABC659093DFD87AADDB67D552B961E9B686B4C51F7E59A24DE9D4148A"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/field-tip/field-tip.component.ts",
+    "sha256": "9CEA572A5B102E143142236F9EF1EDFD5FA14EB9534A86F1FF82073A86027F05"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/reset-button/reset-button.component.html",
+    "sha256": "E884E9F0EC0961DCCD7E4AE9E7B84F253C0C82D5417A369B6DB22ADA7F5EA91F"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/reset-button/reset-button.component.scss",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/reset-button/reset-button.component.spec.ts",
+    "sha256": "68F24569A60B7090757F42252DDAD117113AE2F7456C608D770C725BA7400B71"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/reset-button/reset-button.component.ts",
+    "sha256": "E2AFF83171C43E56B2004A1AEBF3DCA854DC2C0E20D7AEF002306D315D9AE042"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/stream-frame-curve/stream-frame-curve.component.html",
+    "sha256": "48BCF9E6C4EFACDA26FA575FACB0AFF07B6036A17E6EA5AC2B04B1E332D39569"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/stream-frame-curve/stream-frame-curve.component.scss",
+    "sha256": "4785DA27B7AE448DF83A47F4811EBC2065618FB8CFCA15C88C64EF61D26575BD"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/stream-frame-curve/stream-frame-curve.component.ts",
+    "sha256": "6C8F568A19B366672184A49D70857BE2D8DBBE2BBF5E3FC4C4FFF90F07FD03D0"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/system-ready/system-ready.component.html",
+    "sha256": "E781979EFF99E7B5B145AD99150AD7F5AB4DF4E84B7786C87BD9A6D7D33E0A69"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/system-ready/system-ready.component.scss",
+    "sha256": "F49BFBD963259DC89C27BD13E1C23BA572B3478CEF25E44700940D72AEE12D04"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/system-ready/system-ready.component.spec.ts",
+    "sha256": "2EC724874EDD5092C670F8EB359AB7C1AA10368DE1FFBA622ABEAF2B4A4B71D5"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/app/utilities/system-ready/system-ready.component.ts",
+    "sha256": "704CFDD81DC33490C9C6BB1892FC4FCC261E4D996FC4C6641417BC34B98FD557"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/environment-gen.ts",
+    "sha256": "1BDF9DBA86D5FAC7177FA17F8611C7F0FC90B1D1249CACFBCFDEA82ED070DA84"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/environment.ts",
+    "sha256": "55B71EB7C0858207A35DA52187892236560AB61521BA587C6206CE8A99458125"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/fonts.css",
+    "sha256": "F9E1061E93BD01F17869532FEBB9E1CB2CB257208C04EB70535F3B41F0619402"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/material-icons-outlined-v109-latin-regular.woff2",
+    "sha256": "35DCA8A7145A17C8D1306F25A3CA091578E15396F0B22D61EB8E73262AC75577"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/material-icons-v143-latin-regular.woff2",
+    "sha256": "8265F64786397D6B832D1CA0AAFDF149AD84E72759FFFA9F7272E91A0FB015D1"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-300.woff2",
+    "sha256": "2E43802A9D1556DBE360C22E2B85A597E5994A3D6881FEDB544136C370DEF05E"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-300italic.woff2",
+    "sha256": "66B26B3C84C6A918A3C1D323B81184CF6E539762D6519929838A420E3B9D30A3"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-500.woff2",
+    "sha256": "E5B29C36B2E7A2F4DB58307359FA574004BE43D39790E4B7A3CF80A7B16E8BB6"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-500italic.woff2",
+    "sha256": "6C29EDCE0214F7CE5C29596630DDA4DF1FD6E9A5C607551F4BF6FAA1DA11B245"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-600.woff2",
+    "sha256": "7608821AE7A01E76CB42E6FDA12421E5F546EFD79BD51850B75D39831423F3CB"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-600italic.woff2",
+    "sha256": "5AE9B4B2EE6C8B3DED2D4008CCF058B71C6794E998328E368E8AC27F433C3E55"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-700.woff2",
+    "sha256": "CEC2C772ADE5FECE795BB18EEEAB86323471ACBD93FE2639A40ABA644F9F24DB"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-700italic.woff2",
+    "sha256": "334EF0433ABA9DA180C94265157590F8F3EF2161EB2B75C6F7B5A119A62EB9E5"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-italic.woff2",
+    "sha256": "CC7318E183292C701800A2C61D807C9831A7D58302F8747EBA8A6AD50223BCA0"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/fonts/roboto-v47-latin-regular.woff2",
+    "sha256": "E44C11F4834BDD4D6B6DA7B8EE5EAEBC8ACB41250CD6BCE5CC82EA8262140EAA"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/index.html",
+    "sha256": "7051962FF6D9BC4B22F779F7AA0E2704B22910E60409CEB433311931F592BEF6"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/locale/messages.ja.xlf",
+    "sha256": "04BE3C8814D63E1F3947D5720B84721D978899B7A69697EB9406BDE440F2CCE1"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/locale/messages.xlf",
+    "sha256": "0CB1807B70D1F18FB9D998DA0CDBC598B4EA0B748CD96AD17426BFEAE3B9C3E5"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/locale/messages.zh-Hant.xlf",
+    "sha256": "1AFDCD2503F7354EF2DA8A0D3C533008F9659BFF23E723DC13F69CE46946B265"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/main.ts",
+    "sha256": "75EF89985A59AAC2F5B571335E15EBFF1544746435565BB3010B68BEE9DA243D"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/simple-form.scss",
+    "sha256": "A69DF49207E42B32430545FB9DFA17B43FC418DF31DA6E5263C728F6EEA9B782"
+  },
+  {
+    "path": "CustomHeadsetGUI/src/styles.scss",
+    "sha256": "F1D28B99C8A62298F8FDD11751BEA0289989432B3EB5BFA6DFB1D5B7F5ED9417"
+  }
+]

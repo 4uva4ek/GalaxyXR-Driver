@@ -1,0 +1,58 @@
+{
+  "tests": {
+    "services": 21,
+    "renderedPages": 12,
+    "rust": 40
+  },
+  "binaries": [
+    {
+      "bytes": 15047168,
+      "sha256": "5EA3066953AFDAFC993A8CEAFF954949D2D91FE17CD7A6146BF58BFCE997591D",
+      "path": "CustomHeadsetGUI/custom-headset-gui.exe"
+    },
+    {
+      "bytes": 1541632,
+      "sha256": "7843A7EC3B15FAF78AB511AE37AE757AE96D2D0B902357961327DFDFEE8E6AAA",
+      "path": "GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll"
+    }
+  ],
+  "liveSettings": "Not modified; all mutation tests use temporary fixtures",
+  "date": "2026-09-16",
+  "review": "No issues found in cleanup scope, journals, backup and busy-state wiring",
+  "sourceHashes": [
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/driver_installation.rs",
+      "sha256": "8AB9A9F01B94649853F10DC4868AA49046864ABB8702AD1AB3C5DA6AED0C7A30"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/lib.rs",
+      "sha256": "37F16FCA58006CE4CE67F936D64FF7C4FD53E547D68036A676014602CE0E89BC"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/app/tauri_wrapper.ts",
+      "sha256": "397971C80448AA11A5DD11D11B28EEC5F1F870855752809B22F1959A81FE4024"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/app/services/system-diagnostic.service.ts",
+      "sha256": "BD85B54AF697E580A3231DBE76DFA8EE50C2ED3DF6F91C59FDA72174BF879C15"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.ts",
+      "sha256": "FBB6EE772B182DCB1F7FBDCA637CFF5BCF3FAAF1FC8F9650FA65B462472B8D16"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.html",
+      "sha256": "E00489893C2537446A7EDB034DB4DC8140B3D0B63175BC38510EE97248C18DB6"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.spec.ts",
+      "sha256": "BE779893D6AF0D5D2EB7FD98832A853F4816275DE269BC45DD4255DBC78B5580"
+    },
+    {
+      "path": "tools/Test-GuiReadiness.cjs",
+      "sha256": "8729D3D0DBF55A6E7BEA8D377F0C659DC5947B7990FAB04B22068A07F84C7207"
+    }
+  ],
+  "cleanup": "No obsolete sources introduced; existing generated-output cleanup remains deferred under prior automatic approval review rejection. See OlderIdentityCleanup.md.",
+  "build": "Portable x64 native + Angular/Tauri release passed"
+}

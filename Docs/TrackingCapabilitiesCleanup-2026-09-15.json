@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-15",
+  "scope": "CustomHeadsetOpenVrGxR tracking capabilities",
+  "outcome": "x64 behavior tests and x86 ABI compile passed; final GalaxyXR.cpp compiled x64/x86 with Galaxy vendor and optional probe",
+  "runtime": "Not deployed; no SteamVR restart/live capability write; full MSVC link unavailable",
+  "allowlistedOutputs": [
+    {
+      "path": "build/vrlink-capabilities-test",
+      "files": 13,
+      "bytes": 8398956.0,
+      "artifacts": [
+        {
+          "name": "VrlinkCapabilitiesTest.exe",
+          "bytes": 893952,
+          "sha256": "6442DBC0C6ABAAF258F50101AB4AC7150513B70EF15056A9AFC8BD7CEA41BD9B"
+        },
+        {
+          "name": "VrlinkCapabilitiesTest.pdb",
+          "bytes": 3506176,
+          "sha256": "DE1DC9B429095ACC8E71B2F9EB76AE1B97ED49368FF196EEB13C376E5295635F"
+        },
+        {
+          "name": "VrlinkCapabilitiesTest.x86.obj",
+          "bytes": 611426,
+          "sha256": "60968D190C814AF86465B71400F6C28D6F5F5B1E18466514652677C0AA9EA160"
+        }
+      ]
+    },
+    {
+      "path": "build/vrlink-capabilities-validation",
+      "files": 4,
+      "bytes": 24704201.0,
+      "artifacts": [
+        {
+          "name": "GalaxyXR-win32-probe.obj",
+          "bytes": 5923034,
+          "sha256": "D067D348039406B54950EBF641190AD733014F30CCAE3C3D45A625C60D369DDC"
+        },
+        {
+          "name": "GalaxyXR-x86_64.obj",
+          "bytes": 6437425,
+          "sha256": "4DF7BE7A094C2507586696862341ECAC5808CF137DB9BACE48487137FA79BA04"
+        },
+        {
+          "name": "GalaxyXR-x86.obj",
+          "bytes": 5927017,
+          "sha256": "EC6891376277A049E67EF63DB5C4E115DD071402D845CC3D509F432D430D8B9A"
+        },
+        {
+          "name": "GalaxyXR.obj",
+          "bytes": 6416725,
+          "sha256": "B7C53C8599B6EADDA7F7F88D9C82D99DCBFA769A6885127B436EA7B9E456A526"
+        }
+      ]
+    }
+  ],
+  "bytesToReclaim": 33103157.0,
+  "retained": "Pinned OpenVR/JSON submodules, canonical source/tests/runner/docs, all other files",
+  "regenerate": "tools/Test-VrlinkCapabilities.ps1 -CompilerPath <zig.exe>; see SteamLinkTrackingCapabilities.md",
+  "deletionVerified": false,
+  "cleanupStatus": "Deferred: automatic approval review rejected recursive deletion with blocked by policy",
+  "bytesReclaimed": 0
+}

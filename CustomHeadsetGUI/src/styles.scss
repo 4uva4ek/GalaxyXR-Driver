@@ -1,0 +1,77 @@
+@use '@angular/material' as mat;
+@use 'fonts/fonts.css';
+
+*,
+*::after,
+*::before {
+  box-sizing: border-box;
+}
+
+:root {
+  --color-scheme: light dark;
+}
+
+html {
+  color-scheme: var(--color-scheme);
+  @include mat.theme((color: (primary:mat.$green-palette,
+        tertiary:mat.$yellow-palette ),
+      typography: Roboto,
+      density: 0));
+}
+
+
+.warn {
+  @include mat.theme((color:mat.$red-palette))
+}
+
+.tertiary {
+  @include mat.theme((color:mat.$yellow-palette))
+}
+
+.primary-color {
+  color: var(--mat-sys-primary);
+}
+
+.tertiary-color {
+  color: var(--mat-sys-tertiary);
+}
+
+.warn-color {
+  color: var(--mat-sys-error);
+}
+
+@keyframes warn-flash {
+  0% {
+    color: var(--mat-sys-error);
+  }
+  50% {
+    color: #F00;
+  }
+  100% {
+    color: var(--mat-sys-error);
+  }
+}
+
+.warn-color-flash {
+  animation: warn-flash 1s infinite;
+}
+
+.wrapped-block {
+  display: inline-block;
+  max-width: 50%;
+}
+
+html,
+body {
+
+  width: 100vw;
+  height: 100vh;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}

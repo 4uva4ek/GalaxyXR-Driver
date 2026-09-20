@@ -1,0 +1,471 @@
+<app-system-ready>
+@if(settings){
+<app-driver-enable-banner></app-driver-enable-banner>
+@if(calibrationActive()){<div class="calibration-banner">Calibration modes are active. Turn them off before normal play, or use Advanced Mode to adjust them. <button mat-button (click)="stopCalibration()">Stop calibration</button></div>}
+<div class="field"><div class="note">Headset and controller identity changes apply after restarting SteamVR.</div></div>
+<div class="field">
+    <div class="section-title collapsible level-0" (click)="sections.headset = !sections.headset"><span>Headset</span><span class="chevron" [class.closed]="!sections.headset">▾</span></div>
+</div>
+@if(sections.headset){
+<div class="field">
+    <div class="title">
+        <span i18n>Galaxy XR Native Identity</span>
+        <app-field-tip info="Reports the headset to SteamVR as a Galaxy XR instead of the generic vrlink identity: real model name, manufacturer and icons, and the official controller models, so titles, overlays and SteamVR's own UI see the actual device. Requires a SteamVR restart." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.nativeIdentity" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span i18n>Native Render Resolution</span>
+        <app-field-tip info="Writes a global vrlink override so SteamVR renders at the Galaxy XR's native per-eye resolution (3552x3840@90) instead of the lower cap picked from the spoofed headset identity. Recommended on. Turning it off removes the override (only if it still holds this driver's value). Takes effect after restarting SteamVR." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.nativeResolution" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>vrlink Headset Profile</span>
+        <app-field-tip info="Writes a vrlink_&lt;model&gt; settings section (vrlink_xrvst2ue) telling Steam Link what the Galaxy XR can do: native render size, 10-bit support and the stream-format width range (max tracks the tile width above). Written at driver start so the first connect already sees it." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.vrlinkHeadsetProfile" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+@if(advancedMode && galaxyXr.vrlinkHeadsetProfile){
+<div class="field">
+    <div class="title">
+        <span>Profile: Supports 10-bit</span>
+        <app-field-tip info="10-bit HEVC (Main10). Smoother gradients at the expense of slightly higher decode load." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.profileSupports10bit" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+}
+<div class="field">
+    <div class="title">
+        <span i18n>SDR 10-bit baseline</span>
+        <app-field-tip info="VD-like neutral baseline for a 10-bit HEVC stream: requests the vrlink headset profile with supports10bit at SteamVR start and runs the host color pipeline neutral (saturation 50, vibrance 0, contrast 50, gamma 2.2, tint 1, color matrix and dither off, black-floor fix off, post-pack and VUI overrides bypassed). Stored values on the Stream Frame page are kept and resume when this is off. A per-device custom shader enabled for other headsets owns the color path instead - the baseline then shows not-baseline." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.sdr10Baseline" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+@if(galaxyXr.sdr10Baseline){
+@if(sdr10BaselineConflict()){<div class="field"><div class="note" i18n>Not-baseline: the device custom shader is enabled for this headset and owns the color path. Disable it to use the baseline.</div></div>} @else {
+@if(!settings.enable){<div class="field"><div class="note" i18n>Host processing inactive (enable Image Processing on the Stream Frame page).</div></div>} @else {
+<div class="field"><div class="note" i18n>Requested - written at SteamVR start; confirm 10-bit in driver_vrlink.txt. Observed state is unknown until then.</div></div>
+}
+}
+}
+}
+<div class="field">
+    <div class="section-title collapsible level-0" (click)="sections.controllers = !sections.controllers"><span>Controllers</span><span class="chevron" [class.closed]="!sections.controllers">▾</span></div>
+</div>
+@if(sections.controllers){
+@if(vendor){
+<div class="field">
+    <div class="title">
+        <span i18n>Official Controller Input Profile</span>
+        <app-field-tip info="Uses the official Steam Link Galaxy XR input profile: real button layout in the bindings UI, official default and per-app bindings, and correct grip/aim/tip poses for held items. Games without a native Galaxy XR binding see the controllers as Index controllers. Requires a SteamVR restart." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.nativeInputProfile" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+@if(galaxyXr.nativeInputProfile){
+<div class="field">
+    <div class="title">
+        <span>Grip Touch From Grip Pressure</span>
+        <app-field-tip info="Steam Link sends no capacitive state for the grip (only its pressure), so the official profile's grip touch never lit. On: the driver creates /input/grip/touch and drives it from the grip value. The threshold is the grip value that counts as touched (release at half of it); lower feels more like a touch sensor but resting fingers may trigger it." />
+        <app-reset-button [canReset]="galaxyXr.synthesizeGripTouch === false || (galaxyXr.gripTouchThreshold !== undefined && galaxyXr.gripTouchThreshold != 0.03)" (resetClick)="galaxyXr.synthesizeGripTouch = true; galaxyXr.gripTouchThreshold = 0.03; save()"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.synthesizeGripTouch" (ngModelChange)="save()"></mat-slide-toggle>
+        <input matInput [(ngModel)]="galaxyXr.gripTouchThreshold" step="0.005" min="0.005" max="0.5" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+<div class="field">
+    <div class="title">
+        <span i18n>Controller Model Size</span>
+        <app-field-tip info="Uniform scale for the controller models. The official assets measure about 124x63mm while the physical controller is about 145x70mm; 1.16 (default) overlays the real shell in SteamVR Home. Scales the visible model only (geometry, button and stick pivots). Pose anchors, hand skeleton and game hand meshes are never scaled, so this cannot change hand size in games. Applied live within about a second. 1.0 = stock assets." />
+    </div>
+    <div class="control">
+        <input type="number" min="0.5" max="2" step="0.01" [(ngModel)]="galaxyXr.renderModelScale" (ngModelChange)="save()" style="width: 90px;" />
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Official Pose Components</span>
+        <app-field-tip info="Use Samsung&#39;s official pose points (Game Link&#39;s render model: OpenXR grip/aim, dashboard laser tip, handgrip, base), rebased into our grip-convention frame so each named pose lands on the same physical spot as under Game Link. Only affects bindings that select a named pose (OpenXR games, the dashboard laser, /pose/handgrip bindings) - never raw, so SteamVR Home and raw-pose games are unaffected. Off = the render model json values as authored. Applies live." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.officialComponents" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+}
+<div class="field">
+    <div class="section-title collapsible level-1" (click)="sections.ctrlFix = !sections.ctrlFix"><span>Controller Fix</span><span class="chevron" [class.closed]="!sections.ctrlFix">▾</span></div>
+</div>
+@if(sections.ctrlFix){
+@if(vendor && galaxyXr){
+<div class="field">
+    <div class="title">
+        <span>Grip Convention</span>
+        <app-field-tip info="Shifts the raw streamed controller pose (22&deg; pitch, 5 cm) into SteamVR's grip convention so held objects sit where games expect them and the official pose components land on the right spots. Recommended on. Turn off only if a Steam Link build already reports a grip-convention pose and the controllers sit visibly wrong." />
+        <app-reset-button [canReset]="galaxyXr.gripConvention === false" (resetClick)="galaxyXr.gripConvention = true; save()"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.gripConvention" (ngModelChange)="save()" [disabled]="!!galaxyXr.controllerBypass"></mat-slide-toggle>
+        @if(galaxyXr.controllerBypass){<span class="note">controller bypass is on</span>}
+    </div>
+</div>
+}
+<div class="field">
+    <div class="title">
+        <span>Controller Fix Mode</span>
+        <app-field-tip [info]="settings.graveyardEnable ? velocityFixTipFull : velocityFixTip" />
+        <app-reset-button [canReset]="settings.velocityFixMode != defaults.velocityFixMode" (resetClick)="reset('velocityFixMode')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-select [(ngModel)]="settings.velocityFixMode" (ngModelChange)="save()">
+            <mat-option value="off">Off</mat-option>
+            <mat-option value="kalman">Kalman</mat-option>
+            <mat-option value="kalmanCA">Kalman CA (recommended)</mat-option>
+            @if(advancedMode && settings.graveyardEnable){
+            <mat-option value="classic">Classic (legacy)</mat-option>
+            <mat-option value="full">Full (legacy)</mat-option>
+            <mat-option value="derive">Derive (legacy, retired)</mat-option>
+            <mat-option value="kalmanCAM">Kalman CA &mdash; Magnitude (retired)</mat-option>
+            } @else if(isRetiredVelocityMode(settings.velocityFixMode)){
+            <mat-option [value]="settings.velocityFixMode">{{retiredVelocityModeLabels[settings.velocityFixMode]}}</mat-option>
+            }
+        </mat-select>
+    </div>
+</div>
+
+@if(advancedMode && (settings.velocityFixMode == 'kalman' || settings.velocityFixMode == 'kalmanCAM')){
+<div class="field">
+    <div class="title">
+        <span>Kalman Tuning (accel m/s&#178;, pos mm, ang accel, ori deg, lead ms)</span>
+        <app-field-tip info="For the Kalman velocity mode: a single estimator produces position, rotation, velocity and spin together, the same architecture native lighthouse controllers use. A adjusts the responsiveness: higher trusts your motion more (snappier throws, a bit noisier), lower trusts smoothness (calmer hands, slight lag). W does the same for rotation: responsiveness of the spin estimate. Pos(P) mm and ori(O) deg describe how noisy the incoming tracking is. Lead(L) predicts the reported state slightly ahead to counter streaming latency (0-30ms)." />
+        <app-reset-button [canReset]="settings.kalmanProcessAccel != defaults.kalmanProcessAccel || settings.kalmanPosNoiseMm != defaults.kalmanPosNoiseMm || settings.kalmanProcessAngAccel != defaults.kalmanProcessAngAccel || settings.kalmanOriNoiseDeg != defaults.kalmanOriNoiseDeg || settings.kalmanLeadMs != defaults.kalmanLeadMs" (resetClick)="reset('kalmanProcessAccel'); reset('kalmanPosNoiseMm'); reset('kalmanProcessAngAccel'); reset('kalmanOriNoiseDeg'); reset('kalmanLeadMs')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>A</span><input matInput [(ngModel)]="settings.kalmanProcessAccel" step="10" min="1" max="2000" (ngModelChange)="save()" type="number">
+        <span>P</span><input matInput [(ngModel)]="settings.kalmanPosNoiseMm" step="0.5" min="0.2" max="20" (ngModelChange)="save()" type="number">
+        <span>W</span><input matInput [(ngModel)]="settings.kalmanProcessAngAccel" step="50" min="10" max="20000" (ngModelChange)="save()" type="number">
+        <span>O</span><input matInput [(ngModel)]="settings.kalmanOriNoiseDeg" step="0.1" min="0.05" max="10" (ngModelChange)="save()" type="number">
+        <span>L</span><input matInput [(ngModel)]="settings.kalmanLeadMs" step="5" min="0" max="50" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+@if(advancedMode && (settings.velocityFixMode == 'kalmanCA')){
+<div class="field">
+    <div class="title">
+        <span>Kalman CA Tuning (jerk m/s&#179;, ang jerk, pos mm, ori deg, lead ms)</span>
+        <app-field-tip info="Constant-acceleration estimation: the standard Kalman treats a throw's speed ramp as noise and lags its peak (the ~80% magnitude deficit). The CA state tracks the ramp itself, so magnitude comes from the model instead of a rescale. J(jerk) adjusts responsiveness: higher follows snappier motion, lower is calmer. Wj is the same for rotation. P/O are the sensor noise levels. L leads the report to counter streaming latency." />
+        <app-reset-button [canReset]="settings.kalmanCaJerk != defaults.kalmanCaJerk || settings.kalmanCaAngJerk != defaults.kalmanCaAngJerk || settings.kalmanCaPosNoiseMm != defaults.kalmanCaPosNoiseMm || settings.kalmanCaOriNoiseDeg != defaults.kalmanCaOriNoiseDeg || settings.kalmanLeadMs != defaults.kalmanLeadMs" (resetClick)="reset('kalmanCaJerk'); reset('kalmanCaAngJerk'); reset('kalmanCaPosNoiseMm'); reset('kalmanCaOriNoiseDeg'); reset('kalmanLeadMs')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>J</span><input matInput [(ngModel)]="settings.kalmanCaJerk" step="50" min="1" max="50000" (ngModelChange)="save()" type="number">
+        <span>Wj</span><input matInput [(ngModel)]="settings.kalmanCaAngJerk" step="250" min="50" max="500000" (ngModelChange)="save()" type="number">
+        <span>P</span><input matInput [(ngModel)]="settings.kalmanCaPosNoiseMm" step="0.5" min="0.2" max="20" (ngModelChange)="save()" type="number">
+        <span>O</span><input matInput [(ngModel)]="settings.kalmanCaOriNoiseDeg" step="0.1" min="0.05" max="10" (ngModelChange)="save()" type="number">
+        <span>L</span><input matInput [(ngModel)]="settings.kalmanLeadMs" step="5" min="0" max="50" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+
+}
+@if(advancedMode && (settings.velocityFixMode == 'kalmanCAM')){
+<div class="field">
+    <div class="title">
+        <span>Kalman CA Magnitude Channel (jerk m/s&#179;, decay &tau; ms)</span>
+        <app-field-tip info="CA-Magnitude mode: everything about the standard Kalman mode stays identical (calm direction, the A/P/W/O/L tuning above, duplicate handling), except the fast magnitude channel becomes a constant-acceleration estimator. J (jerk) is its responsiveness: higher follows the throw ramp harder. The decay bounds phantom speed across repeated-sample coasts (~150ms matches a real throw's acceleration duration). Success looks like Throw Strength Trim converging to 1.0." />
+        <app-reset-button [canReset]="settings.kalmanCaMagJerk != defaults.kalmanCaMagJerk || settings.kalmanCaMagAccelTauMs != defaults.kalmanCaMagAccelTauMs" (resetClick)="reset('kalmanCaMagJerk'); reset('kalmanCaMagAccelTauMs')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>J</span><input matInput [(ngModel)]="settings.kalmanCaMagJerk" step="50" min="1" max="50000" (ngModelChange)="save()" type="number">
+        <span>&tau;</span><input matInput [(ngModel)]="settings.kalmanCaMagAccelTauMs" step="25" min="20" max="10000" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+@if(advancedMode && (settings.velocityFixMode == 'kalman')){
+<div class="field">
+    <div class="title">
+        <span>Kalman Throw Strength (source / fast accel / scale / spin scale)</span>
+        <app-field-tip info="Fixes weak throws at low Accel without giving up the calm direction. S/Sa globally scale reported speed. Leave at 1 unless a specific title needs it." />
+        <app-reset-button [canReset]="settings.kalmanMagSource != defaults.kalmanMagSource || settings.kalmanMagAccel != defaults.kalmanMagAccel || settings.kalmanMagScale != defaults.kalmanMagScale || settings.kalmanAngMagScale != defaults.kalmanAngMagScale" (resetClick)="reset('kalmanMagSource'); reset('kalmanMagAccel'); reset('kalmanMagScale'); reset('kalmanAngMagScale')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-select [(ngModel)]="settings.kalmanMagSource" (ngModelChange)="save()">
+            <mat-option value="state">Calm state (default)</mat-option>
+            <mat-option value="fast">Fast estimator (recommended at low A)</mat-option>
+        </mat-select>
+        <span>FA</span><input matInput [(ngModel)]="settings.kalmanMagAccel" step="10" min="1" max="2000" (ngModelChange)="save()" type="number">
+        <span>S</span><input matInput [(ngModel)]="settings.kalmanMagScale" step="0.05" min="0.25" max="4" (ngModelChange)="save()" type="number">
+        <span>Sa</span><input matInput [(ngModel)]="settings.kalmanAngMagScale" step="0.05" min="0.25" max="4" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+@if(advancedMode && (isKalmanMode())){
+<div class="field">
+    <div class="section-title collapsible level-2" (click)="sections.kalmanAdv = !sections.kalmanAdv"><span>Kalman Advanced Settings</span><span class="chevron" [class.closed]="!sections.kalmanAdv">▾</span></div>
+</div>
+@if(sections.kalmanAdv){
+@if(advancedMode && (settings.velocityFixMode == 'kalmanCA')){
+<div class="field">
+    <div class="title">
+        <span>Kalman CA Accel Decay &tau; (ms)</span>
+        <app-field-tip info="The acceleration state decays toward zero with this time constant (Singer model). It bounds phantom speed during repeated-sample coasts and abrupt stops." />
+        <app-reset-button [canReset]="settings.kalmanCaAccelTauMs != defaults.kalmanCaAccelTauMs" (resetClick)="reset('kalmanCaAccelTauMs')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>&tau;</span><input matInput [(ngModel)]="settings.kalmanCaAccelTauMs" step="25" min="20" max="10000" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+@if(advancedMode && (settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAM')){
+<div class="field">
+    <div class="title">
+        <span>Exact Covariance Transition (A/B)</span>
+        <app-field-tip info="Experiment: propagate the filter's uncertainty with the same Singer transition the state prediction actually uses, instead of the simpler approximation. Makes the filter's self-model consistent, which matters most at low Accel Decay tau values (in CA-Magnitude mode it applies to the fast magnitude channel). Changes effective gains slightly, so NIS and the J/P/O tuning shift a little; off reproduces the previously tuned behavior exactly." />
+        <app-reset-button [canReset]="settings.kalmanCaExactCov != defaults.kalmanCaExactCov" (resetClick)="reset('kalmanCaExactCov')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="settings.kalmanCaExactCov" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+}
+<div class="field">
+    <div class="title">
+        <span>Kalman Angular Velocity Frame</span>
+        <app-field-tip info="Frame the reported angular velocity is expressed in. Body (default, field-verified 2026-08-24): SteamVR&#39;s motion prediction rotates about controller-local axes, so this is what it expects. World: the previous behaviour, which made horizontal sword swings pitch up at the peak of the swing. Zero: diagnostic only - no angular prediction, laggier rotation." />
+        <app-reset-button [canReset]="settings.kalmanAngularOutFrame != defaults.kalmanAngularOutFrame" (resetClick)="reset('kalmanAngularOutFrame')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-select [(ngModel)]="settings.kalmanAngularOutFrame" (ngModelChange)="save()">
+            <mat-option value="body">Body - controller-local (default)</mat-option>
+            <mat-option value="world">World - previous behaviour</mat-option>
+            <mat-option value="zero">Zero - diagnostic</mat-option>
+        </mat-select>
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Kalman Loss Coast (ms)</span>
+        <app-field-tip info="When the controller briefly leaves tracking (hand out of camera view), the stream freezes the hand in place with zero velocity until it is seen again. For up to this many ms of tracking loss, the driver instead keeps the hand moving along the filter's last known motion (with the usual acceleration decay so it cannot run away)." />
+        <app-reset-button [canReset]="settings.kalmanLossCoastMs != defaults.kalmanLossCoastMs" (resetClick)="reset('kalmanLossCoastMs')"></app-reset-button>
+    </div>
+    <div class="control">
+        <input matInput [(ngModel)]="settings.kalmanLossCoastMs" step="50" min="0" max="1000" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+
+
+<div class="field">
+    <div class="title">
+        <span>Kalman Duplicate-Sample Handling</span>
+        <app-field-tip info="The streamer repeats the last pose when fresh tracking hasn't arrived, about 2 of 3 samples during fast throws. Soft (recommended): repeats are processed but distrusted by the scale below. Off: repeats are trusted fully, slight speed drag. Age: distrust grows with speed and time since the last fresh sample. Coast and Drop are not recommended. Sustained repeats are always treated as genuine stillness." />
+        <app-reset-button [canReset]="settings.kalmanDupMode != defaults.kalmanDupMode" (resetClick)="reset('kalmanDupMode')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-select [(ngModel)]="settings.kalmanDupMode" (ngModelChange)="save()">
+            <mat-option value="off">Off - repeats believed (smooth, slight drag)</mat-option>
+            <mat-option value="coast">Coast - extrapolate through repeats (field-rejected)</mat-option>
+            <mat-option value="drop">Drop - repeats never happened (honest gaps)</mat-option>
+            <mat-option value="soft">Soft - repeats distrusted by the scale below</mat-option>
+            <mat-option value="age">Age - repeats distrusted by hand speed x age (no scale, no speed gate)</mat-option>
+        </mat-select>
+    </div>
+</div>
+
+<div class="field">
+    <div class="title">
+        <span>Kalman Duplicate Distrust Scale (Soft mode)</span>
+        <app-field-tip info="Only used when duplicate handling is Soft. A repeated sample is a true position of unknown age, so its honest uncertainty at hand speed is far above the sensor floor; this multiplies the measurement noise for detected repeats. 1 behaves exactly like Off; the default of 3 halves motion jitter with no measured cost; 6 and above re-create Coast&#39;s rejected snap character. Repeats sustained past the run cap are always accepted at full weight." />
+        <app-reset-button [canReset]="settings.kalmanDupRScale != defaults.kalmanDupRScale" (resetClick)="reset('kalmanDupRScale')"></app-reset-button>
+    </div>
+    <div class="control">
+        <input matInput [(ngModel)]="settings.kalmanDupRScale" step="1" min="1" max="100" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+
+<div class="field">
+    <div class="title">
+        <span>Kalman Device-Time Measurements</span>
+        <app-field-tip info="The streamer stamps every hand pose with WHEN it was actually true (poseTimeOffset). When this is on, the filter uses the device&#39;s own timestamps for its time steps and quietly discards out-of-order samples. Leave on." />
+        <app-reset-button [canReset]="settings.kalmanDeviceTime != defaults.kalmanDeviceTime" (resetClick)="reset('kalmanDeviceTime')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="settings.kalmanDeviceTime" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+
+<div class="field">
+    <div class="title">
+        <span>Position-Freeze Protection (3dof Fallback)</span>
+        <app-field-tip info="Detects the tracker's position-only loss: the position payload freezes while the quaternion keeps moving (fast or occluded hand falling back to IMU orientation). When detected, the stale position stays distrusted for the whole freeze instead of being adopted after the duplicate-run cap, and orientation keeps tracking live in every duplicate-handling mode. Fixes the hand parking a meter away while still rotating with the wrist, then teleporting back." />
+        <app-reset-button [canReset]="settings.kalmanPosFreeze3dof != defaults.kalmanPosFreeze3dof" (resetClick)="reset('kalmanPosFreeze3dof')"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="settings.kalmanPosFreeze3dof" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+
+}
+}
+}
+@if(advancedMode){
+<div class="field">
+    <div class="section-title collapsible level-1" (click)="sections.ctrlAdv = !sections.ctrlAdv"><span>Controllers Advanced</span><span class="chevron" [class.closed]="!sections.ctrlAdv">▾</span></div>
+</div>
+@if(sections.ctrlAdv){
+@if(vendor && galaxyXr){
+<div class="field">
+    <div class="title">
+        <span>Controller Bypass</span>
+        <app-field-tip info="Leave the streamed controllers exactly as vrlink presents them: no Galaxy XR identity, models or icons, no official input profile or pose components, no grip convention, no offsets. Kalman is not part of the bypass; use Controller Fix Mode to turn it off. For A/B tests against stock, or if you only want the image processing. Identity and input profile changes take effect after a SteamVR restart." />
+        <app-reset-button [canReset]="!!galaxyXr.controllerBypass" (resetClick)="galaxyXr.controllerBypass = false; save()"></app-reset-button>
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="galaxyXr.controllerBypass" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+}
+@if (controllerSettings) {
+<div class="field">
+    <div class="section-title collapsible level-2" (click)="sections.ctrlOffsets = !sections.ctrlOffsets"><span>Controller Offsets</span><span class="chevron" [class.closed]="!sections.ctrlOffsets">▾</span></div>
+</div>
+@if(sections.ctrlOffsets){
+<div class="field">
+    <div class="title">
+        <span>Rotation Offset (deg)</span>
+        <app-field-tip info="Local frame rotation added to both controllers' poses, live reloaded. X (pitch): positive tilts the top back toward you. Typical useful range 5-20. Y = yaw, Z = roll." />
+        <app-reset-button [canReset]="controllerSettings.rotationOffsetDeg.x != controllerDefaults.rotationOffsetDeg.x || controllerSettings.rotationOffsetDeg.y != controllerDefaults.rotationOffsetDeg.y || controllerSettings.rotationOffsetDeg.z != controllerDefaults.rotationOffsetDeg.z" (resetClick)="resetControllers('rotationOffsetDeg')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.rotationOffsetDeg.x" step="1" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.rotationOffsetDeg.y" step="1" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.rotationOffsetDeg.z" step="1" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+
+<div class="field">
+    <div class="title">
+        <span>Position Offset (cm)</span>
+        <app-field-tip info="Local frame position offset added to both controllers' poses, live reloaded. Use when the virtual grip point sits offset from where the controller feels like it is (beam parallel but displaced): Z = forward/back along the controller, Y = up/down, X = sideways." />
+        <app-reset-button [canReset]="controllerSettings.positionOffsetCm.x != controllerDefaults.positionOffsetCm.x || controllerSettings.positionOffsetCm.y != controllerDefaults.positionOffsetCm.y || controllerSettings.positionOffsetCm.z != controllerDefaults.positionOffsetCm.z" (resetClick)="resetControllers('positionOffsetCm')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.positionOffsetCm.x" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.positionOffsetCm.y" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.positionOffsetCm.z" step="0.5" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span i18n>Mirror Offsets For Right Hand</span>
+        <app-field-tip info="Author the offsets above for the LEFT controller and mirror them for the right hand. Position X and rotations Y/Z flip sign. Pitch and position Y/Z stay the same. Turn it off if the hands need different corrections." />
+    </div>
+    <div class="control">
+        <mat-slide-toggle [(ngModel)]="controllerSettings.mirrorOffsetsForRightHand" (ngModelChange)="save()"></mat-slide-toggle>
+    </div>
+</div>
+@if (!controllerSettings.mirrorOffsetsForRightHand && controllerSettings.left && controllerSettings.right) {
+<div class="field">
+    <div class="note">Per-hand trims are added on top of the shared offsets above, unmirrored. Turn Mirror Offsets on to hide them and drive both hands from one set.</div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Left Hand Rotation Offset (deg)</span>
+        <app-field-tip info="Per-hand trim applied UNMIRRORED to the left controller only, after the shared offsets above. Use when the two hands need different corrections (the tracked origins are not exact mirror images). X = pitch, Y = yaw, Z = roll. Live reloaded." />
+        <app-reset-button [canReset]="handOffsetsDirty('left')" (resetClick)="resetHandOffsets('left')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.left!.rotationOffsetDeg.x" step="1" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.left!.rotationOffsetDeg.y" step="1" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.left!.rotationOffsetDeg.z" step="1" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Left Hand Position Offset (cm)</span>
+        <app-field-tip info="Per-hand position trim for the left controller only, unmirrored, applied after the shared offsets. Same axes as the shared Position Offset: Z = along the controller, Y = up/down, X = sideways." />
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.left!.positionOffsetCm.x" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.left!.positionOffsetCm.y" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.left!.positionOffsetCm.z" step="0.5" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Right Hand Rotation Offset (deg)</span>
+        <app-field-tip info="Per-hand trim applied UNMIRRORED to the right controller only, after the shared offsets above. Use when the two hands need different corrections (the tracked origins are not exact mirror images). X = pitch, Y = yaw, Z = roll. Live reloaded." />
+        <app-reset-button [canReset]="handOffsetsDirty('right')" (resetClick)="resetHandOffsets('right')"></app-reset-button>
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.right!.rotationOffsetDeg.x" step="1" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.right!.rotationOffsetDeg.y" step="1" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.right!.rotationOffsetDeg.z" step="1" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Right Hand Position Offset (cm)</span>
+        <app-field-tip info="Per-hand position trim for the right controller only, unmirrored, applied after the shared offsets. Same axes as the shared Position Offset: Z = along the controller, Y = up/down, X = sideways." />
+    </div>
+    <div class="control">
+        <span>X</span><input matInput [(ngModel)]="controllerSettings.right!.positionOffsetCm.x" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Y</span><input matInput [(ngModel)]="controllerSettings.right!.positionOffsetCm.y" step="0.5" (ngModelChange)="save()" type="number">
+        <span>Z</span><input matInput [(ngModel)]="controllerSettings.right!.positionOffsetCm.z" step="0.5" (ngModelChange)="save()" type="number">
+    </div>
+</div>
+}
+}
+}
+@if(vendor){
+<div class="field">
+    <div class="section-title collapsible level-2" (click)="sections.tipOffset = !sections.tipOffset"><span>Pointer Tip Offset</span><span class="chevron" [class.closed]="!sections.tipOffset">▾</span></div>
+</div>
+@if(sections.tipOffset){
+<div class="field">
+    <div class="title">
+        <span>Pointer Tip Trim X (cm)</span>
+        <app-field-tip info="Measured correction of the dashboard pointer origin (tip and OpenXR aim together). Sideways; mirrored for the right hand. Applies live." />
+    </div>
+    <div class="control">
+        <input type="number" min="-5" max="5" step="0.25" [(ngModel)]="galaxyXr.aimTrimXCm" (ngModelChange)="save()" style="width: 90px;" />
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Pointer Tip Trim Y (cm)</span>
+        <app-field-tip info="Up/down correction of the pointer origin. If the pointer emanates 1 cm above the real tip, set -1." />
+    </div>
+    <div class="control">
+        <input type="number" min="-5" max="5" step="0.25" [(ngModel)]="galaxyXr.aimTrimYCm" (ngModelChange)="save()" style="width: 90px;" />
+    </div>
+</div>
+<div class="field">
+    <div class="title">
+        <span>Pointer Tip Trim Z (cm)</span>
+        <app-field-tip info="Along-the-controller correction of the pointer origin. Positive moves it back toward the wrist: if the pointer starts 1 cm beyond the real tip, set +1." />
+    </div>
+    <div class="control">
+        <input type="number" min="-5" max="5" step="0.25" [(ngModel)]="galaxyXr.aimTrimZCm" (ngModelChange)="save()" style="width: 90px;" />
+    </div>
+</div>
+}
+}
+}
+}
+
+}
+}
+</app-system-ready>
