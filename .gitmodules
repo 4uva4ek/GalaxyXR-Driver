@@ -1,0 +1,20 @@
+[submodule "ThirdParty/openvr"]
+	path = ThirdParty/openvr
+	url = https://github.com/ValveSoftware/openvr
+	shallow = true
+[submodule "ThirdParty/minhook"]
+	path = ThirdParty/minhook
+	url = https://github.com/TsudaKageyu/minhook
+	shallow = true
+[submodule "ThirdParty/json"]
+	path = ThirdParty/json
+	url = https://github.com/nlohmann/json
+	branch = master
+	shallow = true
+[submodule "ThirdParty/easywsclient"]
+	path = ThirdParty/easywsclient
+	url = https://github.com/dhbaird/easywsclient
+	shallow = true
+[submodule "ThirdParty/zlib"]
+	path = ThirdParty/zlib
+	url = https://github.com/madler/zlib
