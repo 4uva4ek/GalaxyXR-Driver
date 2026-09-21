@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: original lib ignore rule reproduces the missing helper in a real fresh clone
+ok 1 - original lib ignore rule reproduces the missing helper in a real fresh clone
+  ---
+  duration_ms: 76.521258
+  type: 'test'
+  ...
+# Subtest: shipped ignore rules allow the helper directory and every source below it
+ok 2 - shipped ignore rules allow the helper directory and every source below it
+  ---
+  duration_ms: 28.783543
+  type: 'test'
+  ...
+# Subtest: a file-only negation is insufficient when its parent lib directory is ignored
+ok 3 - a file-only negation is insufficient when its parent lib directory is ignored
+  ---
+  duration_ms: 52.521547
+  type: 'test'
+  ...
+# Subtest: generated libraries and build outputs remain ignored after the exception
+ok 4 - generated libraries and build outputs remain ignored after the exception
+  ---
+  duration_ms: 33.127313
+  type: 'test'
+  ...
+# Subtest: missing helper fails with an actionable source-restoration error
+ok 5 - missing helper fails with an actionable source-restoration error
+  ---
+  duration_ms: 24.907193
+  type: 'test'
+  ...
+# Subtest: empty helper and directory in place of a helper both fail
+ok 6 - empty helper and directory in place of a helper both fail
+  ---
+  duration_ms: 19.35002
+  type: 'test'
+  ...
+# Subtest: Git checkout with untracked helpers does not pass required tracking verification
+ok 7 - Git checkout with untracked helpers does not pass required tracking verification
+  ---
+  duration_ms: 76.782879
+  type: 'test'
+  ...
+# Subtest: normally staged required sources pass without forcing ignored files
+ok 8 - normally staged required sources pass without forcing ignored files
+  ---
+  duration_ms: 88.69508
+  type: 'test'
+  ...
+# Subtest: force-adding a helper does not conceal a broken ignore rule
+ok 9 - force-adding a helper does not conceal a broken ignore rule
+  ---
+  duration_ms: 93.784087
+  type: 'test'
+  ...
+# Subtest: existing repo-local exclude cannot hide the helper behind a successful preflight
+ok 10 - existing repo-local exclude cannot hide the helper behind a successful preflight
+  ---
+  duration_ms: 46.978634
+  type: 'test'
+  ...
+# Subtest: source ZIP without Git can check file presence but cannot claim tracking verification
+ok 11 - source ZIP without Git can check file presence but cannot claim tracking verification
+  ---
+  duration_ms: 6.01197
+  type: 'test'
+  ...
+# Subtest: CLI supports a project path with spaces and fails nonzero on untracked files
+ok 12 - CLI supports a project path with spaces and fails nonzero on untracked files
+  ---
+  duration_ms: 199.539173
+  type: 'test'
+  ...
+# Subtest: CLI rejects unknown arguments and a missing project argument
+ok 13 - CLI rejects unknown arguments and a missing project argument
+  ---
+  duration_ms: 94.745984
+  type: 'test'
+  ...
+# Subtest: invalid project and incomplete source snapshot never pass
+ok 14 - invalid project and incomplete source snapshot never pass
+  ---
+  duration_ms: 20.597298
+  type: 'test'
+  ...
+# Subtest: preflight is read-only and does not repair, stage, or generate files
+ok 15 - preflight is read-only and does not repair, stage, or generate files
+  ---
+  duration_ms: 92.686583
+  type: 'test'
+  ...
+# Subtest: actual delivered build sources pass file/ignore checks without requiring an existing commit
+ok 16 - actual delivered build sources pass file/ignore checks without requiring an existing commit
+  ---
+  duration_ms: 2.249327
+  type: 'test'
+  ...
+# Subtest: workflow requires the source preflight before dependencies and native compilation
+ok 17 - workflow requires the source preflight before dependencies and native compilation
+  ---
+  duration_ms: 0.267294
+  type: 'test'
+  ...
+# Subtest: a fresh clone of normally committed sources passes the real build-hook fixture suite
+ok 18 - a fresh clone of normally committed sources passes the real build-hook fixture suite
+  ---
+  duration_ms: 560.921025
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1577.524617

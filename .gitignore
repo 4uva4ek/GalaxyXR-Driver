@@ -1,20 +1,26 @@
-.vs
-x64
-x86
-lib
-output
+# IDE state and generated project binaries, not dependency source directories.
+.vs/
+x64/
+x86/
+/lib/
+/output/
+/build/
+/GalaxyXRDriver/lib/
+/GalaxyXRDriverGUI/build/
 *_test.hlsl
-build
 HidModifierPrivate.cpp
 # All build/release/test helpers are version-controlled source.
-release/
+/release/
 .source-backups/
 node_modules/
 *.tsbuildinfo
-# Per-developer Visual Studio state.
 *.vcxproj.user
 
 # Portable build helpers are source, not generated native libraries.
-# Re-include the parent as well as its contents after the broad lib rule.
 !/tools/lib/
 !/tools/lib/**
+
+# Do not add unanchored build, output, or lib rules here. They hide
+# ThirdParty/minhook/build/VC17, json/include/nlohmann/detail/output, and
+# openvr/lib/win64 from a vendored checkout. Missing pinned files are also
+# restored automatically by tools/prepare-native-dependencies.cjs.

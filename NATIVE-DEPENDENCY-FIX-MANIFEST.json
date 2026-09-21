@@ -1,0 +1,77 @@
+{
+  "patch": "GalaxyXRDriver native dependency checkout fix",
+  "version": "1.2.0",
+  "base": "GalaxyXRDriver_Complete_Update_v1.2.0_toolchainfix.zip",
+  "files": [
+    {
+      "path": ".github/workflows/release.yml",
+      "operation": "replace",
+      "bytes": 6948,
+      "sha256": "bb8317ac0c7176e931cf4334745d74e41a31a93457c57e4ef6af42160c923487",
+      "previousSha256": "3e0e5b9aa3203d0875b338889f08f009f668ebe5f4363bf542daa182727c8603"
+    },
+    {
+      "path": ".gitignore",
+      "operation": "replace",
+      "bytes": 716,
+      "sha256": "28ca7bcb72fd2e43b51711e1ee04d98ce3cd84e7223913b062e7e4eda1fe4979",
+      "previousSha256": "753a98e23ea654ec9408fff0380f9966e1e1f3d8dead88bfc0f76b52306c0a37"
+    },
+    {
+      "path": "NATIVE-DEPENDENCY-FIX-VALIDATION.md",
+      "operation": "add",
+      "bytes": 3307,
+      "sha256": "f67c646de0b808be2a91ab0e1d62ef3ae58609d1c3cb1d201f90b6c71bcc489e",
+      "previousSha256": null
+    },
+    {
+      "path": "README-NATIVE-DEPENDENCY-FIX.md",
+      "operation": "add",
+      "bytes": 8887,
+      "sha256": "d7ae17d8e923d1cc66dd30667b4486f3a6cd5896274d0a9b308723919e123fbe",
+      "previousSha256": null
+    },
+    {
+      "path": "build.js",
+      "operation": "replace",
+      "bytes": 12607,
+      "sha256": "97a5ad57b6520022c51b73c3b1dafd740f6c2b26c8a6bff71c77cb23fee704c6",
+      "previousSha256": "61023dd255fd7fc5d43fb608fac7620799dad6864841461feaa0b21c3a511cf4"
+    },
+    {
+      "path": "tools/lib/portable-toolchain.cjs",
+      "operation": "replace",
+      "bytes": 30399,
+      "sha256": "d034780d3a584ef22558336da5c0ec72750df2ba428b8973243918bbd61c3b18",
+      "previousSha256": "e1bf3e251703eceaed43bf7499bb2cdcdcba0b85653bef7c07b62a9c5ab0eaa0"
+    },
+    {
+      "path": "tools/native-dependencies.lock.json",
+      "operation": "add",
+      "bytes": 2769,
+      "sha256": "308907a2c625807b8df830ee6d0a4a9cb6ee4fb4160fc6b0f507cfec9a4a055d",
+      "previousSha256": null
+    },
+    {
+      "path": "tools/prepare-native-dependencies.cjs",
+      "operation": "add",
+      "bytes": 17418,
+      "sha256": "1f89c853030b98fb98e044557db04048005620ca2adb0faa3f0d34634412c660",
+      "previousSha256": null
+    },
+    {
+      "path": "tools/tests/native-dependencies.test.cjs",
+      "operation": "add",
+      "bytes": 17621,
+      "sha256": "699de7be78ff5ec4951523dca07d80f5859be0336f327f7c132f7752c9a6e1fd",
+      "previousSha256": null
+    },
+    {
+      "path": "tools/verify-build-sources.cjs",
+      "operation": "replace",
+      "bytes": 5647,
+      "sha256": "ae5f19b62ec39652edd8bec7e27acecf09bfae410bf21705a80b45f3aa6e74f3",
+      "previousSha256": "3ac08ddafae7d938dc22b05c97737bfcd43ed52aa5c535252ed07dee537c2514"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+[version] source folders: GalaxyXRDriver / GalaxyXRDriverGUI
+[version] C++ driver = 1.2.0
+[version] tag = v1.2.0
+[version] OpenVR manifest = 1.2.0
+[version] npm package = 1.2.0
+[version] npm lockfile root = 1.2.0
+[version] npm lockfile package = 1.2.0
+[version] Tauri configuration = 1.2.0
+[version] Cargo.toml = 1.2.0
+[version] Cargo.lock = 1.2.0
+[version] all release version sources agree on 1.2.0

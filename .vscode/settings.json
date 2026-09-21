@@ -101,5 +101,6 @@
 		"Pimax",
 		"steamvr",
 		"superlight"
-	]
+	],
+	"cmake.sourceDirectory": "D:/Angelo/Desktop/SteamLink-GalaxyXR-Windows-Toolkit-FULL/GalaxyXR-Driver/GalaxyXRDriver"
 }

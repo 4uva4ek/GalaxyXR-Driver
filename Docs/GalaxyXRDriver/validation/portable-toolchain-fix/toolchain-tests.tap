@@ -1,0 +1,424 @@
+TAP version 13
+# Subtest: Allows official HTTPS downloads from download.visualstudio.microsoft.com
+ok 1 - Allows official HTTPS downloads from download.visualstudio.microsoft.com
+  ---
+  duration_ms: 1.328667
+  type: 'test'
+  ...
+# Subtest: Allows official HTTPS downloads from download.microsoft.com
+ok 2 - Allows official HTTPS downloads from download.microsoft.com
+  ---
+  duration_ms: 0.104157
+  type: 'test'
+  ...
+# Subtest: Allows official HTTPS downloads from nodejs.org
+ok 3 - Allows official HTTPS downloads from nodejs.org
+  ---
+  duration_ms: 0.070166
+  type: 'test'
+  ...
+# Subtest: Allows official HTTPS downloads from static.rust-lang.org
+ok 4 - Allows official HTTPS downloads from static.rust-lang.org
+  ---
+  duration_ms: 0.085379
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: http://nodejs.org/file.zip
+ok 5 - Rejects unsafe download URL: http://nodejs.org/file.zip
+  ---
+  duration_ms: 0.345622
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: https://nodejs.org.evil.invalid/file.zip
+ok 6 - Rejects unsafe download URL: https://nodejs.org.evil.invalid/file.zip
+  ---
+  duration_ms: 0.101904
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: https://user:pass@nodejs.org/file.zip
+ok 7 - Rejects unsafe download URL: https://user:pass@nodejs.org/file.zip
+  ---
+  duration_ms: 0.134193
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: https://nodejs.org:444/file.zip
+ok 8 - Rejects unsafe download URL: https://nodejs.org:444/file.zip
+  ---
+  duration_ms: 0.105679
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: https://aka.ms/unrelated
+ok 9 - Rejects unsafe download URL: https://aka.ms/unrelated
+  ---
+  duration_ms: 0.224249
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: file:///tmp/installer.exe
+ok 10 - Rejects unsafe download URL: file:///tmp/installer.exe
+  ---
+  duration_ms: 0.302127
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe download URL: https://nodejs.org/file\#fragment
+ok 11 - Rejects unsafe download URL: https://nodejs.org/file\#fragment
+  ---
+  duration_ms: 0.130316
+  type: 'test'
+  ...
+# Subtest: Allows only the reviewed VS 2022 channel redirect endpoint
+ok 12 - Allows only the reviewed VS 2022 channel redirect endpoint
+  ---
+  duration_ms: 0.080812
+  type: 'test'
+  ...
+# Subtest: Payloads require a publisher SHA-256 before extraction
+ok 13 - Payloads require a publisher SHA-256 before extraction
+  ---
+  duration_ms: 0.591974
+  type: 'test'
+  ...
+# Subtest: Rejects unsafe package basenames
+ok 14 - Rejects unsafe package basenames
+  ---
+  duration_ms: 0.230789
+  type: 'test'
+  ...
+# Subtest: Finds exact checksum line, not a similar version/platform
+ok 15 - Finds exact checksum line, not a similar version/platform
+  ---
+  duration_ms: 0.241645
+  type: 'test'
+  ...
+# Subtest: Plans required MSVC and SDK packages including indirect SDK dependency
+ok 16 - Plans required MSVC and SDK packages including indirect SDK dependency
+  ---
+  duration_ms: 0.904065
+  type: 'test'
+  ...
+# Subtest: Missing optional MSVC packages do not conceal required packages
+ok 17 - Missing optional MSVC packages do not conceal required packages
+  ---
+  duration_ms: 0.23838
+  type: 'test'
+  ...
+# Subtest: Missing required compiler payload fails before download
+ok 18 - Missing required compiler payload fails before download
+  ---
+  duration_ms: 0.144058
+  type: 'test'
+  ...
+# Subtest: Does not silently switch to a different MSVC family
+ok 19 - Does not silently switch to a different MSVC family
+  ---
+  duration_ms: 0.832247
+  type: 'test'
+  ...
+# Subtest: Missing SDK family is a clear setup failure
+ok 20 - Missing SDK family is a clear setup failure
+  ---
+  duration_ms: 0.208485
+  type: 'test'
+  ...
+# Subtest: SDK missing its x64 libraries is not treated as complete
+ok 21 - SDK missing its x64 libraries is not treated as complete
+  ---
+  duration_ms: 0.634739
+  type: 'test'
+  ...
+# Subtest: Rejects catalog binary entries without a hash
+ok 22 - Rejects catalog binary entries without a hash
+  ---
+  duration_ms: 0.201444
+  type: 'test'
+  ...
+# Subtest: License must be provided by channel before a new toolchain is prepared
+ok 23 - License must be provided by channel before a new toolchain is prepared
+  ---
+  duration_ms: 0.251199
+  type: 'test'
+  ...
+# Subtest: Manifest language selection does not accidentally choose a different-language payload
+ok 24 - Manifest language selection does not accidentally choose a different-language payload
+  ---
+  duration_ms: 0.384391
+  type: 'test'
+  ...
+# Subtest: SDK dependency cycles do not hang package resolution
+ok 25 - SDK dependency cycles do not hang package resolution
+  ---
+  duration_ms: 0.181184
+  type: 'test'
+  ...
+# Subtest: Resolves unique CAB names from verified catalog
+ok 26 - Resolves unique CAB names from verified catalog
+  ---
+  duration_ms: 0.838887
+  type: 'test'
+  ...
+# Subtest: Does not download a CAB that is not referenced by an MSI
+ok 27 - Does not download a CAB that is not referenced by an MSI
+  ---
+  duration_ms: 0.232291
+  type: 'test'
+  ...
+# Subtest: Rejects an MSI reference absent from the catalog
+ok 28 - Rejects an MSI reference absent from the catalog
+  ---
+  duration_ms: 0.115264
+  type: 'test'
+  ...
+# Subtest: Accepts catalog CAB names stored as UTF-16
+ok 29 - Accepts catalog CAB names stored as UTF-16
+  ---
+  duration_ms: 0.12575
+  type: 'test'
+  ...
+# Subtest: Detects the existing portable compiler layout
+ok 30 - Detects the existing portable compiler layout
+  ---
+  duration_ms: 4.743444
+  type: 'test'
+  ...
+# Subtest: Discovers servicing versions instead of hard-coding the old patch directory
+ok 31 - Discovers servicing versions instead of hard-coding the old patch directory
+  ---
+  duration_ms: 2.027683
+  type: 'test'
+  ...
+# Subtest: Selects latest complete compiler numerically, not lexically
+ok 32 - Selects latest complete compiler numerically, not lexically
+  ---
+  duration_ms: 2.964747
+  type: 'test'
+  ...
+# Subtest: Missing Windows SDK tools is not a successful compiler-only setup
+ok 33 - Missing Windows SDK tools is not a successful compiler-only setup
+  ---
+  duration_ms: 2.579866
+  type: 'test'
+  ...
+# Subtest: Missing C++ runtime libraries invalidate a cached toolchain
+ok 34 - Missing C++ runtime libraries invalidate a cached toolchain
+  ---
+  duration_ms: 2.529972
+  type: 'test'
+  ...
+# Subtest: Rejects unsupported older installed compilers
+ok 35 - Rejects unsupported older installed compilers
+  ---
+  duration_ms: 1.928432
+  type: 'test'
+  ...
+# Subtest: Environment includes SDK paths, resources, and the exact Rust linker
+ok 36 - Environment includes SDK paths, resources, and the exact Rust linker
+  ---
+  duration_ms: 2.590583
+  type: 'test'
+  ...
+# Subtest: Retains working user Rust homes when selecting only the compiler
+ok 37 - Retains working user Rust homes when selecting only the compiler
+  ---
+  duration_ms: 0.187143
+  type: 'test'
+  ...
+# Subtest: Incomplete extraction never replaces the old cache
+ok 38 - Incomplete extraction never replaces the old cache
+  ---
+  duration_ms: 0.662361
+  type: 'test'
+  ...
+# Subtest: Complete extraction replaces cache with a preserved recovery copy
+ok 39 - Complete extraction replaces cache with a preserved recovery copy
+  ---
+  duration_ms: 0.643142
+  type: 'test'
+  ...
+# Subtest: Does not overwrite an earlier recovery copy
+ok 40 - Does not overwrite an earlier recovery copy
+  ---
+  duration_ms: 0.675069
+  type: 'test'
+  ...
+# Subtest: Detects all five missing source dependencies
+ok 41 - Detects all five missing source dependencies
+  ---
+  duration_ms: 0.414526
+  type: 'test'
+  ...
+# Subtest: Rust probe requires both compatible version and MSVC host
+ok 42 - Rust probe requires both compatible version and MSVC host
+  ---
+  duration_ms: 0.365743
+  type: 'test'
+  ...
+# Subtest: Broken rustup proxy and old compiler do not pass readiness
+ok 43 - Broken rustup proxy and old compiler do not pass readiness
+  ---
+  duration_ms: 0.13252
+  type: 'test'
+  ...
+# Subtest: Portable builder invokes bootstrap before any application compilation
+ok 44 - Portable builder invokes bootstrap before any application compilation
+  ---
+  duration_ms: 0.149115
+  type: 'test'
+  ...
+# Subtest: Environment helper no longer assumes one specific MSVC patch directory
+ok 45 - Environment helper no longer assumes one specific MSVC patch directory
+  ---
+  duration_ms: 0.197689
+  type: 'test'
+  ...
+# Subtest: Bootstrap preserves lockfiles and does not run unpinned remote scripts
+ok 46 - Bootstrap preserves lockfiles and does not run unpinned remote scripts
+  ---
+  duration_ms: 0.227954
+  type: 'test'
+  ...
+# Subtest: Non-Windows CLI fails clearly without network/setup side effects
+ok 47 - Non-Windows CLI fails clearly without network/setup side effects
+  ---
+  duration_ms: 34.17405
+  type: 'test'
+  ...
+# Subtest: Simulated first run downloads/verifies MSVC+SDK and writes a usable receipt
+ok 48 - Simulated first run downloads/verifies MSVC+SDK and writes a usable receipt
+  ---
+  duration_ms: 30.040105
+  type: 'test'
+  ...
+# Subtest: Simulated repeat run reuses complete tools with no downloads
+ok 49 - Simulated repeat run reuses complete tools with no downloads
+  ---
+  duration_ms: 25.377509
+  type: 'test'
+  ...
+# Subtest: Simulated offline missing-tool run fails before any network boundary
+ok 50 - Simulated offline missing-tool run fails before any network boundary
+  ---
+  duration_ms: 2.094713
+  type: 'test'
+  ...
+# Subtest: Simulated declined license downloads metadata only and executes no installer
+ok 51 - Simulated declined license downloads metadata only and executes no installer
+  ---
+  duration_ms: 2.294665
+  type: 'test'
+  ...
+# Subtest: Simulated hash mismatch prevents compiler extraction and ready receipt
+ok 52 - Simulated hash mismatch prevents compiler extraction and ready receipt
+  ---
+  duration_ms: 2.572385
+  type: 'test'
+  ...
+# Subtest: Simulated MSI failure preserves an existing incomplete cache and its data
+ok 53 - Simulated MSI failure preserves an existing incomplete cache and its data
+  ---
+  duration_ms: 13.843779
+  type: 'test'
+  ...
+# Subtest: Simulated compiler probe failure prevents replacement of the old tool cache
+ok 54 - Simulated compiler probe failure prevents replacement of the old tool cache
+  ---
+  duration_ms: 22.821659
+  type: 'test'
+  ...
+# Subtest: Simulated full GUI preparation installs isolated Rust and exact npm dependencies
+ok 55 - Simulated full GUI preparation installs isolated Rust and exact npm dependencies
+  ---
+  duration_ms: 7.171351
+  type: 'test'
+  ...
+# Subtest: Simulated existing Rust is reused without overwriting its configured homes
+ok 56 - Simulated existing Rust is reused without overwriting its configured homes
+  ---
+  duration_ms: 4.924488
+  type: 'test'
+  ...
+# Subtest: Simulated npm failure cannot create a success stamp or environment receipt
+ok 57 - Simulated npm failure cannot create a success stamp or environment receipt
+  ---
+  duration_ms: 3.74028
+  type: 'test'
+  ...
+# Subtest: powershell: actual parser accepts all portable-build PowerShell scripts
+ok 58 - powershell: actual parser accepts all portable-build PowerShell scripts # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.057898
+  type: 'test'
+  ...
+# Subtest: powershell: downloader reuses a checksum-verified cache without network
+ok 59 - powershell: downloader reuses a checksum-verified cache without network # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.045869
+  type: 'test'
+  ...
+# Subtest: powershell: downloader rejects a non-official URL before writing
+ok 60 - powershell: downloader rejects a non-official URL before writing # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.03337
+  type: 'test'
+  ...
+# Subtest: powershell: rejects invalid digest before making a network request
+ok 61 - powershell: rejects invalid digest before making a network request # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.034232
+  type: 'test'
+  ...
+# Subtest: powershell: ZIP extraction strips Contents prefix into a spaced path
+ok 62 - powershell: ZIP extraction strips Contents prefix into a spaced path # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.032338
+  type: 'test'
+  ...
+# Subtest: powershell: ZIP extraction blocks path traversal
+ok 63 - powershell: ZIP extraction blocks path traversal # SKIP powershell is not available on this host
+  ---
+  duration_ms: 0.078148
+  type: 'test'
+  ...
+# Subtest: pwsh: actual parser accepts all portable-build PowerShell scripts
+ok 64 - pwsh: actual parser accepts all portable-build PowerShell scripts # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.036164
+  type: 'test'
+  ...
+# Subtest: pwsh: downloader reuses a checksum-verified cache without network
+ok 65 - pwsh: downloader reuses a checksum-verified cache without network # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.030416
+  type: 'test'
+  ...
+# Subtest: pwsh: downloader rejects a non-official URL before writing
+ok 66 - pwsh: downloader rejects a non-official URL before writing # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.030696
+  type: 'test'
+  ...
+# Subtest: pwsh: rejects invalid digest before making a network request
+ok 67 - pwsh: rejects invalid digest before making a network request # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.02659
+  type: 'test'
+  ...
+# Subtest: pwsh: ZIP extraction strips Contents prefix into a spaced path
+ok 68 - pwsh: ZIP extraction strips Contents prefix into a spaced path # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.031818
+  type: 'test'
+  ...
+# Subtest: pwsh: ZIP extraction blocks path traversal
+ok 69 - pwsh: ZIP extraction blocks path traversal # SKIP pwsh is not available on this host
+  ---
+  duration_ms: 0.028373
+  type: 'test'
+  ...
+1..69
+# tests 69
+# suites 0
+# pass 57
+# fail 0
+# cancelled 0
+# skipped 12
+# todo 0
+# duration_ms 263.513386

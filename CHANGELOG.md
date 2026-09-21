@@ -4,6 +4,14 @@ All notable GalaxyXRDriver / Galaxy XR Companion release changes are recorded he
 
 ## [1.2.0] - 2026-09-21
 
+### Portable dependency bootstrap correction
+
+- Local `Build-Portable.ps1` now detects complete MSVC/Windows SDK tools or downloads them from official publisher manifests rather than requiring a prefilled ignored toolchain directory and one hard-coded MSVC patch.
+- Added checksum verification, bounded retries, cache reuse, safe staging, a compile/link probe, license acknowledgement, and project-local Node/Rust fallback without machine/user PATH changes.
+- Full builds prepare locked frontend dependencies automatically; missing source dependencies are initialized only from recorded Git submodule revisions. Added preparation-only and no-download modes.
+- Added network-free toolchain selection/setup regressions and real Windows PowerShell 5.1/7 I/O tests to the release workflow; required-source preflight includes the new helpers. Application/driver behavior and version remain unchanged.
+
+
 ### Companion UI
 
 - Renamed the desktop application to **Galaxy XR Companion** while preserving existing internal identifiers and settings paths for compatibility.
@@ -36,6 +44,10 @@ All notable GalaxyXRDriver / Galaxy XR Companion release changes are recorded he
 - Added explicit icon attribution: Galaxy XR icons were made by **Vilkka**, based on original Quest Pro iconpack made by **Lux / Hekky**.
 
 ### Build and release
+
+- Fixed the broad Git `lib` ignore rule hiding `tools/lib/stage-companion.cjs`. Re-included the helper directory and its contents, retained the shared validated executable-staging implementation, and added an early CI check for missing, empty, ignored, or untracked release helpers. Added a fresh-clone regression that runs the actual portable build-hook suite using only normally committed files.
+
+- Fixed release-version validation of npm `packages[""]` entries by parsing the lockfile with the existing Node.js toolchain, preserving all version/tag checks and the PowerShell entry-point contract. Added both-layout compatibility and regression coverage, including required Windows PowerShell / PowerShell 7 wrapper tests in CI.
 
 - Renamed source/build/package paths to **GalaxyXRDriver**, including `GalaxyXRDriverGUI`, `GalaxyXRDriver.sln`, `galaxyxrdriver-gui`, and `GalaxyXRDriver-v1.2.0-Windows-x64.zip`. The desktop display name stays Galaxy XR Companion, and installed OpenVR/data compatibility identifiers remain unchanged.
 - Added a backed-up, rollback-aware source updater for both old and already-renamed checkouts. It preserves ThirdParty and unrelated source, archives retired files, and does not touch SteamVR or AppData.

@@ -1,6 +1,9 @@
-param([switch]$DriverOnly, [switch]$GuiOnly, [string]$OutputDirectory)
+param(
+    [switch]$DriverOnly, [switch]$GuiOnly, [string]$OutputDirectory,
+    [switch]$NoDownload, [switch]$AcceptToolchainLicense, [switch]$SetupOnly
+)
 # Local fallback when the full MSBuild solution is unavailable. Requires the
-# MSVC C++ build tools and Windows SDK. Builds the x64
+# MSVC C++ build tools and Windows SDK, prepared automatically when missing. Builds the x64
 # Galaxy XR target directly from the vcxproj source list. Never deploys.
 $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5.1's `Set-Content -Encoding utf8` writes a UTF-8 BOM.
@@ -24,11 +27,27 @@ function Invoke-NativeLogged {
 }
 if ($DriverOnly -and $GuiOnly) { throw 'Choose at most 1 partial-build switch.' }
 $repo = Split-Path $PSScriptRoot -Parent
-. (Join-Path $PSScriptRoot 'Enter-PortableBuildEnvironment.ps1')
 $buildRoot = Join-Path $repo 'build'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repo ('output/GalaxyXRDriver-Test-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 if (-not $OutputDirectory.StartsWith([IO.Path]::GetFullPath((Join-Path $repo 'output')) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Output must be inside repository output directory.' }
+# The public build command restores this shell's environment even on failure.
+# Dot-sourcing Enter-PortableBuildEnvironment directly remains available for
+# developers who deliberately want a persistent current-session tool environment.
+$previousPortableEnvironment = @{}
+foreach ($name in @('PATH','INCLUDE','LIB','VCToolsInstallDir','VCToolsVersion','VCINSTALLDIR',
+    'WindowsSdkDir','WindowsSDKVersion','WindowsSdkBinPath','UniversalCRTSdkDir','UCRTVersion',
+    'VSCMD_ARG_HOST_ARCH','VSCMD_ARG_TGT_ARCH','CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER',
+    'CARGO_HOME','RUSTUP_HOME','RUSTUP_TOOLCHAIN','CARGO_NET_OFFLINE','VENDOR')) {
+    $previousPortableEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, [EnvironmentVariableTarget]::Process)
+}
+try {
+# Validate the destination before setup performs network or filesystem work.
+# $PSScriptRoot makes this work from the repository root OR the tools directory.
+. (Join-Path $PSScriptRoot 'Enter-PortableBuildEnvironment.ps1') `
+    -DriverOnly:$DriverOnly -GuiOnly:$GuiOnly -NoDownload:$NoDownload `
+    -AcceptToolchainLicense:$AcceptToolchainLicense -PrepareDependencies
+if ($SetupOnly) { Write-Output 'Portable build prerequisites are ready; no application was built or deployed.'; return }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 if (-not $GuiOnly) {
     $nativeOutput = Join-Path $OutputDirectory 'GalaxyXRNative'
@@ -93,3 +112,9 @@ if (-not $DriverOnly) {
 }
 Write-Output "Built test package: $OutputDirectory"
 
+
+} finally {
+    foreach ($entry in $previousPortableEnvironment.GetEnumerator()) {
+        [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, [EnvironmentVariableTarget]::Process)
+    }
+}

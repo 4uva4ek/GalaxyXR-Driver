@@ -2,6 +2,7 @@ let fs = require("fs")
 let path = require("path")
 let child_process = require("child_process")
 const { stageCompanion } = require("./tools/lib/stage-companion.cjs")
+const { prepareNativeDependencies } = require("./tools/prepare-native-dependencies.cjs")
 
 // Vendor-aware build script, adapted from CustomHeadsetOpenVR.
 // Builds the driver (MSBuild) and the GUI (npm) and stages a release folder.
@@ -83,6 +84,13 @@ let outputDir = path.join(__dirname, "output", stagingFolder)
 let defaultDriverOutput = path.join(__dirname, "output", "GalaxyXRDriver")
 
 console.log(`Output directory: ${outputDir}`)
+
+// Restore missing native inputs before starting either parallel build or
+// removing an earlier package. CI and local MSBuild use the same pinned setup.
+if (buildDriver) {
+	try { prepareNativeDependencies(__dirname) }
+	catch (error) { console.error(error.message); process.exit(1) }
+}
 
 // Clean previous builds
 function removeRecursive(dirPath) {

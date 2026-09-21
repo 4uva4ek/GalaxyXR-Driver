@@ -1,18 +1,23 @@
-# Dot-source to configure only the current process. Does not install or deploy.
+# Dot-source to configure only the current PowerShell process. Nothing is deployed.
+param(
+    [switch]$DriverOnly, [switch]$GuiOnly, [switch]$NoDownload,
+    [switch]$AcceptToolchainLicense, [switch]$PrepareDependencies
+)
 $portableRepo = Split-Path $PSScriptRoot -Parent
 $portableToolRoot = Join-Path $portableRepo 'build/toolchains'
-$portableMsvc = Join-Path $portableToolRoot 'msvc'
-$portableVc = Join-Path $portableMsvc 'VC/Tools/MSVC/14.44.35207'
-$portableSdk = Join-Path $portableMsvc 'Windows Kits/10'
-$portableSdkVersion = '10.0.26100.0'
-if (-not (Test-Path -LiteralPath (Join-Path $portableVc 'bin/Hostx64/x64/cl.exe'))) { throw 'Portable MSVC is missing from build/toolchains/msvc.' }
-$env:PATH = "$portableVc/bin/Hostx64/x64;$portableSdk/bin/$portableSdkVersion/x64;$portableToolRoot/cargo/bin;$env:PATH"
-$env:INCLUDE = "$portableVc/include;$portableSdk/Include/$portableSdkVersion/ucrt;$portableSdk/Include/$portableSdkVersion/shared;$portableSdk/Include/$portableSdkVersion/um;$portableSdk/Include/$portableSdkVersion/winrt;$portableSdk/Include/$portableSdkVersion/cppwinrt"
-$env:LIB = "$portableVc/lib/x64;$portableSdk/Lib/$portableSdkVersion/ucrt/x64;$portableSdk/Lib/$portableSdkVersion/um/x64"
-$env:VCToolsInstallDir = "$portableVc/"
-$env:WindowsSdkDir = "$portableSdk/"
-$env:WindowsSDKVersion = "$portableSdkVersion\"
-$env:RUSTUP_HOME = Join-Path $portableToolRoot 'rustup'
-$env:CARGO_HOME = Join-Path $portableToolRoot 'cargo'
-$env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER = Join-Path $portableVc 'bin/Hostx64/x64/link.exe'
+$setup = @{
+    DriverOnly = $DriverOnly; GuiOnly = $GuiOnly; NoDownload = $NoDownload
+    AcceptToolchainLicense = $AcceptToolchainLicense; PrepareDependencies = $PrepareDependencies
+}
+& (Join-Path $PSScriptRoot 'Setup-PortableBuildTools.ps1') @setup
+$portableEnvironment = Get-Content -Raw -LiteralPath (Join-Path $portableToolRoot 'environment.json') | ConvertFrom-Json
+if ($portableEnvironment.schema -ne 1) { throw 'Unknown portable environment receipt schema.' }
+# Deliberately do not overwrite a working user Rust/Cargo home with an empty
+# portable directory. The setup receipt only contains homes for portable Rust.
+foreach ($property in $portableEnvironment.variables.PSObject.Properties) {
+    [Environment]::SetEnvironmentVariable($property.Name, [string]$property.Value, [EnvironmentVariableTarget]::Process)
+}
+$portablePaths = @($portableEnvironment.paths) + @($env:PATH -split ';' | Where-Object { $_ })
+$env:PATH = ($portablePaths | Select-Object -Unique) -join ';'
+if ($NoDownload) { $env:CARGO_NET_OFFLINE = 'true' }
 $env:VENDOR = 'galaxyxr'

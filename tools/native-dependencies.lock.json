@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Fallback revisions read from the original supplied project's Git index (parent commit a5e8cc986c7eefd5b67ffd63df28b87d1dd16133). Real submodule gitlinks in the current checkout take precedence. No branch or latest-version lookup.",
+  "dependencies": [
+    {
+      "name": "openvr",
+      "directory": "ThirdParty/openvr",
+      "repository": "https://github.com/ValveSoftware/openvr.git",
+      "revision": "0924064316de3effbcd1acf1e309182a2deb1c05",
+      "prefixes": ["headers/", "lib/win64/"],
+      "files": ["LICENSE"],
+      "required": ["headers/openvr.h", "headers/openvr_driver.h", "lib/win64/openvr_api.lib"]
+    },
+    {
+      "name": "minhook",
+      "directory": "ThirdParty/minhook",
+      "repository": "https://github.com/TsudaKageyu/minhook.git",
+      "revision": "2b003bb063d66f016cc1aef7d63951350ce60f35",
+      "prefixes": ["include/", "src/", "build/VC17/"],
+      "files": ["LICENSE.txt"],
+      "required": ["include/MinHook.h", "build/VC17/libMinHook.vcxproj", "src/buffer.c", "src/buffer.h", "src/hook.c", "src/trampoline.c", "src/trampoline.h", "src/hde/hde32.c", "src/hde/hde32.h", "src/hde/hde64.c", "src/hde/hde64.h", "src/hde/pstdint.h", "src/hde/table32.h", "src/hde/table64.h"]
+    },
+    {
+      "name": "json",
+      "directory": "ThirdParty/json",
+      "repository": "https://github.com/nlohmann/json.git",
+      "revision": "55f93686c01528224f448c19128836e7df245f72",
+      "prefixes": ["include/nlohmann/"],
+      "files": ["LICENSE.MIT"],
+      "required": ["include/nlohmann/json.hpp", "include/nlohmann/json_fwd.hpp", "include/nlohmann/detail/output/binary_writer.hpp", "include/nlohmann/detail/output/output_adapters.hpp", "include/nlohmann/detail/output/serializer.hpp"]
+    },
+    {
+      "name": "easywsclient",
+      "directory": "ThirdParty/easywsclient",
+      "repository": "https://github.com/dhbaird/easywsclient.git",
+      "revision": "afc1d8cfc584e0f1f4a77e8c0ce3e979d9fe7ce2",
+      "prefixes": [],
+      "files": ["easywsclient.hpp", "easywsclient.cpp", "COPYING", "LICENSE", "LICENSE.txt"],
+      "required": ["easywsclient.hpp", "easywsclient.cpp"]
+    },
+    {
+      "name": "zlib",
+      "directory": "ThirdParty/zlib",
+      "repository": "https://github.com/madler/zlib.git",
+      "revision": "da607da739fa6047df13e66a2af6b8bec7c2a498",
+      "prefixes": [],
+      "rootCAndHeaders": true,
+      "files": ["LICENSE", "README", "zconf.h.in", "zconf.h.cmakein"],
+      "required": ["zlib.h", "zconf.h", "zutil.h", "zutil.c", "deflate.c", "adler32.c", "compress.c", "crc32.c", "infback.c", "inffast.c", "inflate.c", "inftrees.c", "trees.c", "uncompr.c", "deflate.h", "crc32.h", "gzguts.h", "inffast.h", "inffixed.h", "inflate.h", "inftrees.h", "trees.h"]
+    }
+  ]
+}

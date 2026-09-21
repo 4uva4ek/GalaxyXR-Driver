@@ -1,0 +1,328 @@
+TAP version 13
+# Subtest: valid renamed source validates all eight embedded version fields
+ok 1 - valid renamed source validates all eight embedded version fields
+  ---
+  duration_ms: 5.888954
+  type: 'test'
+  ...
+# Subtest: valid legacy source validates all eight embedded version fields
+ok 2 - valid legacy source validates all eight embedded version fields
+  ---
+  duration_ms: 2.210999
+  type: 'test'
+  ...
+# Subtest: actual shipped source and full npm lockfile validate
+ok 3 - actual shipped source and full npm lockfile validate
+  ---
+  duration_ms: 2.253814
+  type: 'test'
+  ...
+# Subtest: normal npm empty root key is preserved; dependency versions are unrelated
+ok 4 - normal npm empty root key is preserved; dependency versions are unrelated
+  ---
+  duration_ms: 1.50923
+  type: 'test'
+  ...
+# Subtest: npm lockfile v2 with the root entry also validates
+ok 5 - npm lockfile v2 with the root entry also validates
+  ---
+  duration_ms: 1.799098
+  type: 'test'
+  ...
+# Subtest: UTF-8 BOM and CRLF inputs validate without being rewritten
+ok 6 - UTF-8 BOM and CRLF inputs validate without being rewritten
+  ---
+  duration_ms: 1.906239
+  type: 'test'
+  ...
+# Subtest: tag mismatch remains a hard failure
+ok 7 - tag mismatch remains a hard failure
+  ---
+  duration_ms: 1.435058
+  type: 'test'
+  ...
+# Subtest: requested-version mismatch remains a hard failure
+ok 8 - requested-version mismatch remains a hard failure
+  ---
+  duration_ms: 1.184238
+  type: 'test'
+  ...
+# Subtest: OpenVR manifest mismatch is rejected
+ok 9 - OpenVR manifest mismatch is rejected
+  ---
+  duration_ms: 1.335598
+  type: 'test'
+  ...
+# Subtest: npm package mismatch is rejected
+ok 10 - npm package mismatch is rejected
+  ---
+  duration_ms: 1.488929
+  type: 'test'
+  ...
+# Subtest: npm lockfile root mismatch is rejected
+ok 11 - npm lockfile root mismatch is rejected
+  ---
+  duration_ms: 1.037127
+  type: 'test'
+  ...
+# Subtest: Tauri configuration mismatch is rejected
+ok 12 - Tauri configuration mismatch is rejected
+  ---
+  duration_ms: 1.13892
+  type: 'test'
+  ...
+# Subtest: the npm packages[""] version is independently checked
+ok 13 - the npm packages[""] version is independently checked
+  ---
+  duration_ms: 1.144779
+  type: 'test'
+  ...
+# Subtest: cargo mismatch is rejected
+ok 14 - cargo mismatch is rejected
+  ---
+  duration_ms: 1.324771
+  type: 'test'
+  ...
+# Subtest: cargoLock mismatch is rejected
+ok 15 - cargoLock mismatch is rejected
+  ---
+  duration_ms: 1.039621
+  type: 'test'
+  ...
+# Subtest: changing only the C++ version cannot publish other old versions
+ok 16 - changing only the C++ version cannot publish other old versions
+  ---
+  duration_ms: 1.086261
+  type: 'test'
+  ...
+# Subtest: invalid missing npm root package is rejected
+ok 17 - invalid missing npm root package is rejected
+  ---
+  duration_ms: 1.160393
+  type: 'test'
+  ...
+# Subtest: invalid null npm root package is rejected
+ok 18 - invalid null npm root package is rejected
+  ---
+  duration_ms: 0.943856
+  type: 'test'
+  ...
+# Subtest: invalid array npm root package is rejected
+ok 19 - invalid array npm root package is rejected
+  ---
+  duration_ms: 1.35739
+  type: 'test'
+  ...
+# Subtest: a missing npm packages object is rejected
+ok 20 - a missing npm packages object is rejected
+  ---
+  duration_ms: 1.067212
+  type: 'test'
+  ...
+# Subtest: invalid version value null is rejected
+ok 21 - invalid version value null is rejected
+  ---
+  duration_ms: 0.961442
+  type: 'test'
+  ...
+# Subtest: invalid version value 120 is rejected
+ok 22 - invalid version value 120 is rejected
+  ---
+  duration_ms: 0.844045
+  type: 'test'
+  ...
+# Subtest: invalid version value "" is rejected
+ok 23 - invalid version value "" is rejected
+  ---
+  duration_ms: 0.981553
+  type: 'test'
+  ...
+# Subtest: invalid version value ["1.2.0"] is rejected
+ok 24 - invalid version value ["1.2.0"] is rejected
+  ---
+  duration_ms: 1.189437
+  type: 'test'
+  ...
+# Subtest: invalid JSON reports the affected file
+ok 25 - invalid JSON reports the affected file
+  ---
+  duration_ms: 0.993661
+  type: 'test'
+  ...
+# Subtest: a missing release input is not silently skipped
+ok 26 - a missing release input is not silently skipped
+  ---
+  duration_ms: 0.887501
+  type: 'test'
+  ...
+# Subtest: renamed folders take priority over stale legacy copies
+ok 27 - renamed folders take priority over stale legacy copies
+  ---
+  duration_ms: 1.82095
+  type: 'test'
+  ...
+# Subtest: partially renamed layouts fail instead of mixing source generations
+ok 28 - partially renamed layouts fail instead of mixing source generations
+  ---
+  duration_ms: 1.040552
+  type: 'test'
+  ...
+# Subtest: missing source layout is reported clearly
+ok 29 - missing source layout is reported clearly
+  ---
+  duration_ms: 0.860971
+  type: 'test'
+  ...
+# Subtest: Cargo package version cannot come from another section
+ok 30 - Cargo package version cannot come from another section
+  ---
+  duration_ms: 1.128535
+  type: 'test'
+  ...
+# Subtest: Cargo lockfield order and comments do not affect validation
+ok 31 - Cargo lockfield order and comments do not affect validation
+  ---
+  duration_ms: 1.030166
+  type: 'test'
+  ...
+# Subtest: Cargo name is read from its package rather than hardcoded
+ok 32 - Cargo name is read from its package rather than hardcoded
+  ---
+  duration_ms: 1.230338
+  type: 'test'
+  ...
+# Subtest: a registry crate cannot masquerade as the local Cargo package
+ok 33 - a registry crate cannot masquerade as the local Cargo package
+  ---
+  duration_ms: 1.046851
+  type: 'test'
+  ...
+# Subtest: duplicate local Cargo entries fail explicitly
+ok 34 - duplicate local Cargo entries fail explicitly
+  ---
+  duration_ms: 0.969504
+  type: 'test'
+  ...
+# Subtest: machine output has one safe JSON envelope and no native stderr
+ok 35 - machine output has one safe JSON envelope and no native stderr
+  ---
+  duration_ms: 28.014873
+  type: 'test'
+  ...
+# Subtest: machine failure is nonzero with a safe error envelope
+ok 36 - machine failure is nonzero with a safe error envelope
+  ---
+  duration_ms: 34.789263
+  type: 'test'
+  ...
+# Subtest: version-only output is exactly one line
+ok 37 - version-only output is exactly one line
+  ---
+  duration_ms: 29.608319
+  type: 'test'
+  ...
+# Subtest: malformed CLI options fail rather than skipping checks
+ok 38 - malformed CLI options fail rather than skipping checks
+  ---
+  duration_ms: 83.580607
+  type: 'test'
+  ...
+# Subtest: running validation leaves all release input bytes unchanged
+ok 39 - running validation leaves all release input bytes unchanged
+  ---
+  duration_ms: 31.736377
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: passthru
+ok 40 - pwsh wrapper: passthru # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.283788
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: no-passthru
+ok 41 - pwsh wrapper: no-passthru # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.061944
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: legacy
+ok 42 - pwsh wrapper: legacy # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.078048
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: wrong-tag
+ok 43 - pwsh wrapper: wrong-tag # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.040221
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: wrong-expected
+ok 44 - pwsh wrapper: wrong-expected # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.040811
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: missing-root
+ok 45 - pwsh wrapper: missing-root # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.036936
+  type: 'test'
+  ...
+# Subtest: pwsh wrapper: missing-helper
+ok 46 - pwsh wrapper: missing-helper # SKIP pwsh is not installed in this environment
+  ---
+  duration_ms: 0.031187
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: passthru
+ok 47 - powershell wrapper: passthru # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.034272
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: no-passthru
+ok 48 - powershell wrapper: no-passthru # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.031978
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: legacy
+ok 49 - powershell wrapper: legacy # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.028483
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: wrong-tag
+ok 50 - powershell wrapper: wrong-tag # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.02661
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: wrong-expected
+ok 51 - powershell wrapper: wrong-expected # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.027993
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: missing-root
+ok 52 - powershell wrapper: missing-root # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.027001
+  type: 'test'
+  ...
+# Subtest: powershell wrapper: missing-helper
+ok 53 - powershell wrapper: missing-helper # SKIP powershell is not installed in this environment
+  ---
+  duration_ms: 0.031528
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 14
+# todo 0
+# duration_ms 334.074118

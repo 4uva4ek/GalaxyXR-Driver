@@ -42,6 +42,29 @@ jobs:
           node --test .\tools\tests\build-sources.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Build-source tracking regressions failed' }
 
+      # Restore native inputs before spending time on the GUI/Rust build. This
+      # also handles ZIP/vendored checkouts whose submodule metadata was lost.
+      - name: Test and restore pinned native dependencies
+        shell: pwsh
+        run: |
+          node --test .\tools\tests\native-dependencies.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency bootstrap regressions failed' }
+          node .\tools\prepare-native-dependencies.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency restoration failed; see the missing/conflicting files above' }
+          node .\tools\prepare-native-dependencies.cjs --check
+          if ($LASTEXITCODE -ne 0) { throw 'Native source preflight failed' }
+
+      # Network-free tests of package selection, cache safety, and the real
+      # PowerShell 5.1/7 downloader/archive interfaces. Hosted CI still uses
+      # its installed MSBuild toolchain below, not the portable downloader.
+      - name: Test portable dependency bootstrap
+        shell: pwsh
+        env:
+          REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'
+        run: |
+          node --test .\tools\tests\portable-toolchain.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Portable toolchain bootstrap regressions failed' }
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -144,3 +167,14 @@ jobs:
             --verify-tag `
             --title 'Galaxy XR Companion v${{ steps.version.outputs.version }}' `
             --notes-file 'release/GalaxyXRDriver-v${{ steps.version.outputs.version }}-Windows-x64-release-notes.md'
+
+      - name: Upload native dependency diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-dependency-diagnostics-${{ github.run_id }}
+          path: |
+            build/native-dependencies/*-fetch.log
+            build/native-dependencies/restoration-report.json
+          if-no-files-found: ignore
+          retention-days: 7
