@@ -7,3 +7,11 @@ output
 build
 HidModifierPrivate.cpp
 tools/**
+# Generated GitHub release packages
+release/
+
+# These release helper scripts are source files and must be committed even
+# though the repository historically ignores generated/local tools content.
+!tools/
+!tools/Verify-ReleaseVersion.ps1
+!tools/Package-GitHubRelease.ps1

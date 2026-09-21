@@ -36,7 +36,6 @@ void BaseHeadsetShim::PosTrackedDeviceActivate(uint32_t &unObjectId, vr::EVRInit
 	vr::VRProperties()->SetBoolProperty( container, vr::Prop_DisplayDebugMode_Bool, GetConfig().directMode);
 	
 	
-	// it blackscreens and immediately crashes windows when changed at runtime for the MeganeX on nvidia
 	vr::VRProperties()->SetBoolProperty(container, vr::Prop_DisplaySupportsRuntimeFramerateChange_Bool, false);
 	
 	// vr::VRProperties()->SetFloatProperty(container, vr::Prop_DisplayFrequency_Float, 90.0f);
@@ -49,30 +48,6 @@ void BaseHeadsetShim::PosTrackedDeviceActivate(uint32_t &unObjectId, vr::EVRInit
 	// vr::VRProperties()->SetBoolProperty(container, vr::Prop_Hmd_SupportsHDCP14LegacyCompat_Bool, false);
 	
 	
-	if(GetConfig().replaceIcons){
-		std::string folderName = "";
-		switch(GetConfig().headsetType){
-			case Config::HeadsetType::MeganeX8K:
-				folderName = "meganex8k";
-				break;
-			case Config::HeadsetType::DreamAir:
-				folderName = "dreamair";
-				break;
-		}
-		if(folderName != ""){
-			// update icons
-			// use the discovered driver name so icons resolve in both neutral and vendor builds
-			std::string iconBase = "{" + driverConfigLoader.info.driverName + "}/icons/";
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceOff_String, (iconBase + folderName + "/headset_status_off.png").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceSearching_String, (iconBase + folderName + "/headset_status_searching.gif").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceSearchingAlert_String, (iconBase + folderName + "/headset_status_searching_alert.gif").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceReady_String, (iconBase + folderName + "/headset_status_ready.png").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceReadyAlert_String, (iconBase + folderName + "/headset_status_ready_alert.png").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceNotReady_String, (iconBase + folderName + "/headset_status_error.png").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceStandby_String, (iconBase + folderName + "/headset_status_standby.png").c_str());
-			vr::VRProperties()->SetStringProperty(container, vr::Prop_NamedIconPathDeviceStandbyAlert_String, (iconBase + folderName + "/headset_status_standby_alert.png").c_str());
-		}
-	}	
 
 	
 	// set ipd

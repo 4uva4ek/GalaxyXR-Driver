@@ -1,42 +1,21 @@
-# CustomHeadsetGUI
+# Galaxy XR Companion frontend and Tauri backend
 
-## Start Development
-1. clone repository
-2. install [node.js](https://nodejs.org/) & [rust](https://www.rust-lang.org/tools/install) & vs code
-3. install vs code extensions, `Angular Language Service` & `rust-analyzer`
-4. run `npm i` in `CustomHeadsetGUI`
-5. run `npm start` in `CustomHeadsetGUI` to start dev server
+See **`../README-GALAXY-XR-COMPANION.md`** for current replacement, full portable-build and release instructions. The frontend is TypeScript + Lit + Fluent Web Components; it no longer uses Angular or Angular Material. The supplied current Rust backend is under `src-tauri`.
 
-## Build
-1. clone repository
-2. install [node.js](https://nodejs.org/) & [rust](https://www.rust-lang.org/tools/install)
-3. run `npm i` in `CustomHeadsetGUI`
-4. run `npm run build` in `CustomHeadsetGUI`
-5. output to `..\output\CustomHeadsetGUI`
+From this directory:
 
-## Localization
-Run `npx ng extract-i18n` to extract i18n strings.  
-Translations are located in `src/locale` folder.
-
-## Project Structure
-
+```powershell
+npm ci
+npm start           # Tauri development application
+npm run build      # Tauri application, not just frontend files
 ```
-CustomHeadsetGUI
-├───public //angular static files
-├───src //angular sources
-│    ├────app
-│    │     ├───dialogs  //dialogs, all components opened using MatDialog in here
-│    │     ├───pages    //app pages, all tabs main components
-│    │     │    ├────devices //device configuration components
-│    │     │    │    ├────general //general device settings
-│    │     │    │    └────meganex-x8-k //Meganex X8-K specific settings
-│    │     │    └────... //other pages
-│    │     ├───services //services, all injectable service
-│    │     ├───utilities //utility components
-│    │     └───tauri_wrapper.ts // wrapper for native functions in js_api.rs
-│    ├────fonts //custom fonts
-│    └────locale //i18n strings
-└───src-tauri //tauri sources
-     └──src
-         └─js_api.rs // custom rust api for javascript
-```
+
+`dev:ui` runs the frontend server and `build:ui` typechecks/builds the localized frontend. These do not produce a complete portable GUI + driver package; use the root portable-build script for that. Native commands require Tauri, so a plain browser does not reproduce native functionality.
+
+`src-lit` contains application/domain/services/components; `src/locale` retains translation catalogs; `public` contains static assets; `src-tauri` contains Rust, native permissions, application configuration and icons. The locale converter keeps en-US, ja and zh-Hant entry points. New untranslated strings fall back to their English source text. Do not use the retired Angular `ng extract-i18n` workflow.
+
+For the new mode/navigation regression suite, run `node ../tools/Test-CompanionModes.cjs` after installing the pinned dependencies.
+
+## Icon credits
+
+Galaxy XR icons were made by **Vilkka**. Based on original Quest Pro iconpack made by **Lux / Hekky**. See the repository `CREDITS.md`.

@@ -246,14 +246,6 @@ void ConfigLoader::ParseConfig(){
 		// parse with support for comments
 		json data = json::parse(configFile, nullptr, true, true);
 		Config newConfig = {};
-		if(data["meganeX8K"].is_object()){
-			json headsetData = data["meganeX8K"];
-			parseBaseHeadsetConfig(headsetData, newConfig.meganeX8K);
-		}
-		if(data["dreamAir"].is_object()){
-			json headsetData = data["dreamAir"];
-			parseBaseHeadsetConfig(headsetData, newConfig.dreamAir);
-		}
 		if(data["generalHeadset"].is_object()){
 			json generalHeadsetData = data["generalHeadset"];
 			if(generalHeadsetData["useViveBluetooth"].is_boolean()){
@@ -264,12 +256,6 @@ void ConfigLoader::ParseConfig(){
 			json customShaderData = data["customShader"];
 			if(customShaderData["enable"].is_boolean()){
 				newConfig.customShader.enable = customShaderData["enable"].get<bool>();
-			}
-			if(customShaderData["enableForMeganeX8K"].is_boolean()){
-				newConfig.customShader.enableForMeganeX8K = customShaderData["enableForMeganeX8K"].get<bool>();
-			}
-			if(customShaderData["enableForDreamAir"].is_boolean()){
-				newConfig.customShader.enableForDreamAir = customShaderData["enableForDreamAir"].get<bool>();
 			}
 			if(customShaderData["enableForOther"].is_boolean()){
 				newConfig.customShader.enableForOther = customShaderData["enableForOther"].get<bool>();
@@ -324,9 +310,6 @@ void ConfigLoader::ParseConfig(){
 			}
 			if(customShaderData["srgbColorCorrectionMatrix"].is_array()){
 				newConfig.customShader.srgbColorCorrectionMatrix = customShaderData["srgbColorCorrectionMatrix"].get<std::vector<double>>();
-			}
-			if(customShaderData["lensColorCorrection"].is_boolean()){
-				newConfig.customShader.lensColorCorrection = customShaderData["lensColorCorrection"].get<bool>();
 			}
 			if(customShaderData["dither10Bit"].is_boolean()){
 				newConfig.customShader.dither10Bit = customShaderData["dither10Bit"].get<bool>();
@@ -1695,15 +1678,11 @@ void ConfigLoader::WriteInfo(){
 	ordered_json data = {
 		{"about", "This file is not for configuration. It provides info from the driver for other utilities to use."},
 		{"defaultSettings", {
-			{"meganeX8K", baseHeadsetInfo(defaultSettings.meganeX8K)},
-			{"dreamAir", baseHeadsetInfo(defaultSettings.dreamAir)},
 			{"generalHeadset", {
 				{"useViveBluetooth", defaultSettings.generalHeadset.useViveBluetooth},
 			}},
 			{"customShader", {
 				{"enable", defaultSettings.customShader.enable},
-				{"enableForMeganeX8K", defaultSettings.customShader.enableForMeganeX8K},
-				{"enableForDreamAir", defaultSettings.customShader.enableForDreamAir},
 				{"enableForOther", defaultSettings.customShader.enableForOther},
 				{"contrast", defaultSettings.customShader.contrast},
 				{"contrastMidpoint", defaultSettings.customShader.contrastMidpoint},
@@ -1722,7 +1701,6 @@ void ConfigLoader::WriteInfo(){
 				{"srgbColorCorrection", defaultSettings.customShader.srgbColorCorrection},
 				{"srgbWhitePointCorrection", defaultSettings.customShader.srgbWhitePointCorrection},
 				{"srgbColorCorrectionMatrix", defaultSettings.customShader.srgbColorCorrectionMatrix},
-				{"lensColorCorrection", defaultSettings.customShader.lensColorCorrection},
 				{"dither10Bit", defaultSettings.customShader.dither10Bit},
 				{"enableFilterForOverlay", defaultSettings.customShader.enableFilterForOverlay},
 				{"enableFilterForDashboard", defaultSettings.customShader.enableFilterForDashboard},
@@ -2365,11 +2343,7 @@ void ConfigLoader::WatcherThreadDistortions(){
 				
 // only define settings that most users will change and are unlikely to have their default changed
 // settings not defined here will easily be able to have their defaults changed in the future for everyone
-std::string defaultConfig = R"({
-	"meganeX8K": {
-		"enable": true
-	}
-})";
+std::string defaultConfig = R"({})";
 
 
 void ConfigLoader::Start(){

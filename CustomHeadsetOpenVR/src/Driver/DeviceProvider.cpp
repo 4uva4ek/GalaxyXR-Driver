@@ -10,9 +10,7 @@
 
 #include "Hooking/InterfaceHookInjector.h"
 
-#include "../Headsets/MeganeX8K.h"
 #include "../Headsets/GalaxyXR.h"
-#include "../Headsets/DreamAir.h"
 #include "../Headsets/GenericHeadset.h"
 #include "../Headsets/FakeHeadset.h"
 #include "../Helpers/EyeTrackingOutput.h"
@@ -5039,19 +5037,6 @@ bool CustomHeadsetDeviceProvider::HandleDeviceAdded(const char *&pchDeviceSerial
 		
 		// TODO: validate the interface versions of drivers and make the shims conform to versions to prevent potential crashes
 		
-		if(driverConfig.dreamAir.enable){
-			DreamAirShim* dreamAirShim = new DreamAirShim();
-			dreamAirShim->deviceProvider = this;
-			shims.insert(dreamAirShim);
-			pDriver = new ShimTrackedDeviceDriver(dreamAirShim, pDriver);
-		}
-		
-		if(driverConfig.meganeX8K.enable){
-			MeganeX8KShim* meganeX8KShim = new MeganeX8KShim();
-			meganeX8KShim->deviceProvider = this;
-			shims.insert(meganeX8KShim);
-			pDriver = new ShimTrackedDeviceDriver(meganeX8KShim, pDriver);
-		}
 		
 		GenericHeadsetShim* genericHeadsetShim = new GenericHeadsetShim();
 		genericHeadsetShim->deviceProvider = this;

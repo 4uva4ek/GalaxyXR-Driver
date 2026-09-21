@@ -56,9 +56,6 @@
       <trans-unit id="3119794609322363234" datatype="html">
         <source>Advanced Mode</source>
       </trans-unit>
-      <trans-unit id="3303629114160653296" datatype="html">
-        <source>Enable MeganeX 8K Driver</source>
-      </trans-unit>
       <trans-unit id="1753866341555293468" datatype="html">
         <source>Shiftall driver is not disabled</source>
       </trans-unit>
@@ -335,9 +332,6 @@
       <trans-unit id="8390407398188435348" datatype="html">
         <source>Enable for Other HMDs</source>
       </trans-unit>
-      <trans-unit id="8550993829997950174" datatype="html">
-        <source>Enable for MeganeX 8K</source>
-      </trans-unit>
       <trans-unit id="8803107143135131768" datatype="html">
         <source>Disable Mura Correction</source>
       </trans-unit>
@@ -365,14 +359,8 @@
       <trans-unit id="1865011951137718165" datatype="html">
         <source>The amount of time in seconds that the display will remain bright after movement.</source>
       </trans-unit>
-      <trans-unit id="2210953895431071691" datatype="html">
-        <source>When enabled, the Custom Headset driver will run the MeganeX superlight 8K.</source>
-      </trans-unit>
       <trans-unit id="2261913743249257236" datatype="html">
         <source>The minimum brightness percentage that the display will dim to when stationary.</source>
-      </trans-unit>
-      <trans-unit id="2336565079874618391" datatype="html">
-        <source>Enables the custom shader for the MeganeX 8K.</source>
       </trans-unit>
       <trans-unit id="5444309850677948407" datatype="html">
         <source>Adjusts the saturation of the image. When higher than 50, the colors in the image will be exaggerated. When lowered all the way to 0 the image will be grayscale.</source>
@@ -403,9 +391,6 @@
       </trans-unit>
       <trans-unit id="4891791018896428318" datatype="html">
         <source>The number of vertices used to create each section of the hidden area mesh. Higher values increase the smoothness of the mesh.</source>
-      </trans-unit>
-      <trans-unit id="5106755418798621895" datatype="html">
-        <source>Enables sRGB color correction. The MeganeX is a Display-P3 display and normally colors are oversaturated by mapping the srgb outputs of applications to the full color space. When this is enabled, only the srgb portion of the display is used, which can make colors look more accurate.</source>
       </trans-unit>
       <trans-unit id="5518205125788028902" datatype="html">
         <source>Seconds From VSync to Photons</source>
@@ -490,9 +475,6 @@
       </trans-unit>
       <trans-unit id="6691168530218751172" datatype="html">
         <source>Adjusts the color of the headset. This can also be used to decrease or increase the brightness of the scene.</source>
-      </trans-unit>
-      <trans-unit id="6835956377369507232" datatype="html">
-        <source>Samples subpixels from the correct locations in the image to improve sharpness by lighting up individual subpixels. This can have a remarkable effect on the MeganeX where it can extract detail from more than 300% of the 1:1 resolution. The Vive is also supported but the improvement is less noticeable.</source>
       </trans-unit>
       <trans-unit id="7681727633925076580" datatype="html">
         <source>Super Sampling Filter Percent</source>
@@ -587,9 +569,6 @@
       <trans-unit id="1057377126114488911" datatype="html">
         <source>Custom Distortion Profiles</source>
       </trans-unit>
-      <trans-unit id="1067866594366598865" datatype="html">
-        <source>Enable Dream Air Driver</source>
-      </trans-unit>
       <trans-unit id="108697143877199110" datatype="html">
         <source> Donation Links </source>
       </trans-unit>
@@ -616,9 +595,6 @@
       <trans-unit id="1984095847256711870" datatype="html">
         <source>Distortion Control Points</source>
       </trans-unit>
-      <trans-unit id="2088381581994595582" datatype="html">
-        <source>MeganeX8K</source>
-      </trans-unit>
       <trans-unit id="2102961643795704214" datatype="html">
         <source> tab.</source>
       </trans-unit>
@@ -636,9 +612,6 @@
       </trans-unit>
       <trans-unit id="2251105634900060826" datatype="html">
         <source>Replaces the distortion shader in SteamVR&apos;s compositor with a custom one that allows for more customization. This can work with any headset that directly uses SteamVR&apos;s compositor. Click for more information.</source>
-      </trans-unit>
-      <trans-unit id="2292160599470132016" datatype="html">
-        <source>Enables eye tracking support for the headset. Pimax headsets require the pi_server runtime. Use mbucchia/Quad-Views-Foveated for foveated rendering. This may require restarting the game if turned on after a game is started.</source>
       </trans-unit>
       <trans-unit id="2382586004651960438" datatype="html">
         <source>Ko-fi</source>
@@ -661,9 +634,6 @@
       <trans-unit id="2886905340153306704" datatype="html">
         <source>The inter pupillary distance of the virtual cameras in SteamVR applications. This IPD should be matched with what you set for the headset&apos;s physical IPD to get the correct world scale.</source>
       </trans-unit>
-      <trans-unit id="3076617424804562566" datatype="html">
-        <source>Pimax</source>
-      </trans-unit>
       <trans-unit id="32490824642298852" datatype="html">
         <source>Strength of the FXAA 2CAS sharpening effect. Higher values produce more sharpening.</source>
       </trans-unit>
@@ -678,12 +648,6 @@
       </trans-unit>
       <trans-unit id="3490519526111686072" datatype="html">
         <source>Radius of the sampling pattern. Higher values produce a wider effect. 1.0 is best in most cases, but higher values may help some blurry content.</source>
-      </trans-unit>
-      <trans-unit id="3501090981182430993" datatype="html">
-        <source>Enables 10 bit dithering. This allows a 10 bit input to be shown on an 8 bit display. Pixels are dithered spatially and temporally to allow more colors to be represented. This works for the MeganeX and all other native headsets but will only have an effect for 10 bit VR applications. There may be some slight benefit to having this on when other color corrections are used.</source>
-      </trans-unit>
-      <trans-unit id="3650433553188506936" datatype="html">
-        <source>This corrects color uniformity issues created by the lenses. On the MeganeX this fixes the warmer colors in the center of the lenses. On the Dream Air this fixes the red tint around the edges.</source>
       </trans-unit>
       <trans-unit id="365798284983671240" datatype="html">
         <source>This headset is not currently being run by this driver. None of these settings will have an effect. Enable this driver and restart SteamVR with the headset connected to change this.</source>
@@ -727,9 +691,6 @@
       <trans-unit id="4944344393444797399" datatype="html">
         <source>The sample pattern to use for the sharpening effect. Different patterns produce slightly different results.</source>
       </trans-unit>
-      <trans-unit id="5052404124223641771" datatype="html">
-        <source>Enables the custom shader for all other native HMDs that don&apos;t have specific toggles at the bottom. This includes all native SteamVR headsets like the Index, Vive, BSB, etc. Non-native SteamVR headsets like the Quest, Pimax, etc will not work.</source>
-      </trans-unit>
       <trans-unit id="5057861628768897438" datatype="html">
         <source>Luma Sharpen Strength</source>
       </trans-unit>
@@ -766,14 +727,8 @@
       <trans-unit id="5943953416252309713" datatype="html">
         <source>Luma Sharpen Clamp</source>
       </trans-unit>
-      <trans-unit id="6046379908052840609" datatype="html">
-        <source>Makes SteamVR take compositor debug screenshots whenever a normal screenshot is taken. These screenshots are higher resolution and also include the exact output sent to the headset. The folder containing them will open when a screenshot is taken. In some cases standard screenshots do not work with the MeganeX but these are still functional. They are more performance intensive than normal screenshots.</source>
-      </trans-unit>
       <trans-unit id="6065348048961138520" datatype="html">
         <source>Enabling parallel projection makes the virtual cameras always point in the same direction. It increases compatibility but slightly harms performance. This only applies when rendered binocular overlap is not 100%.</source>
-      </trans-unit>
-      <trans-unit id="606988768018169130" datatype="html">
-        <source>When enabled, the Custom Headset driver will run the Pimax Dream Air.</source>
       </trans-unit>
       <trans-unit id="6145377464534677042" datatype="html">
         <source>profiles</source>
@@ -786,9 +741,6 @@
       </trans-unit>
       <trans-unit id="6555353275322017096" datatype="html">
         <source>Enables the use of the original Vive&apos;s link box for any headset to control base stations directly with SteamVR.</source>
-      </trans-unit>
-      <trans-unit id="6572848840051801784" datatype="html">
-        <source>Enables the custom shader for the Dream Air.</source>
       </trans-unit>
       <trans-unit id="6694417376736419143" datatype="html">
         <source>Corrects the sRGB white point in addition to the colors. This may result in a warmer image but more accurate colors to the sRGB standard.</source>
@@ -805,9 +757,6 @@
       <trans-unit id="6866446009305101185" datatype="html">
         <source>Default Settings Tab</source>
       </trans-unit>
-      <trans-unit id="6874124726590243001" datatype="html">
-        <source>Enable for Dream Air</source>
-      </trans-unit>
       <trans-unit id="6894334009784471350" datatype="html">
         <source>Enable Eye Tracking</source>
       </trans-unit>
@@ -819,9 +768,6 @@
       </trans-unit>
       <trans-unit id="7071470734400948493" datatype="html">
         <source>Author</source>
-      </trans-unit>
-      <trans-unit id="7092489041770374525" datatype="html">
-        <source>Pimax Play must be open and logged in for this to work. Pimax has not provided me any integration with their DRM so this flaky method needs to be used. It has been <x id="INTERPOLATION" equiv-text="{{ daysSinceDreamAirBlocked }}"/> days since the Dream Air could start without Pimax Play if Pimax allowed it for everyone.</source>
       </trans-unit>
       <trans-unit id="7105237620645987051" datatype="html">
         <source>This may cause vision problems outside of the headset.</source>
@@ -837,9 +783,6 @@
       </trans-unit>
       <trans-unit id="7565716024468232322" datatype="html">
         <source>Links</source>
-      </trans-unit>
-      <trans-unit id="7582797498140593002" datatype="html">
-        <source>Dream Air</source>
       </trans-unit>
       <trans-unit id="758358695235230670" datatype="html">
         <source>Target Device</source>
@@ -889,9 +832,6 @@
       <trans-unit id="9049291618807267906" datatype="html">
         <source>Patreon</source>
       </trans-unit>
-      <trans-unit id="9113006425690094381" datatype="html">
-        <source>MeganeX 8K</source>
-      </trans-unit>
       <trans-unit id="9128435957530270398" datatype="html">
         <source>Start SteamVR with the new driver to see new settings.</source>
       </trans-unit>
@@ -903,9 +843,6 @@
       </trans-unit>
       <trans-unit id="945165561939660867" datatype="html">
         <source>Distortion Algorithm</source>
-      </trans-unit>
-      <trans-unit id="963585036176740737" datatype="html">
-        <source>Automatically launch the Dream Air headset when the GUI is opened. This will only launch if a Pimax headset is enabled.</source>
       </trans-unit>
       <trans-unit id="currentCombinedHfov" datatype="html">
         <source>Current Combined HFOV</source>

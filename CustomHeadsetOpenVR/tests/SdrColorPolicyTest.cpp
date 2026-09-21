@@ -152,7 +152,6 @@ int main() {
         c.galaxyXr.sdr10Baseline = true;
         c.customShader.enable = true;
         c.customShader.enableForOther = false;
-        c.customShader.enableForMeganeX8K = true;
         gxr::Sdr10BaselinePolicy p = gxr::ResolveSdr10Policy(c);
         Check(p.requested && !p.conflict && p.active, "no conflict: custom shader on but not for this headset -> baseline active");
         Check(p.saturation == 50.0 && p.postPackEnable == false, "no conflict: neutral baseline applied");

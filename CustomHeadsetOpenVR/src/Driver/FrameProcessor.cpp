@@ -1748,7 +1748,9 @@ bool FrameProcessor::ProcessSceneLayer(vr::SharedTextureHandle_t leftEye, vr::Sh
 			// effective post-pack enable (2026-09-19 SDR10 baseline: false
 			// while active -> NvencPostPack::Process skips; the other fields
 			// are inert while disabled)
-			pc.enable = tc.enabled && settings.policy.postPackEnable; pc.casEnable = pp.casEnable;
+			// The Image Enhancements master also gates post-pack processing;
+			// disabling the UI mode must stop this path, not just the eye pass.
+			pc.enable = tc.enabled && gxr::ImageEnhancementsEnabled(settings.config, settings.policy) && settings.policy.postPackEnable; pc.casEnable = pp.casEnable;
 			pc.foveaStrength = (float)pp.foveaStrength; pc.peripheryStrength = (float)pp.peripheryStrength;
 			pc.foveaTop = pp.foveaTop; pc.limitedRange = pp.limitedRange; pc.edgeFalloff = (float)pp.edgeFalloff;
 			NvencPostPack::SetConfig(pc);

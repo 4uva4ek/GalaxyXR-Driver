@@ -12,8 +12,6 @@ export type DistortionProfileConfig = {
  * See the c++ documentation for documentation on what the settings are for
  */
 export type Settings = {
-  meganeX8K: MeganeX8KConfig,
-  dreamAir: DreamAirConfig,
   generalHeadset: GeneralHeadsetConfig,
   customShader: CustomShaderConfig,
   streamFrame?: StreamFrameConfig,
@@ -329,8 +327,6 @@ export type StreamFrameConfig = {
 };
 export type CustomShaderConfig = {
   enable: boolean;
-  enableForMeganeX8K: boolean,
-  enableForDreamAir: boolean,
   enableForOther: boolean,
   contrast: number;
   contrastMidpoint: number;
@@ -350,7 +346,6 @@ export type CustomShaderConfig = {
   srgbColorCorrection: boolean;
   srgbWhitePointCorrection: boolean;
   srgbColorCorrectionMatrix: number[]; // 3x3 matrix as a flat array of 9 elements
-  lensColorCorrection: boolean;
   dither10Bit: boolean;
   enableFilterForOverlay: boolean;
   enableFilterForDashboard: boolean;
@@ -410,13 +405,6 @@ export type BaseHeadsetConfig = {
   enableEyeTracking: boolean;
 };
 
-export type MeganeX8KConfig = BaseHeadsetConfig & {
-  // MeganeX8K-specific fields can be added here if needed
-};
-
-export type DreamAirConfig = BaseHeadsetConfig & {
-  // DreamAir-specific fields can be added here if needed
-};
 
 export type GeneralHeadsetConfig = {
   useViveBluetooth: boolean;
@@ -431,9 +419,7 @@ export type AppSetting = {
 export const HeadsetType = {
   None: 0,
   Other: 1,
-  MeganeX8K: 2,
   Vive: 3,
-  DreamAir: 4,
 } as const;
 
 export type HeadsetType = typeof HeadsetType[keyof typeof HeadsetType];

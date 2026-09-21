@@ -94,6 +94,10 @@ fn read_json(path: &Path) -> Result<Value> {
     parse_json_bytes(path, &data)
 }
 fn parse_json_bytes(path: &Path, bytes: &[u8]) -> Result<Value> {
+    // Be tolerant of UTF-8 BOMs from older Windows PowerShell portable builds.
+    // New builds write BOM-free UTF-8, but accepting the BOM keeps already
+    // generated/installed packages repairable by the Companion application.
+    let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
     // SteamVR manifests/settings may contain C/C++ comments. Strip comments
     // only outside JSON strings, retaining escaped quotes and line breaks.
     let mut out = bytes.to_vec();
@@ -904,6 +908,12 @@ mod tests {
             "enable":true,"hasEyeTracking":true,"inputProfilePath":"{GalaxyXRNative}/input/galaxy_xr_hmd_profile.json",
             "manufacturerName":"Samsung","modelNumber":"Galaxy XR","renderModelName":"generic_hmd",
             "resourceRoot":"GalaxyXRNative","serialNumber":"VRLINKHMDGALAXYXR","supportsEyeTracking":true,"trackingSystemName":"androidxr"})
+    }
+    #[test]
+    fn json_reader_accepts_utf8_bom_from_legacy_portable_builds() {
+        let path = Path::new("driver.vrdrivermanifest");
+        let bytes = b"\xEF\xBB\xBF{\"name\":\"GalaxyXRNative\"}";
+        assert_eq!(parse_json_bytes(path, bytes).unwrap()["name"], DRIVER);
     }
     #[test]
     fn identity_cleanup_removes_observed_block_and_backs_up_exact_bytes_without_driver_data() {

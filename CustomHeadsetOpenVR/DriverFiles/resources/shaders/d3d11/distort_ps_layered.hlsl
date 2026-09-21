@@ -100,8 +100,7 @@ float4 inputColorProcessor(float4 color){
 	color.rgb = lerp(grayScale, color.rgb, SATURATION);
 	#endif
 	#ifdef COLOR_CORRECTION_MATRIX
-	// this matrix converts from linear srgb to linear display p3 on the MeganeX
-	// it can also be used for any additional color corrections
+	// optional linear color-correction matrix
 	color.rgb = mul(float3x3(COLOR_CORRECTION_MATRIX), color.rgb);
 	// the display p3 curve is the same as srgb curve so the gamma correction is also correct
 	#endif
@@ -502,66 +501,6 @@ OutputStruct main(in InputStruct IN)
 	float2 uvDyOverlay = ddy(IN.uv2.zw);
 	int2 outputPixelOdd2D = uint2(frac(outputPixel/2.0f)*2.0f) % 2;
 	
-	#ifdef SUBPIXEL_SHIFT_MEGANEX8K
-	// do subpixel offsets
-	// https://www.shadertoy.com/view/Wcd3D7
-	// only the y direction is done because the x direction is already done by global offsets in the UVs
-	bool outputPixelOdd = outputPixelOdd2D.x == 0;
-	float2 offsetAmountY = uvDy * 0.25f;
-	float2 offsetAmountYOverlay = uvDyOverlay * 0.25f;
-	// if(frac(g_flTime)>0.5){
-	// 	offsetAmountY = 100;
-	// }
-	// I am not sure why the red subpixel is flipped vs the shadertoy, but it seems correct in testing
-	if(outputPixelOdd){
-		IN.uv1.xy += -offsetAmountY;
-		IN.uv2.xy +=  offsetAmountY;
-		IN.uv3.xy += -offsetAmountY;
-		
-		IN.uv1.zw += -offsetAmountYOverlay;
-		IN.uv2.zw +=  offsetAmountYOverlay;
-		IN.uv3.zw += -offsetAmountYOverlay;
-	}else{
-		IN.uv1.xy +=  offsetAmountY;
-		IN.uv2.xy += -offsetAmountY;
-		IN.uv3.xy +=  offsetAmountY;
-		
-		IN.uv1.zw +=  offsetAmountYOverlay;
-		IN.uv2.zw += -offsetAmountYOverlay;
-		IN.uv3.zw +=  offsetAmountYOverlay;
-	}
-	#endif
-	
-	#ifdef SUBPIXEL_SHIFT_DREAMAIR
-	// do subpixel offsets
-	// https://www.shadertoy.com/view/Wcd3D7
-	// only the y direction is done because the x direction is already done by global offsets in the UVs
-	bool outputPixelOdd = outputPixelOdd2D.x == 0;
-	float2 offsetAmountY = uvDy * 0.25f;
-	float2 offsetAmountYOverlay = uvDyOverlay * 0.25f;
-	// if(frac(g_flTime)>0.5){
-		// offsetAmountY *= 100;
-		// offsetAmountY *= 0;
-		// offsetAmountY *= -1;
-	// }
-	if(!outputPixelOdd){
-		IN.uv1.xy += -offsetAmountY;
-		IN.uv2.xy +=  offsetAmountY;
-		IN.uv3.xy += -offsetAmountY;
-		
-		IN.uv1.zw += -offsetAmountYOverlay;
-		IN.uv2.zw +=  offsetAmountYOverlay;
-		IN.uv3.zw += -offsetAmountYOverlay;
-	}else{
-		IN.uv1.xy +=  offsetAmountY;
-		IN.uv2.xy += -offsetAmountY;
-		IN.uv3.xy +=  offsetAmountY;
-		
-		IN.uv1.zw +=  offsetAmountYOverlay;
-		IN.uv2.zw += -offsetAmountYOverlay;
-		IN.uv3.zw +=  offsetAmountYOverlay;
-	}
-	#endif
 	
 	#ifdef SUBPIXEL_SHIFT_VIVE
 	// do subpixel offsets
@@ -724,47 +663,7 @@ OutputStruct main(in InputStruct IN)
 		col.rgb *= float3(COLOR_MULTIPLIER);
 	#endif
 	
-	#ifdef LENS_COLOR_CORRECTION
-	// correct for warmer colored center of the lens on the MeganeX
-	#ifdef OUTPUT_RESOLUTION_X
-	// distance from 0 to silghtly above 1 from the display not being square
-	float2 scaledUV = (float2(outputPixel.x % OUTPUT_RESOLUTION_X, outputPixel.y) / float2(OUTPUT_RESOLUTION_X, OUTPUT_RESOLUTION_Y) - 0.5);
-	scaledUV.y *= (float)OUTPUT_RESOLUTION_Y / (float)OUTPUT_RESOLUTION_X; // make it square
-	float distanceFromCenter = length(scaledUV) * 2;
-	#else
-	// fallback to this if the resolution is not defined, but this scales with FOV
-	#ifdef NO_LAYER
-	float distanceFromCenter = length(IN.uv1.xy - 0.5) * 2;
-	#else
-	float distanceFromCenter = length(IN.uv1.zw - 0.5) * 2;
-	#endif
-	#endif
-	#ifdef MEGANEX8K
-	// try 1
-	// col.b *= 1 - min(pow(distanceFromCenter, 2), 0.15) * 1.5;
-	// col.rg *= 0.9;
-	// try 2
-	// col.rg *= 0.9 + min(pow(distanceFromCenter, 2), 0.15) * 1.5;
-	// try 3
-	float scaledDistanceFromCenter = distanceFromCenter * 0.37;
-	float sideAmount = min(scaledDistanceFromCenter * scaledDistanceFromCenter, 0.1);
-	col.rg *= 0.9 + sideAmount * 0.75;
-	col.b *= 1 - sideAmount * 0.5;
-	// col = distanceFromCenter;
-	// col = distanceFromCenter > 0.5 ? 1 : 0;
-	// float fadeInPoint = 0.5;
-	// float fadeOutPoint = 0.9;
-	// float fadeCenterPoint = (fadeInPoint + fadeOutPoint) / 2;
-	// col.rgb *= 1 - lerp(pow(smoothstep(fadeInPoint, fadeOutPoint, distanceFromCenter), 3), pow(smoothstep(fadeInPoint, fadeOutPoint, distanceFromCenter), 0.2), smoothstep((fadeInPoint - fadeCenterPoint) * 0.7 + fadeCenterPoint, (fadeOutPoint - fadeCenterPoint) * 0.7 + fadeCenterPoint, distanceFromCenter));
-	#endif
-	#ifdef DREAMAIR
-	float scaledDistanceFromCenter = max(0, distanceFromCenter * 0.5 - 0.15);
-	float sideAmount = min(scaledDistanceFromCenter * scaledDistanceFromCenter, 0.08);
-	col.r *= 1 - sideAmount * 2.0;
-	col.g *= 1 - sideAmount * 0.3;
-	#endif
-	#endif
-	
+
 	// gamma is not done if this is not a layer shader
 	#ifndef NO_LAYER
 	// srgb has a small linear section at the beginning that decreases the resolution of black colors
@@ -850,12 +749,6 @@ OutputStruct main(in InputStruct IN)
 	#endif
 	
 	
-	#ifdef MEGANEX8K
-	// mitigate banding on the BOE panels at the edge of the color space
-	float maxSubpixel = max(col.r, max(col.g, col.b));
-	float3 minSubpixels = min(maxSubpixel * 0.2, float3(0.04, 0.03, 0.02));
-	col.rgb = max(col.rgb, minSubpixels);
-	#endif
 	
 	// set sub-pixels outside of uvs to zero to prevent fringing on the edges
 	// float2 uv = IN.uv1.zw;

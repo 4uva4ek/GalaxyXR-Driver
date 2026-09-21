@@ -1,0 +1,5 @@
+{
+  "scope": "TypeScript parse/transpile diagnostics, not full dependency type checking",
+  "files": 47,
+  "errors": []
+}

@@ -22,7 +22,7 @@ export class AppSettingService extends JsonSettingServiceBase<AppSetting> {
   }
   protected override migrateLoadedValues(values: AppSetting): AppSetting {
     const clean = { ...values } as AppSetting & Record<string, unknown>;
-    for (const key of ['defaultSettingsTab', 'showIncompatibleProfiles', 'launchPimaxOnStartup']) delete clean[key];
+    for (const key of ['defaultSettingsTab', 'showIncompatibleProfiles']) delete clean[key];
     return clean;
   }
   constructor(paths: PathsService) {

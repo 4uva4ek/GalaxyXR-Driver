@@ -1,6 +1,10 @@
 # Supplied Galaxy XR headset icons
 
-Source: `galaxy-xr-hmd-icons.7z` supplied by the user. No additional license or authorship is asserted. Existing controller artwork and credits are unchanged.
+Source: `galaxy-xr-hmd-icons.7z` supplied with this project.
+
+**Galaxy XR icons were made by Vilkka. Based on original Quest Pro iconpack made by Lux / Hekky.**
+
+Existing controller artwork and credits are unchanged.
 
 ## SteamVR driver resources
 

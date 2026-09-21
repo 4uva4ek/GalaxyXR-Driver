@@ -1,0 +1,73 @@
+{
+  "scope": "Build-script fixtures only; no Vite, Tauri, MSBuild or Rust compilation.",
+  "checks": [
+    {
+      "test": "Missing native backend fails explicitly rather than creating a replacement",
+      "passed": true
+    },
+    {
+      "test": "Tauri patch renames main window and product, updates icon sources, preserves IDs/security/resources",
+      "passed": true
+    },
+    {
+      "test": "Native configuration backup is byte-exact and created only once",
+      "passed": true
+    },
+    {
+      "test": "Fresh direct GUI build defaults to Galaxy XR",
+      "passed": true
+    },
+    {
+      "test": "Explicit neutral and absent vendor preserve neutral GUI identity",
+      "passed": true
+    },
+    {
+      "test": "Explicit Galaxy and absent vendor preserve Galaxy GUI identity",
+      "passed": true
+    },
+    {
+      "test": "Empty VENDOR remains the root build script neutral contract",
+      "passed": true
+    },
+    {
+      "test": "Unsupported vendor is rejected without overwriting generated identity",
+      "passed": true
+    },
+    {
+      "test": "Theme dependency is locked as a direct dependency",
+      "passed": true
+    },
+    {
+      "test": "GUI build script still invokes Tauri, not only Vite",
+      "passed": true
+    },
+    {
+      "test": "Locale asset verifier accepts three self-contained release-layout fixtures",
+      "passed": true
+    },
+    {
+      "test": "Locale asset verifier rejects a missing replacement headset icon",
+      "passed": true
+    },
+    {
+      "test": "Portable staging fails on missing executable",
+      "passed": true
+    },
+    {
+      "test": "Portable staging rejects an empty executable",
+      "passed": true
+    },
+    {
+      "test": "Portable executable has requested human-facing name and original bytes",
+      "passed": true
+    },
+    {
+      "test": "Repeated staging removes obsolete portable filename without touching other files",
+      "passed": true
+    },
+    {
+      "test": "Both portable build entry points use the validated staging helper",
+      "passed": true
+    }
+  ]
+}

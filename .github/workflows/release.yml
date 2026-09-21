@@ -1,0 +1,108 @@
+name: Build and release Galaxy XR Companion
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: galaxy-xr-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows-release:
+    name: Windows x64 portable release
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout source and submodules
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: CustomHeadsetGUI/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Verify release version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { '' }
+          $version = & .\tools\Verify-ReleaseVersion.ps1 -Tag $tag -PassThru
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Install frontend dependencies
+        working-directory: CustomHeadsetGUI
+        shell: pwsh
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: CustomHeadsetGUI
+        shell: pwsh
+        run: npm test
+
+      - name: Build Galaxy XR portable package
+        shell: pwsh
+        run: node .\build.js --vendor galaxyxr
+
+      - name: Create versioned ZIP, checksum, and release notes
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { '' }
+          .\tools\Package-GitHubRelease.ps1 `
+            -Version '${{ steps.version.outputs.version }}' `
+            -Commit $env:GITHUB_SHA `
+            -Tag $tag
+
+      - name: Upload portable ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-release-metadata
+          path: |
+            release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64.zip.sha256
+            release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64-release-notes.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create '${{ github.ref_name }}' `
+            'release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64.zip' `
+            'release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64.zip.sha256' `
+            --verify-tag `
+            --title 'Galaxy XR Companion v${{ steps.version.outputs.version }}' `
+            --notes-file 'release/Galaxy-XR-Companion-v${{ steps.version.outputs.version }}-Windows-x64-release-notes.md'

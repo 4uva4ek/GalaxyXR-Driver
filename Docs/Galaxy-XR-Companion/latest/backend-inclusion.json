@@ -1,0 +1,22 @@
+{
+  "uploadedBackendFilesChecked": 39,
+  "changedFromUpload": [
+    "Cargo.toml"
+  ],
+  "changeDescription": "Cargo.toml description only: Galaxy XR Companion. All other uploaded runtime/backend/config/icon files are byte-identical. Generated schemas and previous configuration backup intentionally not distributed.",
+  "productName": "Galaxy XR Companion",
+  "identifier": "com.sboys3.custom-headset",
+  "registeredCommandsChecked": [
+    "get_executable_path",
+    "is_vrmonitor_running",
+    "restart_vrcompositor",
+    "kill_process",
+    "launch_process",
+    "run_process_sync",
+    "register_galaxyxr_driver",
+    "update_galaxyxr_steamvr_settings",
+    "uninstall_galaxyxr_driver",
+    "clean_legacy_galaxyxr_identity"
+  ],
+  "scope": "Static source/inclusion check, not a Rust compile or Tauri runtime test."
+}

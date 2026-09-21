@@ -1,0 +1,38 @@
+PASS Current driver page mounts without runtime errors
+PASS Both identity settings default On
+PASS Advanced mode shows both identity controls
+PASS Normal mode hides both identity controls without changing their values
+PASS Galaxy XR Native Identity: disabling shows recognition warning
+PASS Galaxy XR Native Identity: warning does not persist an unconfirmed change
+PASS Galaxy XR Native Identity: Cancel is the initially focused action
+PASS Galaxy XR Native Identity: Cancel restores the real switch
+PASS Galaxy XR Native Identity: confirmed Off is saved to the shared setting
+PASS vrlink Headset Profile: disabling shows recognition warning
+PASS vrlink Headset Profile: warning does not persist an unconfirmed change
+PASS vrlink Headset Profile: Cancel is the initially focused action
+PASS vrlink Headset Profile: Cancel restores the real switch
+PASS vrlink Headset Profile: confirmed Off is saved to the shared setting
+PASS Completed confirmation dialogs are removed
+PASS Hidden controls retain explicit Off and show the recognition warning
+PASS About settings read-back still updates hidden identity switches
+PASS Help uses the real browser top layer
+PASS Help is not clipped by its tiny transformed parent
+PASS Accessible help name and expanded state are present
+PASS Technical explanation is collapsed initially
+PASS Escape closes help and restores trigger focus
+PASS Help opens from the keyboard
+PASS Outside click dismisses help
+PASS light: expanded popup stays within the viewport
+PASS light: technical details scroll instead of being cut off
+PASS light: foreground and background are contrasting
+PASS dark: expanded popup stays within the viewport
+PASS dark: technical details scroll instead of being cut off
+PASS dark: foreground and background are contrasting
+PASS All 169 rewritten help entries render as text with separate technical details
+PASS Help opens inside nested shadow-root scrolling panes
+PASS Shadow-root scroll dismisses help when its trigger leaves the pane
+PASS Older-webview fallback portals help outside the clipping shadow root
+PASS Fallback is constrained to the visible viewport
+PASS Removing a help component cleans up its popup
+PASS Browser run has no uncaught JavaScript errors
+37 browser checks passed

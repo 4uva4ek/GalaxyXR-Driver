@@ -1,0 +1,229 @@
+{
+  "scope": "Read-only file, artwork and source-contract checks. Does not verify Windows shell rendering, a native build or SteamVR runtime.",
+  "checks": [
+    {
+      "test": "ICO header is valid and contains 13 entries",
+      "passed": true
+    },
+    {
+      "test": "ICO 32px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 16px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 20px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 24px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 28px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 40px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 48px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 56px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 64px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 80px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 96px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 128px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "ICO 256px frame has correct dimensions and 32-bit metadata",
+      "passed": true
+    },
+    {
+      "test": "All embedded ICO frames are nonempty transparent RGBA images",
+      "passed": true
+    },
+    {
+      "test": "ICO begins with 32px and contains Tauri-required sizes",
+      "passed": true
+    },
+    {
+      "test": "Additional Windows scaling sizes are present without duplicates",
+      "passed": true
+    },
+    {
+      "test": "Tauri 32x32.png is square RGBA",
+      "passed": true
+    },
+    {
+      "test": "Tauri 128x128.png is square RGBA",
+      "passed": true
+    },
+    {
+      "test": "Tauri 128x128@2x.png is square RGBA",
+      "passed": true
+    },
+    {
+      "test": "Tauri icon.png is square RGBA",
+      "passed": true
+    },
+    {
+      "test": "Both public favicon paths agree",
+      "passed": true
+    },
+    {
+      "test": "All 14 supplied status assets are available",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_alert_searching.gif",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_alert_searching.gif",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_alert_searching_2x.gif",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_alert_searching_2x.gif",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_error.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_error.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_error_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_error_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_off.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_off.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_off_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_off_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_ready.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_ready_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_alert.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_ready_alert.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_alert_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_ready_alert_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_searching.gif",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_searching.gif",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_searching_2x.gif",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_searching_2x.gif",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_standby.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_standby.png",
+      "passed": true
+    },
+    {
+      "test": "Driver keeps original GUI artwork bytes: headset_galaxy_xr_standby_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Supplied dimensions/animation retained: headset_galaxy_xr_standby_2x.png",
+      "passed": true
+    },
+    {
+      "test": "Nine distinct OpenVR status properties are declared",
+      "passed": true
+    },
+    {
+      "test": "Every driver status points to supplied base and matching 2x art",
+      "passed": true
+    },
+    {
+      "test": "168 help entries contain a plain summary and technical details",
+      "passed": true
+    },
+    {
+      "test": "Every documented help entry matches its current TypeScript source",
+      "passed": true
+    },
+    {
+      "test": "Main document title uses Galaxy XR Companion",
+      "passed": true
+    }
+  ]
+}

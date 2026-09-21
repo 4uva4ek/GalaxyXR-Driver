@@ -39,6 +39,21 @@ export class DriverSettingsPage extends BasePage {
     this.requestUpdate();
   }
 
+  private async changeBaseline(enabled: boolean, control: HTMLElement & { checked: boolean }): Promise<void> {
+    const galaxy = this.ctx.galaxy;
+    control.checked = galaxy.baselineRequested;
+    if (enabled && !galaxy.baselineRequested) {
+      if (galaxy.imageEnhancementsEnabled) return;
+      const confirmed = await this.ctx.dialog.confirm(t('Reset picture adjustments and enable the baseline?'),
+        t('This resets color, sharpening, lens correction and other image-processing adjustments to their defaults. It also turns off the custom shader for this headset. Your controller, tracking and stream-quality settings are kept. Turning the baseline off later will not restore the previous picture adjustments. Back up your settings or export your lens profile first. Continue?'),
+        t('Reset and enable'), 'danger');
+      if (!confirmed) return;
+    }
+    await galaxy.setSdr10Baseline(enabled);
+    control.checked = galaxy.baselineRequested;
+    this.requestUpdate();
+  }
+
   render() {
     const galaxy = this.ctx.galaxy;
     if (!galaxy.settings) return html``;
@@ -78,27 +93,29 @@ export class DriverSettingsPage extends BasePage {
       if (advanced || !gx.nativeIdentity || !gx.vrlinkHeadsetProfile) {
         body.push(noteRow(html`<span class="warn-color" role="note">${t('Keep Galaxy XR Native Identity and vrlink Headset Profile enabled for normal use. Turning either off can stop SteamVR recognizing the headset as Galaxy XR: it may show Unknown or the identity supplied by your patched Steam Link app. Restart SteamVR after changing either setting.')}</span>`));
       }
-      if (advanced && gx.vrlinkHeadsetProfile) {
-        body.push(
-          fieldRow(t('Profile: Supports 10-bit'), html`<app-switch .checked=${!!gx.profileSupports10bit} @change=${(e: CustomEvent) => { gx.profileSupports10bit = e.detail; save(); }}></app-switch>`, {
-            tip: "Request a 10-bit video stream for smoother color gradients. This is a capability request, not proof that the connected stream is already using 10-bit.\n\n10-bit HEVC (Main10). Smoother gradients at the expense of slightly higher decode load.",
-          }),
-        );
-      }
       body.push(
-        fieldRow(t('SDR 10-bit baseline'), html`<app-switch .checked=${!!gx.sdr10Baseline} @change=${(e: CustomEvent) => { gx.sdr10Baseline = e.detail; save(); }}></app-switch>`, {
-          tip: "Request a neutral, 10-bit SDR picture without erasing your custom color settings. Restart SteamVR and reconnect to apply it. Your previous color settings return when this is turned off.\n\nRequests a 10-bit HEVC capability profile at SteamVR start. With vrlink Headset Profile On, that request is written under vrlink_xrvst2ue; with it Off, the previous vrlink_<original model> destination is retained (fallback xrvst2ue). The saved profile switch chooses the destination independently of this baseline. Neutral host processing uses saturation 50, vibrance 0, contrast 50, gamma 2.2, tint 1; color matrix, dither, black-floor correction, post-pack processing, and VUI overrides are bypassed. Stored Stream Frame values are not erased. A device custom shader can own the color path and prevent this baseline from taking effect. A request is not a live-stream measurement: restart SteamVR/reconnect and check driver_vrlink.txt for “Using 10bit mode: 1”.",
+        fieldRow(t('SDR 10-bit baseline'), html`<app-switch
+          .checked=${galaxy.baselineRequested}
+          .disabled=${galaxy.imageModeChanging() || (!galaxy.baselineRequested && galaxy.imageEnhancementsEnabled)}
+          @change=${(e: CustomEvent<boolean>) => { void this.changeBaseline(e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
+          tip: "Request a neutral 10-bit SDR picture. Enabling this resets image-processing adjustments to their defaults and turns Image Enhancements off. Switch Image Enhancements off in App Settings before enabling the baseline. Turn the baseline off before enabling enhancements again. Restart SteamVR and reconnect after changing it.\n\nThe reset covers color/brightness, sharpening, FXAA, dither, black-floor correction, distortion curves/maps, eye alignment, dimming, calibration and video-color metadata. Controller motion, tracking, stream quality, bitrate and encoder presets are not reset. The custom shader target for this headset is turned off to avoid a conflicting color path. Previous picture adjustments are not restored when the baseline is disabled; export or back up first. The capability request uses vrlink_xrvst2ue with vrlink Headset Profile On, otherwise the previous vrlink_<original model> destination. A request does not prove the live codec: restart/reconnect and check driver_vrlink.txt for Using 10bit mode: 1.",
         }),
       );
-      if (gx.sdr10Baseline) {
+      if (galaxy.baselineRequested) {
+        body.push(noteRow(html`<strong>${t('SDR 10-bit baseline is on. Image Enhancements is disabled.')}</strong>
+          ${t('Turn the baseline off before enabling Image Enhancements in App Settings. Picture adjustments reset when the baseline is enabled; switching it off does not restore them.')}
+          ${t('Restart SteamVR and reconnect to apply the 10-bit request.')}`));
         if (galaxy.sdr10BaselineConflict()) {
-          body.push(noteRow(t('Not-baseline: the device custom shader is enabled for this headset and owns the color path. Disable it to use the baseline.')));
-        } else if (!settings.enable) {
-          body.push(noteRow(t('Host processing inactive (enable Image Processing on the Stream Frame page).')));
-        } else {
-          body.push(noteRow(t('Requested - written at SteamVR start; confirm 10-bit in driver_vrlink.txt. Observed state is unknown until then.')));
+          body.push(noteRow(html`<span class="warn-color" role="alert">${t('An external setting has enabled a custom shader for this headset, so the neutral baseline is not active. Turn the baseline off and on to reset picture adjustments and clear this conflict.')}</span>`));
         }
+      } else if (galaxy.imageEnhancementsEnabled) {
+        body.push(noteRow(html`<strong>${t('Turn Image Enhancements off before enabling SDR 10-bit baseline.')}</strong>
+          <a href="#/app-settings">${t('Open App Settings')}</a>
+          ${t('Enabling the baseline resets picture adjustments to their defaults.')}`));
+      } else {
+        body.push(noteRow(t('Enabling SDR 10-bit baseline resets image-processing adjustments to their defaults and keeps Image Enhancements off. Back up custom picture settings first.')));
       }
+      if (galaxy.imageModeError()) body.push(noteRow(html`<span class="mode-error" role="alert">${galaxy.imageModeError()}</span>`));
     }
 
     // ---------------- Controllers ----------------

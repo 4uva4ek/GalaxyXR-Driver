@@ -82,35 +82,15 @@ export class AboutPage extends BasePage {
       ` : nothing}`;
   }
   private _checkingUnsub?: () => void;
-  private _edidDispose?: () => void;
-  private oldMeganeXEdidVendor: number | undefined = undefined;
-  private oldDreamAirEidVendor: number | undefined = undefined;
 
   connectedCallback(): void {
     super.connectedCallback();
     this._checkingUnsub = this.checking.subscribe(() => this.requestUpdate());
-    const dss = this.ctx.dss;
-    const sds = this.ctx.sds;
-    // Mirrors the Angular about.component effect: when a stored edid vendor
-    // override changes, restart the compositor so the new identity takes effect.
-    this._edidDispose = effect(() => {
-      const s = dss.values();
-      if (!this.ctx.checks.checking() && s?.meganeX8K?.edidVendorIdOverride != undefined && this.oldMeganeXEdidVendor != undefined && s.meganeX8K.edidVendorIdOverride != this.oldMeganeXEdidVendor) {
-        void sds.restartCompositor();
-      }
-      this.oldMeganeXEdidVendor = s?.meganeX8K?.edidVendorIdOverride;
-      if (!this.ctx.checks.checking() && s?.dreamAir?.edidVendorIdOverride != undefined && this.oldDreamAirEidVendor != undefined && s.dreamAir.edidVendorIdOverride != this.oldDreamAirEidVendor) {
-        void sds.restartCompositor();
-      }
-      this.oldDreamAirEidVendor = s?.dreamAir?.edidVendorIdOverride;
-    });
   }
 
   disconnectedCallback(): void {
     this._checkingUnsub?.();
     this._checkingUnsub = undefined;
-    this._edidDispose?.();
-    this._edidDispose = undefined;
     super.disconnectedCallback();
   }
 
@@ -280,7 +260,7 @@ export class AboutPage extends BasePage {
         <a href="https://github.com/sboys3/CustomHeadsetOpenVR" @click=${(e: Event) => this.openExternal(e, 'https://github.com/sboys3/CustomHeadsetOpenVR')}>
           CustomHeadsetOpenVR by sboys3
         </a>
-        <div class="note">This driver is a fork of CustomHeadsetOpenVR. The installer, settings system and the MeganeX / Dream Air support come from the original project.</div>
+        <div class="note">Galaxy XR Companion is based on the CustomHeadsetOpenVR project by sboys3, with Galaxy XR-specific driver, configuration, and UI work in this fork.</div>
       `),
       fieldRow(t('Donation Links'), html`
         <a class="donation-link" href="https://patreon.com/SBoys3" @click=${(e: Event) => this.openExternal(e, 'https://patreon.com/SBoys3')}>

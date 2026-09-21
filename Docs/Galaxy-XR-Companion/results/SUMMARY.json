@@ -1,0 +1,27 @@
+{
+  "result": "Source overlay; no native release binaries produced",
+  "passed": {
+    "companionCppGalaxy": 114,
+    "companionCppNeutral": 114,
+    "journalCpp": 36,
+    "sdrPolicyCpp": 62,
+    "vrlinkCapabilitiesCpp": "passed (suite does not report a numeric count)",
+    "guiServiceMockChecks": 36,
+    "portableBuildFixtures": 17,
+    "steamvrSettingsDiff": 19,
+    "chromiumComponentChecks": 37,
+    "assetAndCatalogChecks": 56,
+    "typescriptSyntaxFiles": 47,
+    "helpEntriesRendered": 169
+  },
+  "notRun": [
+    "dependency installation",
+    "full resolved-dependency TypeScript/Vite production build",
+    "Windows C++ driver build",
+    "Rust/Tauri executable build",
+    "native Windows journal I/O",
+    "native Windows titlebar/taskbar rendering",
+    "SteamVR/headset integration"
+  ],
+  "browserScope": "Current application modules; actual bundled Lit/Fluent/RxJS dependencies from supplied GUI; mocked native APIs, locks and explicit theme tokens; not a production boot."
+}

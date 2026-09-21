@@ -1,3 +1,5 @@
+> **Galaxy XR Companion cumulative update:** see [README-GALAXY-XR-COMPANION.md](README-GALAXY-XR-COMPANION.md) for the current Lit/Tauri setup, source replacement instructions and full portable build. The project background below is retained from the original source.
+
 # CustomHeadsetOpenVR GxR
 
 A SteamVR driver for the Samsung Galaxy XR over Steam Link / vrlink. It makes the headset and its controllers show up in SteamVR as what they are, fixes controller tracking and throw velocity, and processes the streamed image (color, sharpening, anti-aliasing, distortion correction) right before it is encoded.
@@ -21,7 +23,7 @@ It is a fork of [CustomHeadsetOpenVR by sboys3](https://github.com/sboys3/Custom
 **Image processing**
 - Saturation, vibrance, contrast, gamma, color matrix, brightness.
 - CAS sharpening, FXAA, dither, stationary dimming.
-- Distortion correction. Unlike the MeganeX, the Galaxy XR owns its own lens correction, so this driver pre-warps the image before handing it off rather than replacing the profile. Corrections come from camera-measured per-eye displacement maps or by-eye radial curves, with profile export/import.
+- Distortion correction. The Galaxy XR owns its own lens correction, so this driver pre-warps the image before handing it off rather than replacing the profile. Corrections come from camera-measured per-eye displacement maps or by-eye radial curves, with profile export/import.
 - Blackout for leaving the headset connected without burn-in.
 
 Everything is configured from the GUI's **Galaxy XR** page. Identity, input profile, resolution and quality need a SteamVR restart.
@@ -30,7 +32,7 @@ Everything is configured from the GUI's **Galaxy XR** page. Identity, input prof
 
 1. Download the latest release from the [releases page](https://github.com/timkhronos/CustomHeadsetOpenVrGxR/releases/latest).
 2. Extract the whole folder from the zip. The `CustomHeadsetGUI` and `GalaxyXRNative` folders must stay next to each other.
-3. Run `custom-headset-gui.exe` in `CustomHeadsetGUI`, go to About, press Install.
+3. Run `Galaxy XR Companion.exe` in `CustomHeadsetGUI`, go to About, press Install.
 4. If the stock CustomHeadsetOpenVR driver is also enabled, the GUI shows a notice and a "Switch to this driver" button. Press it.
 5. Restart SteamVR.
 
@@ -71,13 +73,15 @@ Settings live in `%APPDATA%\GalaxyXR\CustomHeadset\settings.json` and are hot-re
 
 ## Other headsets
 
-The MeganeX 8K and Dream Air support from the original project is still in this driver and still configured from the Driver Settings tab, but it is not what this fork is tested on. If you own one of those, use [sboys3's releases](https://github.com/sboys3/CustomHeadsetOpenVR/releases/latest), the two drivers coexist and the GUI switches between them.
 
 The image processing features should work on other direct-mode streamed headsets but are untested.
 
 ## Credits
 
-Built on [CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) by sboys3, which provides the installer, settings system, and the MeganeX / Dream Air support. The camera calibration scripts in `tools/` started from sboys3's calibration code (see `tools/LICENSE-sboys3-camera-calibration`).
+Galaxy XR icons were made by **Vilkka**.  
+Based on original Quest Pro iconpack made by **Lux / Hekky**.
+
+Built on [CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) by sboys3. The camera calibration scripts in `tools/` started from sboys3's calibration code (see `tools/LICENSE-sboys3-camera-calibration`).
 
 ## License
 

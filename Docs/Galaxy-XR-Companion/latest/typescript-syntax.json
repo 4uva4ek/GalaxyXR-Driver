@@ -1,0 +1,6 @@
+{
+  "compiler": "5.8.3",
+  "files": 47,
+  "errors": [],
+  "scope": "Transpilation syntax diagnostics only, NOT a full project typecheck or production bundle."
+}

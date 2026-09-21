@@ -7,7 +7,7 @@
 - **Distortion Profile:** Distortion Correction and Share Distortion Profile, including curve editing and JSON/text import/export. Both require **Image Enhancements** in App Settings; turning enhancements off keeps saved profiles and adjustments.
 - **App Settings:** Color Scheme, Image Enhancements, Advanced Mode. Advanced Mode reveals encoder, detailed controller, calibration, Advanced and Debug groups. It hides controls without resetting their values. An active-calibration banner retains a Stop calibration action in simple mode.
 
-Driver Settings is the initial page. Old MeganeX/Dream Air/general settings pages, their profile catalog, related controls, Pimax launcher and obsolete app preferences have been removed from the GUI. Native configuration schema fields remain for compatibility with existing files.
+Driver Settings is the initial page. Legacy vendor-specific and general settings pages, their profile catalog, related controls, launcher integration and obsolete app preferences have been removed from the GUI. Native configuration schema fields remain for compatibility with existing files.
 
 ## Readiness
 

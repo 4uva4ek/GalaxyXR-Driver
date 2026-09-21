@@ -1,0 +1,2284 @@
+{
+  "package": "Galaxy XR Companion cumulative replacement source — v1.2.0 — 2026-09-21",
+  "version": "1.2.0",
+  "scope": "Complete current frontend, supplied Rust backend, native driver source/resources, GitHub Actions release automation, build/test tools, cleanup helper and documentation. Merge into the existing complete project; ThirdParty and build products are not redistributed.",
+  "apply": "After extraction, run APPLY-SOURCE-CLEANUP.ps1 once from the project root before rebuilding.",
+  "note": "This manifest intentionally excludes itself and generated build/release/output directories.",
+  "files": [
+    {
+      "path": ".github/workflows/release.yml",
+      "bytes": 3481,
+      "sha256": "25dc4cfe22a467d53f1faff766042de1bef1f31a048027dba2ae310040a36a3e"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 352,
+      "sha256": "28a3de3c1bf5c363a669d65ce26f9b7e3ce7ce5cfb6be4a8690e31f49453ab54"
+    },
+    {
+      "path": ".gitmodules",
+      "bytes": 615,
+      "sha256": "3b995eded5dabf96953290bbbc822e12392a8ba6c75199e131ffc33660f30d12"
+    },
+    {
+      "path": "APPLY-SOURCE-CLEANUP.ps1",
+      "bytes": 4884,
+      "sha256": "58b1c060f7119c0e82189622cd8f8b45f76d50369a59c96f4b4eff78edd8d430"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 3779,
+      "sha256": "a1e9b1bb3669c3ee954e13ce024ce304466b129d58e5af825f87e8375ec65b6f"
+    },
+    {
+      "path": "CREDITS.md",
+      "bytes": 339,
+      "sha256": "51c75894bdc9e3ad202a0085c90ec43076c4e23037ed8c3529835e8f69d44f46"
+    },
+    {
+      "path": "CustomHeadsetGUI/.cargo/config.toml",
+      "bytes": 50,
+      "sha256": "9409a97e63cfc9b16abf4db5f07c5c765f1f0c87f523cb90b65378acf434e2d9"
+    },
+    {
+      "path": "CustomHeadsetGUI/.editorconfig",
+      "bytes": 290,
+      "sha256": "8c8a64a34ff3fceee044699d45859db959a8a486452e9a110fe948086691250d"
+    },
+    {
+      "path": "CustomHeadsetGUI/.gitignore",
+      "bytes": 630,
+      "sha256": "08962bf6ea787d4528dadfb01b19537a644ef7e3c58a88b20162c550438d4c69"
+    },
+    {
+      "path": "CustomHeadsetGUI/README.md",
+      "bytes": 1474,
+      "sha256": "34e40811ed76f035c87836583ee39bf1f0e747ba092cd74a996e110f06fd07e4"
+    },
+    {
+      "path": "CustomHeadsetGUI/generate-env.js",
+      "bytes": 1084,
+      "sha256": "59d1851f5632820ec0f8752f07e7eb8058f77a8657a9ea21d79d7949917d8c81"
+    },
+    {
+      "path": "CustomHeadsetGUI/index.html",
+      "bytes": 383,
+      "sha256": "f61dfa717f1688685e10d7a448c9f426efc1b3b2ee20d1fd04dba1cea1307f18"
+    },
+    {
+      "path": "CustomHeadsetGUI/package-lock.json",
+      "bytes": 129467,
+      "sha256": "1ce6d839ccef906c7d8ae695d3f10f63163575e9bd87c4e5d99ce057ac100094"
+    },
+    {
+      "path": "CustomHeadsetGUI/package.json",
+      "bytes": 1174,
+      "sha256": "db9e8f4cce386b20756da971263a4db11cd1254dfa7f226116d79ef78cad9ebb"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/CustomHeadset.png",
+      "bytes": 7311,
+      "sha256": "66b666ae25c495472292063c19d9c0d04472dea0891260203daa40062eba00bb"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/CustomHeadset.svg",
+      "bytes": 16549,
+      "sha256": "3fa4478658fbb9b72db3ca2894e79b6b4caf9b037acfc3f8db97ad18d5aef9e3"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/CustomHeadsetCropped.png",
+      "bytes": 7311,
+      "sha256": "66b666ae25c495472292063c19d9c0d04472dea0891260203daa40062eba00bb"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/favicon.ico",
+      "bytes": 9490,
+      "sha256": "2bedd7b89ae65d52853154f665982b87ccb4ee6da3127c666e51dc219aded3bf"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/README.md",
+      "bytes": 2618,
+      "sha256": "723504056a624f7d9041f56f7145c9205252bb9ae8b50c441f63f5179b4535d6"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/favicon.ico",
+      "bytes": 9490,
+      "sha256": "2bedd7b89ae65d52853154f665982b87ccb4ee6da3127c666e51dc219aded3bf"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_alert_searching.gif",
+      "bytes": 55013,
+      "sha256": "484e0a1056822e2bcca163656ae162e5fd01db48de1dec002442a37ff7017236"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_alert_searching_2x.gif",
+      "bytes": 123323,
+      "sha256": "44ca41db50406b19127bc447fea5121f13076e84d7e1d50edc48f771abe01f12"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_error.png",
+      "bytes": 2735,
+      "sha256": "01a43ca3a8f372521e0039c60f7aeb5d1621d05f7c1897d53c52d199c147ea39"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_error_2x.png",
+      "bytes": 7687,
+      "sha256": "9afd6bed8e8be38a38eabe4a3d23bf9a4b18d1720a721da10a1f01773d0f7f20"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_off.png",
+      "bytes": 2269,
+      "sha256": "60fafec7833bb19c2d274bad6bebefc98400901132c4d6c60f5b4e60e2bc8fc7"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_off_2x.png",
+      "bytes": 6237,
+      "sha256": "e0122150335d14908512524615c9cdab106b82e4b1563048a23604056575539e"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_ready.png",
+      "bytes": 2544,
+      "sha256": "7273607f94c1fc31bef936f539447fd953040be384a973afda95316e5603a194"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_ready_2x.png",
+      "bytes": 7311,
+      "sha256": "66b666ae25c495472292063c19d9c0d04472dea0891260203daa40062eba00bb"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_ready_alert.png",
+      "bytes": 2699,
+      "sha256": "78469ef957b8b4250e188623e0b5a3c3ce3ba3f79ed0d571ed31d1d0171cf1c4"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_ready_alert_2x.png",
+      "bytes": 7767,
+      "sha256": "c00c8df6d238e989689a773aa0c6f8e3921353c1574baa485ca818ae1da418a0"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_searching.gif",
+      "bytes": 51744,
+      "sha256": "6b375e87b51999ee5e9b309a7e9210fb77858cc3cab0d59ba4c053ae64dfc8a6"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_searching_2x.gif",
+      "bytes": 111426,
+      "sha256": "a916f39e3a871d1b05adf184eacf0fea48ad5b829979026e1da97898b2a8c1f2"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_standby.png",
+      "bytes": 3131,
+      "sha256": "d5173c07f16216d02db4269b0ba3a8232ce78cba4291bb36f968b16b5c57f9f3"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/icons/headset_galaxy_xr_standby_2x.png",
+      "bytes": 9178,
+      "sha256": "b72d4e1c4e31b91b6e95206982d1f4299e07231061c882f0333d865ff2b56477"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/ko-fi-logo.svg",
+      "bytes": 3270,
+      "sha256": "caa51a9ca700bdbe9c6be226b8ab6158e36fcd03e60b3fd1342809395d9cbf5e"
+    },
+    {
+      "path": "CustomHeadsetGUI/public/patreon-logo.svg",
+      "bytes": 3007,
+      "sha256": "2ffd80a249d5ca13e67be6780055bfb3b695dd2e44eb44876c41e67fb6ba20e7"
+    },
+    {
+      "path": "CustomHeadsetGUI/scripts/build-frontend-dist.mjs",
+      "bytes": 1276,
+      "sha256": "52a4ebf86d8896b9ce6d964d037bdc579da0e166bebbab636d3fc89b7be6f186"
+    },
+    {
+      "path": "CustomHeadsetGUI/scripts/configure-tauri.mjs",
+      "bytes": 2244,
+      "sha256": "c615787ae41689c689675b85cf2785df22afd091c6fce88bf25ae2d2ca97b097"
+    },
+    {
+      "path": "CustomHeadsetGUI/scripts/verify-frontend-dist.mjs",
+      "bytes": 2804,
+      "sha256": "82c7b1285d9a6d87991126ff2d50ca6887afa9d79cf123c3144a5396f37a0630"
+    },
+    {
+      "path": "CustomHeadsetGUI/scripts/vitest.setup.mjs",
+      "bytes": 1956,
+      "sha256": "b52187625c1e88be86e04234f04f536c543434a9a6979a7b391bc0f80c95ebca"
+    },
+    {
+      "path": "CustomHeadsetGUI/scripts/xlf-to-locale.mjs",
+      "bytes": 2658,
+      "sha256": "c308d9f9c2ab189fbc741ee8e7e14fb8890f220915740d782daedb3a49db1f4c"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/environment-gen.ts",
+      "bytes": 129,
+      "sha256": "f11713991695ef18983b7d39db1a012640c7d0c425f1e34f1b16f88a7693fcb1"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/environment.ts",
+      "bytes": 445,
+      "sha256": "55b71eb7c0858207a35da52187892236560ab61521ba587c6206ce8a99458125"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/locale/messages.ja.xlf",
+      "bytes": 83458,
+      "sha256": "b262552b58ef671e7e8326bd44db441757a73d99327372ceb991841fb9e0c39f"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/locale/messages.xlf",
+      "bytes": 83141,
+      "sha256": "838f53eb7145508cd6b70dac041bd6c3017559a73e00d3c16e288f4e62c77018"
+    },
+    {
+      "path": "CustomHeadsetGUI/src/locale/messages.zh-Hant.xlf",
+      "bytes": 74758,
+      "sha256": "9f7e54ba9bd7f83b5005165f7a3ef9407bc334dcfcec350d2f7c28d62af974a0"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/app-context.test.ts",
+      "bytes": 2898,
+      "sha256": "a93f6443be186b80dc4366921499a29732e35a6bfe45d435e0d6cab74d07ab2f"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/app-context.ts",
+      "bytes": 2342,
+      "sha256": "b6848be775423497c377f0819312d3143065c15bb40c2b1c236f600f885d0ea6"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/curve.test.ts",
+      "bytes": 3227,
+      "sha256": "76b797173105fbeb9fabbb5c5c160d2a6adfd294c84695c77ef0f358234104f5"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/curve.ts",
+      "bytes": 1794,
+      "sha256": "9fe4ac51e8897d70aeb31e6b484949bf4336571e761e19402daa63a83658843a"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/driver-defaults.ts",
+      "bytes": 9812,
+      "sha256": "5d3f1b7f855a1e8066a0536c12b239d35baa528de9ddd787f8ad559deb3b5229"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/image-mode.ts",
+      "bytes": 4177,
+      "sha256": "8219af46118b8cd1e080b6f97d937944f94d20b464d3a5219b3052f65708f888"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/navigation.ts",
+      "bytes": 988,
+      "sha256": "01eed7d24fc560d9043dec917fee17466fc913bef26ed93a9a0fb473a73af4f1"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/pure.test.ts",
+      "bytes": 6610,
+      "sha256": "ffc48ba70d346966c33a82085f4843c146745e6481e618b93581e40d7605c177"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/pure.ts",
+      "bytes": 7354,
+      "sha256": "41cc5a2dd6baa6d544e7f8911109ff3a8d17a0d1f9b67afbd0bf60bc3c9637ff"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/settings-inspection.ts",
+      "bytes": 1900,
+      "sha256": "abf8139770cbe113d77d67c5e6aa9f81d27a4f798cc10cffa14873719ad8f32a"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/steamvr-settings-diff.ts",
+      "bytes": 1834,
+      "sha256": "56f8df486f95c8556f70c37aed8a569decb856b7c5a2f8bac64c5be5679fb9d5"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/domain/types.ts",
+      "bytes": 13641,
+      "sha256": "1939dc5b9dd9895286d983306fd7d88cfbf9f8aff1de90bdc79f7b2b2db81d47"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/environment.ts",
+      "bytes": 356,
+      "sha256": "1cea7a5fb4e677e251fd7810ced1105af5eec1d95bbcaf3cbe046ba894a66624"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/about-page.ts",
+      "bytes": 16029,
+      "sha256": "ecee2bef8312dd41fce4b6b84682237490a3907f944dcb622879b70e4489f708"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/app-settings-page.ts",
+      "bytes": 5795,
+      "sha256": "782cec50cdaff07cf4524617aaf682cc0a009e992137a285856450b53a273789"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/curve-editor.ts",
+      "bytes": 19985,
+      "sha256": "ddd1b1c748de14bd746437224246b7c59b1075adba77b72528a0b82e068e6451"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/distortion-profile-page.ts",
+      "bytes": 27759,
+      "sha256": "0910fe7fe6b5e70f867077be8cd32589cc554312ebb33f9152a0bb074ef28ba4"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/driver-banner.ts",
+      "bytes": 4673,
+      "sha256": "980a4ba895bca30000f316e0f7600b622ec1285107b4ddf0be8003587c937730"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/driver-settings-page.ts",
+      "bytes": 47413,
+      "sha256": "0779da56f8f1bd69638fab8a6dd548d8764a7dfb80d9896f193f84c0565530e0"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/page-base.ts",
+      "bytes": 8774,
+      "sha256": "03e3346555763f7fa08c9cc538518f5db49c387abba7a2251d5de2bc5a9d8ffc"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/stream-frame-page.ts",
+      "bytes": 108571,
+      "sha256": "e6da3b073ea26738d2b4b4c7825de5a82d52eef3d74cc66305ac4b70a955ef23"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/features/system-ready.ts",
+      "bytes": 6089,
+      "sha256": "5abe11104a1960122f5b4d30e78bc9ffdebfdcfc6c7f5aeffb338aa816148239"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/locale/i18n.ts",
+      "bytes": 1945,
+      "sha256": "f4976e947e4a3825a20d6ec234bc71fa978cd8f29f8ec5df4dbeb7f40191f944"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/main.ts",
+      "bytes": 3203,
+      "sha256": "8103250e8104b228ed7ee7343be81ca8c9d995dcb4d464a143ea905fc1f9b5fa"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/platform/tauri.ts",
+      "bytes": 2510,
+      "sha256": "56a56f04a3153618514805be060a9f1eee13ed20e302bab57da6db072f39c42f"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/platform/writer.ts",
+      "bytes": 4385,
+      "sha256": "4f1a301ec32e81165750184bf4d814125b451e156312c757cce492a0107662cd"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/reactive.test.ts",
+      "bytes": 5881,
+      "sha256": "e5a38d1e55cc9d9acff0b84e166b2d02e5887f72e85c2cdd0efd7dc59da89b95"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/reactive.ts",
+      "bytes": 6286,
+      "sha256": "c3199d5ef885c341779af4128341641f0be1f6e4dd3fef8b8d6145c1d78b9aff"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/register.ts",
+      "bytes": 3355,
+      "sha256": "c296e391f730f337d681240fca55f99e86a9feb3cd7a70a76cc0eda9c6222ba3"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/app-setting.ts",
+      "bytes": 1471,
+      "sha256": "daa394f41989ed7f5d042ee98b76ef637c6e0064db786b5edfd7f4830f9232d6"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/app-update.ts",
+      "bytes": 3314,
+      "sha256": "9d4b58e084032d921c2261e36fad4961ab60c765442ca9c55477259ae9ffc4fe"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/dialog.ts",
+      "bytes": 3784,
+      "sha256": "cd2db21e34607b1e4e7a0ab55241d9d7c00232a02d7e19afd83cea28616ab481"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/driver-info.ts",
+      "bytes": 623,
+      "sha256": "e5539de0824204be178e30d7e2c5846ab5c147af11e115fe985b27f138c9fee5"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/driver-setting.ts",
+      "bytes": 2418,
+      "sha256": "ccba5d98f87c709512dccf9e3acfaea46f6b1075745e70e31f515a42b5303aaa"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/paths.ts",
+      "bytes": 2417,
+      "sha256": "f465ac6c5255783766d9f28bb0ac8e02138f26f96c937779b86cfa7d36c8053d"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/pulling.ts",
+      "bytes": 2511,
+      "sha256": "40c29d3ce8917c8dc8d1350817328f6c88989415452ab959dbc21b470439f75b"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/settings-base.ts",
+      "bytes": 7131,
+      "sha256": "ceba5cf0bfb99a15ad086a7ed2c6c4016cdcf61efc968294a69ad75ab17c1d64"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/settings-check.ts",
+      "bytes": 4448,
+      "sha256": "f637f0c2f5d5a5e1f40c2e8ec856eb67f6f2650cf38bfb132baaec72f4afc06c"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/system-diagnostic.test.ts",
+      "bytes": 3221,
+      "sha256": "55afb2fc835164073cad1a62fd8a716f02d6c2ae71ca310cadfebde118139f73"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/services/system-diagnostic.ts",
+      "bytes": 31726,
+      "sha256": "600673c3d92fb5518edd593914415206f18c3fe7d0770a5579b617bbbbbc4552"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/shell/app-shell.ts",
+      "bytes": 7531,
+      "sha256": "a791e2deb7eb7cdc905cd0d610867cb2a8085368333a9837283dfea49932dfb5"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/state/galaxy-settings.test.ts",
+      "bytes": 22469,
+      "sha256": "012dfe065d680127a74fc054ed597f79af82d5545c11900f12505677518515d5"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/state/galaxy-settings.ts",
+      "bytes": 37648,
+      "sha256": "90a30e6efa0f7d8224d59349960f9b0f09e884f0935535ebfa64123935409d2c"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/styles/app.css",
+      "bytes": 2681,
+      "sha256": "c344e8343d174fcbf1bed349a842156879c2a4e154ad48d1d251e387a3a744b8"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/ui/controls.ts",
+      "bytes": 15612,
+      "sha256": "bb5c09039a318a6daa188c53eb12e63b52e1dde43538b8b29f41884018f7c1a6"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/ui/help-popover.ts",
+      "bytes": 9965,
+      "sha256": "eb54db06ccc47ed4297bc17ec07957f06dc4cea31d5a3aaf407975d7df9b6c47"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/ui/shared-styles.ts",
+      "bytes": 2486,
+      "sha256": "6a751fdcce69c704145dea6a58f396c38df4e15c0f6ac05851cc27db5520af48"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-lit/ui/theme.ts",
+      "bytes": 997,
+      "sha256": "39c4aba8cece62136a5e539c8505d2f9bf0ad7c4e31740ebacfcac2a4aee6e29"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/.gitignore",
+      "bytes": 90,
+      "sha256": "8a460714d8a02659573400de0c2f2dcc756e63ca511497c3b8f068b63657bb01"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/Cargo.lock",
+      "bytes": 144401,
+      "sha256": "948e8c22801f3f303be1bad3a225b84746bf1a9a36f55b6a5ff5f5e7054f52b1"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/Cargo.toml",
+      "bytes": 792,
+      "sha256": "cfd21ee8aba9b0a5623c7eb8e32c7eb712337071ff8818a9863c790a89171919"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/build.rs",
+      "bytes": 42,
+      "sha256": "4ae2333b11623039cc115e29b696e7ff5cdfcd5b7d628280ddf48fa733e6418d"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/capabilities/default.json",
+      "bytes": 869,
+      "sha256": "599a4aef38d2bbbac94f79c46c821268733017ae9573171bed3f75e31f4874dd"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/128x128.png",
+      "bytes": 13676,
+      "sha256": "8bab5efe4ed4e495911ddb0cd6e0083811e617808cd00171de35f49f60f99449"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/128x128@2x.png",
+      "bytes": 40294,
+      "sha256": "03a0f68e1469f8b3b4226039d31bcdf433e38d96084e1231c60489a853566411"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/16x16.png",
+      "bytes": 528,
+      "sha256": "d996eefcd4b501f16f6a807a6bb3579ff0e443b99ffa84b785a19eee02e4cbda"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/20x20.png",
+      "bytes": 756,
+      "sha256": "033f3750c9f5c7839a556358aca1ce9c0e9316009c821c321ffbe5c04f44fc4a"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/24x24.png",
+      "bytes": 941,
+      "sha256": "2bda332aa1b491d41b33ce67ccb5288970feb1704d87b05f51c6b2904739e26d"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/256x256.png",
+      "bytes": 40294,
+      "sha256": "03a0f68e1469f8b3b4226039d31bcdf433e38d96084e1231c60489a853566411"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/28x28.png",
+      "bytes": 1264,
+      "sha256": "d683354faf5380c1faa645966f1837c7e73d22fe62a21c95ecac604142869349"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/32x32.png",
+      "bytes": 1584,
+      "sha256": "bcabfed109a1112770c479aa192018021212b1a3ffe6d8a7190469132c6f4c64"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/40x40.png",
+      "bytes": 2283,
+      "sha256": "2c72f474bc04614d30cfe2dadd1af9edfe84227d815a4c1b5d49dd437152721f"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/48x48.png",
+      "bytes": 2809,
+      "sha256": "25cc8b7f14f885f36a0e04796c4d19e0d6e76dd6fc6dcc8fec1dce6e272fb7cb"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/512x512.png",
+      "bytes": 116959,
+      "sha256": "adc6c64f0de323d0579ff385439e14b9e7b6e6a4fbffba27c120f89e7df9fdf2"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/56x56.png",
+      "bytes": 3631,
+      "sha256": "c1308b9e6260a5edb864057142acf6fb54c7ad7a93904d9fe5e20918c68b65ef"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/64x64.png",
+      "bytes": 4499,
+      "sha256": "a0fdf413de177203e79f24e6f706c065e1c55ec6c4542174b8dd4d9fd16885f9"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/80x80.png",
+      "bytes": 6633,
+      "sha256": "3f480dbbd34aba7f05e5f300a777d030484b31c1f7093d494ea78571ee64ccf8"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/96x96.png",
+      "bytes": 8647,
+      "sha256": "0461b54ccb243d8f22a6d884555134dabb2d9f7231de1080bf9dba3b3dc97e4d"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square107x107Logo.png",
+      "bytes": 7549,
+      "sha256": "d661a18dcb3b776234d939b836ddd360006dbad9ae697cf3c85208594118250a"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square142x142Logo.png",
+      "bytes": 10497,
+      "sha256": "bec88822727f8bd0b71578c6a0a1cfcc33b0abf3551541d2facbd7edfbf6546b"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square150x150Logo.png",
+      "bytes": 11307,
+      "sha256": "63513a810de3142e93e532b21024960a7328e9a94f60d226a36caef0fadc4c27"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square284x284Logo.png",
+      "bytes": 24629,
+      "sha256": "fadf6eb747f49fad5920fdf0d8b5509bc351a360d2535dfa63171e1ae5d9f87e"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square30x30Logo.png",
+      "bytes": 1721,
+      "sha256": "7515fe185a7263216d6244535ee2f9dc540b291212bda315d6e3f92240c14a6b"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square310x310Logo.png",
+      "bytes": 27409,
+      "sha256": "f51972a2dd1dace678465298e40b5466b473fea347cb04a9a4781d16f88b53f8"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square44x44Logo.png",
+      "bytes": 2690,
+      "sha256": "2b201641fbb45cefc780c79f08c0dda64cf26f8a2d2cb53e89c4cb6246fd7ac8"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square71x71Logo.png",
+      "bytes": 4624,
+      "sha256": "29c3cecea8f2e3462387ce4c4a97a3c839f96176273faf6d329a5462ad447407"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/Square89x89Logo.png",
+      "bytes": 6075,
+      "sha256": "f348cfdc78f927c94a30db9962f7eb5e614c6d6bcceeffe0c03707d1c373a52b"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/StoreLogo.png",
+      "bytes": 3140,
+      "sha256": "8e34a1a4477028df1f79988e263a59bb8705b0c7b274b0cb638bfdaaedfa126b"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/icon.icns",
+      "bytes": 696826,
+      "sha256": "3102c418e1e6ceb96f710b4bccc1541eb9eb901e0f0409b811567fd201c7217e"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/icon.ico",
+      "bytes": 87759,
+      "sha256": "f54439aadc5ca47255b527e9e545940d4fbebe222492f9d631a6250cfdf7aef3"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/icons/icon.png",
+      "bytes": 116959,
+      "sha256": "adc6c64f0de323d0579ff385439e14b9e7b6e6a4fbffba27c120f89e7df9fdf2"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/driver_installation.rs",
+      "bytes": 84445,
+      "sha256": "751a65461e90ec7d0f153e7b9e2753fff85219d388b5b2d48146002115dc189c"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/i18n.rs",
+      "bytes": 2990,
+      "sha256": "f5375dbd974198b0da381f2cbe2b72ba9fff7b693643e682960e98678a2b6ad2"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/js_api.rs",
+      "bytes": 6091,
+      "sha256": "a348cec43f6aea593aacfdc474d94e9724721594e72a9269df34227c2375b09c"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/lib.rs",
+      "bytes": 1407,
+      "sha256": "37f16fca58006ce4ce67f936d64ff7c4fd53e547d68036a676014602ce0e89bc"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/src/main.rs",
+      "bytes": 185,
+      "sha256": "4e2f0b2df7d602c353248d9c9c49fd26c65194ef06acb4bbbef6496e34cd199d"
+    },
+    {
+      "path": "CustomHeadsetGUI/src-tauri/tauri.conf.json",
+      "bytes": 986,
+      "sha256": "02a9fe62e347c0728285aa2a3ccb3d54b8a9d325d186421f9f550864cffd4a69"
+    },
+    {
+      "path": "CustomHeadsetGUI/tsconfig.json",
+      "bytes": 1143,
+      "sha256": "fc73b9ecb140f4bdc505681071b6473e9c70296eab90e561dd7b4e6d1dc55195"
+    },
+    {
+      "path": "CustomHeadsetGUI/vite.config.mts",
+      "bytes": 3814,
+      "sha256": "1bff126ca946f303011bdb5c65467a265bd3df93e7a828076905a22560ed1fe8"
+    },
+    {
+      "path": "CustomHeadsetGUI/vitest.config.mts",
+      "bytes": 590,
+      "sha256": "36f8355e32820ecebfa847b07446adafe346876e640114c3c644478a24727f31"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/CMakeLists.txt",
+      "bytes": 1276,
+      "sha256": "d46a5f3d686268014b8ebf25797536be5845f7934758748c9456e1c81295f578"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/CopyExcludes.txt",
+      "bytes": 10,
+      "sha256": "9f0c65953d11bbc067b7456dea006a254f8581f9e7fd3632877c0c95e51c95aa"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/CustomHeadsetOpenVR.vcxproj",
+      "bytes": 15081,
+      "sha256": "3b79ee109d51c412b7ed76bf3b0a79e87552568b4cdf616a3948297b9c6ae3b2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/CustomHeadsetOpenVR.vcxproj.filters",
+      "bytes": 6388,
+      "sha256": "b7a87d9214db45999a1d655a58c3edad4d589adbf9cb9e013d70fdeb98f69de9"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/CustomHeadsetOpenVR.vcxproj.user",
+      "bytes": 1287,
+      "sha256": "d05546cda0300eb064b0297965ad26fcf24477042a736f8befe70cb9fa239b05"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/driver.vrdrivermanifest",
+      "bytes": 191,
+      "sha256": "d2f49762506e8af19c22aac31594412372ac76edc24732e829664a1098165bbf"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/driver.vrresources",
+      "bytes": 33,
+      "sha256": "4bf79ef2de5ca5dab95f66e055f71ebfedd02d16e28130c3c6e6d2cb6095b2cc"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/SUPPLIED-HMD-ICONS.md",
+      "bytes": 2618,
+      "sha256": "723504056a624f7d9041f56f7145c9205252bb9ae8b50c441f63f5179b4535d6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/galaxy_xr_controller_left.svg",
+      "bytes": 963,
+      "sha256": "ed84157666d912ab1b6e8bfe3be652f3fa777019b640dcc220f8e63c32cbcf73"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/galaxy_xr_controller_right.svg",
+      "bytes": 964,
+      "sha256": "2bbb08814b46de24d333fd2e07c156ec9df2ce32c500338b0d5aec1323594ea5"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/galaxy_xr_hmd.svg",
+      "bytes": 700,
+      "sha256": "0216d4ad95d6063ccf057f83ca63138bbfd9657785979ede822ea679f3489824"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_alert_searching.gif",
+      "bytes": 55013,
+      "sha256": "484e0a1056822e2bcca163656ae162e5fd01db48de1dec002442a37ff7017236"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_alert_searching_2x.gif",
+      "bytes": 123323,
+      "sha256": "44ca41db50406b19127bc447fea5121f13076e84d7e1d50edc48f771abe01f12"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_error.png",
+      "bytes": 2735,
+      "sha256": "01a43ca3a8f372521e0039c60f7aeb5d1621d05f7c1897d53c52d199c147ea39"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_error_2x.png",
+      "bytes": 7687,
+      "sha256": "9afd6bed8e8be38a38eabe4a3d23bf9a4b18d1720a721da10a1f01773d0f7f20"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_off.png",
+      "bytes": 2269,
+      "sha256": "60fafec7833bb19c2d274bad6bebefc98400901132c4d6c60f5b4e60e2bc8fc7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_off_2x.png",
+      "bytes": 6237,
+      "sha256": "e0122150335d14908512524615c9cdab106b82e4b1563048a23604056575539e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_ready.png",
+      "bytes": 2544,
+      "sha256": "7273607f94c1fc31bef936f539447fd953040be384a973afda95316e5603a194"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_ready_2x.png",
+      "bytes": 7311,
+      "sha256": "66b666ae25c495472292063c19d9c0d04472dea0891260203daa40062eba00bb"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_ready_alert.png",
+      "bytes": 2699,
+      "sha256": "78469ef957b8b4250e188623e0b5a3c3ce3ba3f79ed0d571ed31d1d0171cf1c4"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_ready_alert_2x.png",
+      "bytes": 7767,
+      "sha256": "c00c8df6d238e989689a773aa0c6f8e3921353c1574baa485ca818ae1da418a0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_searching.gif",
+      "bytes": 51744,
+      "sha256": "6b375e87b51999ee5e9b309a7e9210fb77858cc3cab0d59ba4c053ae64dfc8a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_searching_2x.gif",
+      "bytes": 111426,
+      "sha256": "a916f39e3a871d1b05adf184eacf0fea48ad5b829979026e1da97898b2a8c1f2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_standby.png",
+      "bytes": 3131,
+      "sha256": "d5173c07f16216d02db4269b0ba3a8232ce78cba4291bb36f968b16b5c57f9f3"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_standby_2x.png",
+      "bytes": 9178,
+      "sha256": "b72d4e1c4e31b91b6e95206982d1f4299e07231061c882f0333d865ff2b56477"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_error.png",
+      "bytes": 2735,
+      "sha256": "01a43ca3a8f372521e0039c60f7aeb5d1621d05f7c1897d53c52d199c147ea39"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_error_2x.png",
+      "bytes": 7687,
+      "sha256": "9afd6bed8e8be38a38eabe4a3d23bf9a4b18d1720a721da10a1f01773d0f7f20"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_off.png",
+      "bytes": 2269,
+      "sha256": "60fafec7833bb19c2d274bad6bebefc98400901132c4d6c60f5b4e60e2bc8fc7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_off_2x.png",
+      "bytes": 6237,
+      "sha256": "e0122150335d14908512524615c9cdab106b82e4b1563048a23604056575539e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready.png",
+      "bytes": 2544,
+      "sha256": "7273607f94c1fc31bef936f539447fd953040be384a973afda95316e5603a194"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready_2x.png",
+      "bytes": 7311,
+      "sha256": "66b666ae25c495472292063c19d9c0d04472dea0891260203daa40062eba00bb"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready_alert.png",
+      "bytes": 2699,
+      "sha256": "78469ef957b8b4250e188623e0b5a3c3ce3ba3f79ed0d571ed31d1d0171cf1c4"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready_alert_2x.png",
+      "bytes": 7767,
+      "sha256": "c00c8df6d238e989689a773aa0c6f8e3921353c1574baa485ca818ae1da418a0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready_low.png",
+      "bytes": 2699,
+      "sha256": "78469ef957b8b4250e188623e0b5a3c3ce3ba3f79ed0d571ed31d1d0171cf1c4"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_ready_low_2x.png",
+      "bytes": 7767,
+      "sha256": "c00c8df6d238e989689a773aa0c6f8e3921353c1574baa485ca818ae1da418a0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching.gif",
+      "bytes": 51744,
+      "sha256": "6b375e87b51999ee5e9b309a7e9210fb77858cc3cab0d59ba4c053ae64dfc8a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching.png",
+      "bytes": 2529,
+      "sha256": "21ad7882de2549c043690b54b6ca710ece2671819f50842b130036bb85de5308"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_2x.gif",
+      "bytes": 111426,
+      "sha256": "a916f39e3a871d1b05adf184eacf0fea48ad5b829979026e1da97898b2a8c1f2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_2x.png",
+      "bytes": 7032,
+      "sha256": "b1fc398bb3409154dac3e8df0ae55fc48c2cb9fe07f2e3b94ff15a0dd8d8a814"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_alert.gif",
+      "bytes": 55013,
+      "sha256": "484e0a1056822e2bcca163656ae162e5fd01db48de1dec002442a37ff7017236"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_alert.png",
+      "bytes": 2811,
+      "sha256": "e7f7b9683a669d277dfd329880e276d4dcbfde8432561f3da6618b28e5decabb"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_alert_2x.gif",
+      "bytes": 123323,
+      "sha256": "44ca41db50406b19127bc447fea5121f13076e84d7e1d50edc48f771abe01f12"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_searching_alert_2x.png",
+      "bytes": 7852,
+      "sha256": "d80c2bb7f2ef6986696dd60e0ea34cc9fc6ff810d23e444c77e59337119308de"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_standby.png",
+      "bytes": 3131,
+      "sha256": "d5173c07f16216d02db4269b0ba3a8232ce78cba4291bb36f968b16b5c57f9f3"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_standby_2x.png",
+      "bytes": 9178,
+      "sha256": "b72d4e1c4e31b91b6e95206982d1f4299e07231061c882f0333d865ff2b56477"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_standby_alert.png",
+      "bytes": 3131,
+      "sha256": "d5173c07f16216d02db4269b0ba3a8232ce78cba4291bb36f968b16b5c57f9f3"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/headset_galaxy_xr_status_standby_alert_2x.png",
+      "bytes": 9178,
+      "sha256": "b72d4e1c4e31b91b6e95206982d1f4299e07231061c882f0333d865ff2b56477"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_error.png",
+      "bytes": 1191,
+      "sha256": "69ae1bffedcb6e37ea98aeb579c4927215761c41fb0389d08e442d6382cb6835"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_error_2x.png",
+      "bytes": 2488,
+      "sha256": "a0f42380c19efa1f7c5df2a314f627ca44773024785a623db8f3a3a03435b335"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_off.png",
+      "bytes": 365,
+      "sha256": "74ed43d19c837509ba7fe248d539e151a47d58f260ab0250b3a4b24a38253fb2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_off_2x.png",
+      "bytes": 713,
+      "sha256": "d5c9a6afcd5337b6ba4e45e1eaa38bb564a56099523b91f5c67854918632b7b9"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready.png",
+      "bytes": 789,
+      "sha256": "ec301fb81e0117529152c436e91803a0e1842cac2f2ba44f686e51684b167e8b"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready_2x.png",
+      "bytes": 2067,
+      "sha256": "237517f927eb04628ca3b3fb3d738f058915ef717156c84a169b36a42adc4115"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready_alert.png",
+      "bytes": 1183,
+      "sha256": "ba9db6423361f73caab22a67c532decf7d85d5b2913eb1fa749110b5120422a8"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready_alert_2x.png",
+      "bytes": 2497,
+      "sha256": "80b8e2c4593c9cf1ed009c4cacd2a8fdda3d604bd04a7933508592d3eb5abe6a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready_low.png",
+      "bytes": 1191,
+      "sha256": "69ae1bffedcb6e37ea98aeb579c4927215761c41fb0389d08e442d6382cb6835"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_ready_low_2x.png",
+      "bytes": 2488,
+      "sha256": "a0f42380c19efa1f7c5df2a314f627ca44773024785a623db8f3a3a03435b335"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching.gif",
+      "bytes": 16996,
+      "sha256": "e5f4afda549511903bfc1027f56ddb6039876f511e8b3074c526b457f1d1c573"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching.png",
+      "bytes": 827,
+      "sha256": "bf0643a7bd93ea1d909d61de2dea639f8b553195b91b5a0d07fc11d5640e985c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_2x.gif",
+      "bytes": 22151,
+      "sha256": "620fb7e18cca55266f4286b5311adcd1c13b349a744e8c4e73f7bcdf2e259ae0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_2x.png",
+      "bytes": 2260,
+      "sha256": "ebbf866ef355561f50abe07f0f9b773f5e151704326ab55837ce9748273094d3"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_alert.gif",
+      "bytes": 18657,
+      "sha256": "5e3593a8e1d964153c5a4ec2026f05074bc332f99299a74bf9f6df1454cf5cd7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_alert.png",
+      "bytes": 1218,
+      "sha256": "2554138b48ecb16cac94b96133af4ce7b30b167eed200c290b9635a62b01ba22"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_alert_2x.gif",
+      "bytes": 24089,
+      "sha256": "b706d9f6e75a58ee51b9256198446a1bccf927cc7b07eca8ed269c0da2200c3b"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_searching_alert_2x.png",
+      "bytes": 2445,
+      "sha256": "8fdbb7c074912b166981dcee2fe8a976b9474beaa5d18f1fc837da370a043bf5"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_standby.png",
+      "bytes": 904,
+      "sha256": "466e30a17a3c67b9f820475d0333edb5fbcb5c69512fe3e83ba045586d107b84"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_standby_2x.png",
+      "bytes": 2092,
+      "sha256": "b4039d07c4ec37c64246fb0734b3f4df796bd09eef54f80973bae5a7a5ffb9e2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_standby_alert.png",
+      "bytes": 1282,
+      "sha256": "24fc5b6fe18a44a8b3cfaf4eda212d8aa3764577e2cd710472f97ccb88ceaeb6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/left_galaxy_xr_status_standby_alert_2x.png",
+      "bytes": 2555,
+      "sha256": "3e166fbcee097e8987ee1dca7c5732c94654021889349dba777e00879559a642"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_error.png",
+      "bytes": 1212,
+      "sha256": "54829f646dd162ef574cfe48ae1ab35f4ab4999b7c49ef2996ff52b2d364b471"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_error_2x.png",
+      "bytes": 2478,
+      "sha256": "1038eac0256e25c4c373bbbc71cb35f712088a6feb06db92cfd8df67466e89a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_off.png",
+      "bytes": 355,
+      "sha256": "fb3530d6fa2335cb945b866d4d039cc4ab613ee3b054a775a01ff7910cabb61d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_off_2x.png",
+      "bytes": 711,
+      "sha256": "7dda02a2e749776491f22a99fb62a39343a75134bf7a51756158319d3da543dc"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready.png",
+      "bytes": 801,
+      "sha256": "ddbdeaccaa29ece8effc6f93426ea8864e6ba2429b142f906b2e558c4b044064"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready_2x.png",
+      "bytes": 2098,
+      "sha256": "851f2c25642f525a3dc3b4cabf05a30bc4f0540515980fe7c2eda948cf2efb14"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready_alert.png",
+      "bytes": 1182,
+      "sha256": "0c434518c0ad526852ff4bcef222ddee55a2c74edb3e81b30b3740cbfd9241c2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready_alert_2x.png",
+      "bytes": 2485,
+      "sha256": "332de09a80782489bbd6208d4a7278d249903ffb36184ce0db1e71d21ca4ac88"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready_low.png",
+      "bytes": 1212,
+      "sha256": "54829f646dd162ef574cfe48ae1ab35f4ab4999b7c49ef2996ff52b2d364b471"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_ready_low_2x.png",
+      "bytes": 2478,
+      "sha256": "1038eac0256e25c4c373bbbc71cb35f712088a6feb06db92cfd8df67466e89a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching.gif",
+      "bytes": 16970,
+      "sha256": "adc0ef6c0f0952a9ae3a0a96ba387461a3a2a351e158817e383ac35b6e10842a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching.png",
+      "bytes": 843,
+      "sha256": "085070cefcac4ec2484a0ae6d6ba7a9209474c606f81242e5e2e3dc72710bf82"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_2x.gif",
+      "bytes": 21859,
+      "sha256": "26745185fa07df7056acbd84d305610c8a51e4a310a1fe4fe2658d95d1c552b5"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_2x.png",
+      "bytes": 2284,
+      "sha256": "09de65ffb3bb6f94928c5218dad843e5f246d66863211a6559f6992a43b70d21"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_alert.gif",
+      "bytes": 18184,
+      "sha256": "362d223c202f44193dc37fecd8e0ca2011c0252d57cb84a667c465950fb5f267"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_alert.png",
+      "bytes": 1218,
+      "sha256": "6873fadaf292e03014c5413d6227c01027d60afd4bae2db0043626fa99bc4ce3"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_alert_2x.gif",
+      "bytes": 22931,
+      "sha256": "c01fc8e069d97cffeeed9c37538749f5da10754ece3df5034cd093bcd9cd5a39"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_searching_alert_2x.png",
+      "bytes": 2452,
+      "sha256": "9db945bd04ef881ee4110696a075292474d959933a67c5ff376f39cdb695f6ef"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_standby.png",
+      "bytes": 922,
+      "sha256": "bbdf29db9fc4ef32c2a4c6ea82d839175fd9b2d8a7b853b105e80130f7a5db88"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_standby_2x.png",
+      "bytes": 2090,
+      "sha256": "25cce8d38c47afc43cc708d6ae0694a20be48905648dddb9309f4df04ffe1b27"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_standby_alert.png",
+      "bytes": 1293,
+      "sha256": "fb37922e50a07a2bb53c7c1659623ce2b9cd0d4f89f679d98f8a3ff96b072a9a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/right_galaxy_xr_status_standby_alert_2x.png",
+      "bytes": 2586,
+      "sha256": "868ccd83c2fce13a6bcaf08b3f559449390ac7409ec3098dae6845b6017ddf01"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/samsung_touch_left.svg",
+      "bytes": 9079,
+      "sha256": "b7177953e9eccea12611607ec6441cd89565f9906f5d4239c66ed1270840515e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/icons/galaxy_xr/samsung_touch_right.svg",
+      "bytes": 9348,
+      "sha256": "7e8c03097e7d27b16fe584aa22f24204ab0e926342518c1547d10c700768792f"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/bindings/steam.app.1947500_samsung_touch_bindings.json",
+      "bytes": 5227,
+      "sha256": "3db5c997004494d3aceaa70e497d368c89603c383a22cde7902df9e98e04c9b2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/bindings/steam.app.722230_samsung_touch_bindings.json",
+      "bytes": 19775,
+      "sha256": "a8c17f84e3c4db66aa55be39786b72ec9357c6e7f83927240d7d52987d5b9394"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/bindings/steam.app.916840_samsung_touch_bindings.json",
+      "bytes": 4659,
+      "sha256": "8ec28151ab887c9b3294d789fe02ba1098a68bf7a5c80a2b91408fbf021f8b0e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/galaxy_xr_controller_profile.json",
+      "bytes": 5059,
+      "sha256": "82b9919b360807e46babf594f41c1aeb598c825966308f57ea51db283c2f7fe4"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/galaxy_xr_controller_remapping.json",
+      "bytes": 6633,
+      "sha256": "29d01b92bbfb69f6d7efc964b2c23527bd3618b357951ffce4de28dfad780258"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/galaxy_xr_hmd_profile.json",
+      "bytes": 704,
+      "sha256": "f24cd4c7a8e70bfe26eb5d810fe33cecadaea54db81c1d69e656b91e54d8deee"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/legacy_bindings_galaxy_xr_controller.json",
+      "bytes": 4992,
+      "sha256": "b7dacb42d8ea6a299def17250b8823c2150850f77d42692334d4119e34e86d4c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/legacy_bindings_samsung.json",
+      "bytes": 6224,
+      "sha256": "cea725d1095781e3d44a29c4a3af69379062256581f9081df12a5edb5644c59a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/openvr.tool.steamvr_environments_samsung_touch.json",
+      "bytes": 12728,
+      "sha256": "7aebcea64a205864176e2c1e93ffbe62bb8ee5feda4da4018a37ecf0c09866a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/samsung_controller_remapping.json",
+      "bytes": 3090,
+      "sha256": "c36c49ef265a9813e7f1297eafbc2251671d84033b8354cbe7777d56ce0e3597"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/samsung_input_profile.json",
+      "bytes": 4321,
+      "sha256": "73acba82a8d19da7e76bcdbf891e9174ce26cde2e43480975c78626dcb6ba943"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/vrcompositor_bindings_galaxy_xr_controller.json",
+      "bytes": 11923,
+      "sha256": "562630738c986749138ba50f5ef4137d28e4658ff9aa1e4980a946aac60ee2c6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/input/vrcompositor_bindings_touch.json",
+      "bytes": 9885,
+      "sha256": "5fcdc69904e7e54046b101539b7176e9b7cf06faa5bfbe88d2d1d047aaaa00b2"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/localization/localization.json",
+      "bytes": 105,
+      "sha256": "179553cf04e903cb24bb0e8c4ba961b5ef733f0d35e818a97ed13b73e46fd0e9"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_body.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_body.obj",
+      "bytes": 205654,
+      "sha256": "aa3205fe11fc875fd4ddc1d3074e30d81e60dcc18cd8c4034d41c9e2c6013fad"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_grip.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_grip.obj",
+      "bytes": 15462,
+      "sha256": "69a108c6368e565d039d7f1e2364cf214cca7bfef5cce09b92235fa3a4eb9613"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_lowerButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_lowerButton.obj",
+      "bytes": 9899,
+      "sha256": "ba65175d7f4c1e6fd3f70039efd8797a6f58826cdd73ca7d62f50bb517fde748"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_menuButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_menuButton.obj",
+      "bytes": 9947,
+      "sha256": "1c6e4a0c3e57275af84522b97543164031746aadd7dcac79e0d5999395cc43f0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_thumbStick.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_thumbStick.obj",
+      "bytes": 71727,
+      "sha256": "75a572beb165fe491b1668c878bb769a7165cf46bcceb97e8ea0f85114402522"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_trigger.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_trigger.obj",
+      "bytes": 15527,
+      "sha256": "28d8f70b09e6b15742c6af8d1e23bbc14407132b1f6a1c07b4cec8777baaf89c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_upperButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/L_upperButton.obj",
+      "bytes": 9961,
+      "sha256": "5f6ead42d25d9ccfdef8eac34a5f7c1c35a4d9c1b4cae00c48dfc90bcf329248"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/VstControllerUnlitColor.png",
+      "bytes": 3685514,
+      "sha256": "a084603d283d7628b2b2455b0ad28240872b69b6f4357dd6ba67cc89da5e8988"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/VstControllerspecular.png",
+      "bytes": 204269,
+      "sha256": "808514c9334c5599ce85e3d3430f9ab9ee920b77634b72504e50dc47ee78ba00"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/vst_controller_left.json",
+      "bytes": 4903,
+      "sha256": "f95f5857c5aa93b6934dea2886272f02c4ea772282501bd697fc1ffc9c1cc727"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/vst_controller_left.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/vst_controller_left.obj",
+      "bytes": 333165,
+      "sha256": "c958830c837984b05b051927931ae1ad9a0e14af95b5b91b48105fa53bb0cf8b"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_left/vst_controller_left_thumbnail.png",
+      "bytes": 2870538,
+      "sha256": "49d86fb0b5d645f2b5d6054b65722a250c3e2bfeb8c673028c148279be3eea64"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_body.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_body.obj",
+      "bytes": 205457,
+      "sha256": "d21bc62888e776c22151071b5504abda3db9e914a52c9c9e5dc8e90fb7aa3fb0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_grip.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_grip.obj",
+      "bytes": 15645,
+      "sha256": "72dc0ccabae0b7a1bf4fb6d72a3448def8247dd63768e9cc02aca234f26e2892"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_homeButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_homeButton.obj",
+      "bytes": 9902,
+      "sha256": "361ac05ae22f753c971ed451d54719987cff2c0f5b0277b4300797c5b27a9344"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_lowerButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_lowerButton.obj",
+      "bytes": 9977,
+      "sha256": "db13f4f48b18af20d114a5809ba1e150460adf070e260606de6560c2ea37692c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_thumbStick.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_thumbStick.obj",
+      "bytes": 71487,
+      "sha256": "6112c07a46b936c758d8fff88eadfb20abc9e234edf947bfaf24db386975f226"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_trigger.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_trigger.obj",
+      "bytes": 15599,
+      "sha256": "26455ec8b385230f5d9f481daea5c9722d2ab1e6d8f617b5948059698eb31af7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_upperButton.mtl",
+      "bytes": 282,
+      "sha256": "7d319be3099eac107de3098de65d8f1497c273d086ef6dd8e2262ab15073e56d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/R_upperButton.obj",
+      "bytes": 10047,
+      "sha256": "0ad451c0efdb678992a4eb0a39c269d3cf136850500355d2824003d44079d38c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/VstControllerUnlitColor.png",
+      "bytes": 3685514,
+      "sha256": "a084603d283d7628b2b2455b0ad28240872b69b6f4357dd6ba67cc89da5e8988"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/VstControllerspecular.png",
+      "bytes": 204269,
+      "sha256": "808514c9334c5599ce85e3d3430f9ab9ee920b77634b72504e50dc47ee78ba00"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/vst_controller_right.json",
+      "bytes": 4892,
+      "sha256": "397f50e3603a3f0ad8c3fa03dffbfaa13175a60a69e7ed82704928cd93dfeb63"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/vst_controller_right.mtl",
+      "bytes": 284,
+      "sha256": "90a6d2d585bae8c1a6c63add2e36058348e216591b51412769315559acb6b590"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/vst_controller_right.obj",
+      "bytes": 336452,
+      "sha256": "e7a91d961a1685f81285ca5aabe8ab1ac17222711659267f784e35e0e710d133"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/rendermodels/vst_controller_right/vst_controller_right_thumbnail.png",
+      "bytes": 2841983,
+      "sha256": "0dc569bb788c707cb3917f62d80c10452ac1797f4dc10ae813b4a3c5280a9970"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/settings/default.vrsettings",
+      "bytes": 258,
+      "sha256": "3cc1bd7080b8cb30f471c228d9f6c232c86830e0305984e070f9c34638768830"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/shaders/d3d11/distort_ps_layered.hlsl",
+      "bytes": 29048,
+      "sha256": "02c87ff69fae01c7110ef27600e8e6591f809d1a950a64ac35125d194e37d490"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/shaders/d3d11/vrlink_fxaa_ps.hlsl",
+      "bytes": 7040,
+      "sha256": "d09913d7a288f3d543f64a360bde8041e1828dc5012d51709bd422fda1b057df"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/DriverFiles/resources/shaders/d3d11/vrlink_layer_ps.hlsl",
+      "bytes": 27409,
+      "sha256": "bcf1ec92a1ceb928ffcb1b74bf1bc3f5028fd7c1c0666d47d4e572c8f5b770ec"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/Config.cpp",
+      "bytes": 173,
+      "sha256": "043d190a8571693083ea2ce14ee2e890999c294efc8e613a7d582f8c0eb65853"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/Config.h",
+      "bytes": 98458,
+      "sha256": "2e06fee4a5c6189ae17fbaf5479db1f392933bb9bdc02fa1dc2ff07507579c9c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/ConfigLoader.cpp",
+      "bytes": 120330,
+      "sha256": "326052784a1acf03ebebaf764ede4f474b2d9ad78d47b2650346506c392ccc42"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/ConfigLoader.h",
+      "bytes": 4806,
+      "sha256": "1e6a18d2ba50ad10afd81ebf88ba5afb9ded4a71cfc08a3af630cea45121a3f7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/SdrColorPolicy.h",
+      "bytes": 5668,
+      "sha256": "e62f336051d61f3fcd09b1a87be3285f0ff9211594b40c679e3cb52055243e59"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/SteamVRSettingsJournal.h",
+      "bytes": 16152,
+      "sha256": "0d3a98f460a3c90b1fedc013110f17a8dc0f83d2d0cda8f2af0804dbfcb4f8ad"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/StreamTiers.h",
+      "bytes": 3005,
+      "sha256": "3350d3268deeea4df93de2d45b0e358b824e1da2bf6a4c6198c1fdb757bafc6d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Config/VrlinkSettingsRouting.h",
+      "bytes": 2818,
+      "sha256": "3737d09af084c66f7873834fd2f1f52eb0abb3e49fe8e739f5fb6b6eddc84bd0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/DistortionModifier.h",
+      "bytes": 901,
+      "sha256": "f9b3cddd4199358a18c790dad962a16cfbbec0d90175600d13511f6348bdeee0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/DistortionProfile.h",
+      "bytes": 2108,
+      "sha256": "2edeebf6023376fd25600c0195fbae42a0fb85cba761c01dfc420b7baf9e1a66"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/DistortionProfileConstructor.cpp",
+      "bytes": 4896,
+      "sha256": "e824db31dcdfa844a41aa2ed46b23f07ba12bb4f96c5cad470ecb17f9a290545"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/DistortionProfileConstructor.h",
+      "bytes": 1432,
+      "sha256": "8f539fc187cfedeeb36b0df11bab9727266d768430f6b63f96b0da28429d87eb"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/NoneDistortionProfile.h",
+      "bytes": 1170,
+      "sha256": "2bcda68124cb16ec731d1b39836982e6108cbd547d27c9b84502f7e1d558588a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/RadialBezierDistortionProfile.cpp",
+      "bytes": 27777,
+      "sha256": "c14325b9f16f0cb36a071fef29afd04b3e91d673c13c295b4d149e16d7193cf6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Distortion/RadialBezierDistortionProfile.h",
+      "bytes": 2947,
+      "sha256": "1f25e7988dcca5d312590cc255f008c90c16900562c44bdfdf572b746d932431"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/CompositorPlugin.cpp",
+      "bytes": 6999,
+      "sha256": "2c732dde86226c606d73b130ab998720a59cfaefc7c7fd709ddf3d9f65890f63"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/CompositorPlugin.h",
+      "bytes": 1947,
+      "sha256": "d256a9617518aca019092fe0669b6b7496bf5ce78977eb0426c78142ee9399be"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DeviceProvider.cpp",
+      "bytes": 230670,
+      "sha256": "305a46378e9734ba82cdce93190980c0a6df5fd5865795500d84a9733ad661ba"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DeviceProvider.h",
+      "bytes": 34078,
+      "sha256": "747c561df38da2cc22b8ca0533e244103936d201a733562fbec750db71bab56c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DeviceShim.cpp",
+      "bytes": 7678,
+      "sha256": "3ff8fdb175530bf9ea5c608cb68129717675a4b88a8f4326c7ea3b9383f214cc"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DeviceShim.h",
+      "bytes": 6407,
+      "sha256": "9c25fba6beeb16c1168c2e642b8eed0ea0cbe538375f844fcf92ce79961b7b69"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DriverLockout.cpp",
+      "bytes": 4309,
+      "sha256": "78b3df24b16a3dbe2203cd1bf4c5f846b12d5649f8e8c374dab012fe9b5fbb5a"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DriverLockout.h",
+      "bytes": 1263,
+      "sha256": "accf87e66b016643bf46e5904e45e5933c3bc22139210f9e47d48bdcaf97900c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DriverLog.cpp",
+      "bytes": 1086,
+      "sha256": "7763bdb97b9d3cd01779f1e3345addc2f1aa932a8e5525994506910f3c7eaa28"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/DriverLog.h",
+      "bytes": 312,
+      "sha256": "c99339aaa9b5d555af81345cd02c0defe846945df288de280a840833b8da738e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/EyeTrackingTap.cpp",
+      "bytes": 5619,
+      "sha256": "65014aab22572915a32dec378cd6d4bb7d7ccd9e9946b7503233f8fe1d9db752"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/EyeTrackingTap.h",
+      "bytes": 3721,
+      "sha256": "363091c8d1c6b08992b2e0bee18e105d4c40871cb16961a4722ac5779316be12"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/FrameComponentShim.cpp",
+      "bytes": 76321,
+      "sha256": "c6a9596737a75889137a2966b2f94b0fed2be8790777b83e1485566bd7caee27"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/FrameComponentShim.h",
+      "bytes": 9592,
+      "sha256": "1f21fd003ea860c4f9b51ccb8e201c0a31bf64ec7bd5cda75218ffd5f9342cf7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/FrameProcessor.cpp",
+      "bytes": 80461,
+      "sha256": "86b5a0b7092a3f02eded4a9c66bfc2ad1eddd5f29a7f29521bf79f95d0113459"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/FrameProcessor.h",
+      "bytes": 15753,
+      "sha256": "304147ab9ebf03e01e785d15f278b7c32135a3b08a63de62b07c12d281ca9d59"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/HidModifier.cpp",
+      "bytes": 10821,
+      "sha256": "b29b2efa2564046aac3a9146a6e38c5abd254b04b679c1d6764b2bcfff88a5c8"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/HidModifier.h",
+      "bytes": 4150,
+      "sha256": "bca41a3454c3e35df49f6df088e738b69657612eb968155b134ad4530fe460af"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/HmdDriverFactory.cpp",
+      "bytes": 1378,
+      "sha256": "5939dde3a504d20b3c07b79fe3b428af488ced0f75d52a07eeff8a7874c6a55f"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/Hooking.cpp",
+      "bytes": 421,
+      "sha256": "55bad5b3a2e1fd683b7ec621c8ea92affb49ce69143f25fc6fd7f25e02a4f82e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/Hooking.h",
+      "bytes": 2325,
+      "sha256": "529afa20e6f975e36ca0ef90527f7e0ef8ac0de5b89384397afc63e87783c98e"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/InterfaceHookInjector.cpp",
+      "bytes": 17431,
+      "sha256": "6f192750243e18ffd7c354ced9975e23aa6a1c0ae6f3615645a996921b46e282"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/InterfaceHookInjector.h",
+      "bytes": 363,
+      "sha256": "bbcf3368c58f387ac7b5f6451863151b7c66205a95e38bf904df509a5a6d99be"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/README.md",
+      "bytes": 93,
+      "sha256": "f13700eee0f1e5533e8ca91e1964047cd4bb8a85be3c7a3c8b95627afea2e968"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/Hooking/vtablehook.h",
+      "bytes": 2989,
+      "sha256": "f027a18c4d27acab1c5dd33b64ba2ed662ce699ec02d0b599b281d09fa6a7647"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/NvencPostPack.cpp",
+      "bytes": 14628,
+      "sha256": "915c04a95a7ed643176e8f17ef7307507c14a353e5ec30ed1371b0872d8da5ef"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/NvencPostPack.h",
+      "bytes": 2959,
+      "sha256": "4920e009a184d565e6cd69cfe7691514fb29cd7ab05ce2067b392d90b7bd5ded"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/NvencTap.cpp",
+      "bytes": 61506,
+      "sha256": "9a5b7c5bca53678589e0864d4263a5a6466a8367f587c10457e8c4040227b6f7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/NvencTap.h",
+      "bytes": 15884,
+      "sha256": "e6a5481464458a69af17df6529d8eaf901da338df4be5627ea744ef4b1770444"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ReconLogger.cpp",
+      "bytes": 14982,
+      "sha256": "3d6c7d45197c8c082263aa8dcca6fc7922b949383f21f47e9f3152ffe7728c16"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ReconLogger.h",
+      "bytes": 5101,
+      "sha256": "5adb15c3a55578bac93c6e6f27a076dda5f7cd5b378829ace86c80bfb11190f5"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ShaderReplacement.cpp",
+      "bytes": 39523,
+      "sha256": "6c49639605a04940d9a7eb5dcd6e97520a4f7767992b532a21af615ac3f8c2b0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ShaderReplacement.h",
+      "bytes": 699,
+      "sha256": "105d80320d7a37cd14fdfe3e758c3a486fd42f4451efb81c7af27b086707bbc4"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ZeroCopy.cpp",
+      "bytes": 8107,
+      "sha256": "77bec8ec79a20b66bfebf514e23706bc8545ed24b3fb0c04219adaf698f29816"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Driver/ZeroCopy.h",
+      "bytes": 5713,
+      "sha256": "28a2e4c2cc7829eb63e3492f805358c1d9fa49326ab0f38cf2557307fc2d0cbe"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/BaseHeadset.cpp",
+      "bytes": 30894,
+      "sha256": "4d9d07a5911f065e2250aca27e83b9af898498ea1e2e1a5139a75cd7f9627066"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/BaseHeadset.h",
+      "bytes": 3631,
+      "sha256": "1fda28bd907a841b0a3acdfbb676dc64dbb82d0091282e4ac77774fefb8629d0"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/FakeHeadset.cpp",
+      "bytes": 2826,
+      "sha256": "7117d523c87024d06485311e0c5ab7f34eac60564ca4b2046f6ff293a34c356d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/FakeHeadset.h",
+      "bytes": 909,
+      "sha256": "109374de30d8e6e2332d48bf9a8b6cdf3cc4f9586a569e4dfaf65caa5a5bdc9c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GalaxyXR.cpp",
+      "bytes": 59339,
+      "sha256": "baf78c914ed7d544569f4b8a05e938cbd9a32ef7d62d58b787b712717475e02c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GalaxyXR.h",
+      "bytes": 4154,
+      "sha256": "b6ac835c638f5a119a24254efd1653b5e1fa46a7f96ddae3161cc0f4bc0ae701"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GalaxyXRStatusIcons.h",
+      "bytes": 1208,
+      "sha256": "b933220e06ac02b38415169e4824d61bcab91d6a042ef803e3a0a033b381603d"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GenericHeadset.cpp",
+      "bytes": 2331,
+      "sha256": "91c3b031676ed443660ed4d7af6d8a7afeafbf2cb7eb8db0ea8e9be8c7eb8c2b"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/GenericHeadset.h",
+      "bytes": 649,
+      "sha256": "5e442405b34be63269e8dc8499894b248a1e5a140a4ae8c454e6499cd8c0b483"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Headsets/VrlinkCapabilities.h",
+      "bytes": 6875,
+      "sha256": "5db99920b1f8730f6c07cac8fd197ac79163c3766af2474b179eb9f837b6a543"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Helpers/DisplayHelper.cpp",
+      "bytes": 1219,
+      "sha256": "43de0f88d9b54f9d8e6c39e84b4d48d8ac61a365c63039d42e2fc9acb43637a8"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Helpers/DisplayHelper.h",
+      "bytes": 303,
+      "sha256": "1bdc3e3e99e21b70d9beab7f500fd3cff17d9f9fc4b4f8f4a3609efed8bf7442"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Helpers/EyeTrackingOutput.cpp",
+      "bytes": 5067,
+      "sha256": "e696339e9686c63be23185678c16f7b9b0c5760504ae550e649a6068bd402755"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/Helpers/EyeTrackingOutput.h",
+      "bytes": 1924,
+      "sha256": "7381448dde5a6a6f170c85f79ecbc621d759c7ddf57c7ae142d42fe573be1f50"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/HiddenArea/HiddenArea.cpp",
+      "bytes": 4097,
+      "sha256": "31d527e1d29c636cce885cad72d3dc132e42bcadae3ae102986fc78359b44840"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/src/HiddenArea/HiddenArea.h",
+      "bytes": 273,
+      "sha256": "a0add3d217e73f83fdb1fa37c615eb02ec9c42761d650661f5f7f1062f57b872"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/tests/CompanionSettingsTest.cpp",
+      "bytes": 8297,
+      "sha256": "0a66418b67087d1dd57c7840599856244b2a203fc714bf533735bbc29811d982"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/tests/SdrColorPolicyTest.cpp",
+      "bytes": 13085,
+      "sha256": "a6ac3efead4c650f7301af18c2c55e9421784d176d298c27286b1d4802c559a6"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/tests/SteamVRSettingsJournalTest.cpp",
+      "bytes": 4872,
+      "sha256": "10e362ea9dfdd1b883ee654e90c4488c1ddf0b91d6bbb1438e17d3ffeeefdcc7"
+    },
+    {
+      "path": "CustomHeadsetOpenVR/tests/VrlinkCapabilitiesTest.cpp",
+      "bytes": 11933,
+      "sha256": "2f582cdd5a91273f5a6498e57ceeba864c9fd8ac5785618f9875c91c0cb4e24c"
+    },
+    {
+      "path": "CustomHeadsetOpenVR.sln",
+      "bytes": 2258,
+      "sha256": "f910a1280e80d4f8492661cf9a8f89670dd0679b95d0105698249e57abe33fb6"
+    },
+    {
+      "path": "Docs/AppSettingsBuildEvidence-2026-09-16.json",
+      "bytes": 1544,
+      "sha256": "43f2c62c8269eb577f7a2b07a63797dda41ace4bcd6e46015856f92d9bdd262b"
+    },
+    {
+      "path": "Docs/AppSettingsUninstalled-2026-09-16.md",
+      "bytes": 1712,
+      "sha256": "e9c73a1496128a1fcce303b8f0e3f4cc1becb6860689de7764d7167cb3a2755f"
+    },
+    {
+      "path": "Docs/DriverUninstall.md",
+      "bytes": 4576,
+      "sha256": "4d1f3a7efcd4e3629190a8f0a5f0b65de60934297598187ae666e666d964caff"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/CHANGES.json",
+      "bytes": 2086,
+      "sha256": "62c7b6bb3fc5e28b1ea637701689b6bcba046116cff763e8d61c30eccff0e28e"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md",
+      "bytes": 2236,
+      "sha256": "98fd3f81ea0dcaf5ea40aa91b130d0af16bd3756d9efe82920f33cb5e0c73271"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/WINDOWS-RELEASE-CHECKLIST.md",
+      "bytes": 5510,
+      "sha256": "780714b371a5dc2309f7e50d28004af08adee1d4436d18704b25b9fa7c9698f0"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/help-catalog.json",
+      "bytes": 91069,
+      "sha256": "2c36df3ab97361f1ad7450327eed8fcc762ea5439fa210f5157dfe27a6ed5d51"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/VALIDATION.md",
+      "bytes": 4804,
+      "sha256": "1301392106a9c2da1af690de666fb03bd6d92f5046371806bf41928ae4e59c81"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/assets.json",
+      "bytes": 6535,
+      "sha256": "c3b16a7f2dce59f5d2eeee8d50a2992b79c7b93cb344adc10926df300894a99e"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/assets.txt",
+      "bytes": 3840,
+      "sha256": "072de1b2b9e93e045d9d1e188d3f79c4a86ab3a72a6d73eaa95003304ea45f54"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/backend-inclusion.json",
+      "bytes": 820,
+      "sha256": "8cd468d2a6210de39f3eeaf7067d1dea69922bb650f562a931d11e906b0a2791"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/build-fixtures.json",
+      "bytes": 2308,
+      "sha256": "a4c4e4e1bf2e7ab6a2e3a5574830037ee7b54657fc80e4c614ed36183f2345d8"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/build-fixtures.txt",
+      "bytes": 1358,
+      "sha256": "540e769ed43e34828d19f0d7fef3e697f9ba41752564f449c8ec0f1781e0718e"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/cpp-SdrColorPolicy.txt",
+      "bytes": 33,
+      "sha256": "98bbefd08eb193165dc1302d546aad67e8f5c5733940168e2a405adedaec0e78"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/cpp-SteamVRSettingsJournal.txt",
+      "bytes": 37,
+      "sha256": "16d34797c97a72d1c266369e04dc2e7e26b0f3271eb80fde6b8880e3a1007da4"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/cpp-VrlinkCapabilities.txt",
+      "bytes": 83,
+      "sha256": "6072be99c4f7efe1b31efefc02de2e94ca16aee513501608492a3163c6c2628d"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/cpp-companion-galaxyxr.txt",
+      "bytes": 49,
+      "sha256": "61ea8c65dbb2f83af24ff4b234c6d0403958e7967ef1ff77feec9969aa58c077"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/cpp-companion-neutral.txt",
+      "bytes": 49,
+      "sha256": "61ea8c65dbb2f83af24ff4b234c6d0403958e7967ef1ff77feec9969aa58c077"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/domain-typecheck.txt",
+      "bytes": 133,
+      "sha256": "86d9f95d17ebab27c27d3b64f09fac2a9d2ea57f521637d945ea3beb8bb866fd"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/modes.json",
+      "bytes": 2207,
+      "sha256": "c39db1fdde0ba7d5765a044d05828045353b2ac150bb8e97f31bdb89fb158211"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/modes.txt",
+      "bytes": 1411,
+      "sha256": "4c7821b56684c00631370995b3c38a32baf2129eabe5d14a3b37d97fe2a3b764"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/readiness-entry.txt",
+      "bytes": 2401,
+      "sha256": "9ac0cd637a8d926dd8c166c4c15ee30cac9f39b811320402be5721af87a1ecbc"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/services.json",
+      "bytes": 3703,
+      "sha256": "05eb6f177d2764b33150dc7414455322caf60cc84354a7c4ad0bffe9bc298e28"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/services.txt",
+      "bytes": 2401,
+      "sha256": "9ac0cd637a8d926dd8c166c4c15ee30cac9f39b811320402be5721af87a1ecbc"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/settings-diff.txt",
+      "bytes": 43,
+      "sha256": "fc2422f8a4625c6e41969509553c72949dadb26c7e9601424971abe00598ade1"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/latest/typescript-syntax.json",
+      "bytes": 161,
+      "sha256": "2a4ce529bc679b8e2f9f71e48b58a1f8f0b103b8569b75ddd475bce82671f15e"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/CompanionSettings-neutral.txt",
+      "bytes": 49,
+      "sha256": "3e2a06104fe9190bc38e4d213ba87c734e4753107103beeefe9067726c10b14f"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/CompanionSettings.txt",
+      "bytes": 49,
+      "sha256": "3e2a06104fe9190bc38e4d213ba87c734e4753107103beeefe9067726c10b14f"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/README.md",
+      "bytes": 232,
+      "sha256": "46b0f35ebe748dd00d32dec35ee59eb53784b91ea3bfa9761bdf549ef3c6f51d"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/SUMMARY.json",
+      "bytes": 993,
+      "sha256": "d8e829e09834fc72567f721e46b6ab642c810c3bba241fc5b2b159697b5d55d5"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/SdrColorPolicy.txt",
+      "bytes": 33,
+      "sha256": "98bbefd08eb193165dc1302d546aad67e8f5c5733940168e2a405adedaec0e78"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/SteamVRSettingsJournal.txt",
+      "bytes": 37,
+      "sha256": "16d34797c97a72d1c266369e04dc2e7e26b0f3271eb80fde6b8880e3a1007da4"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/VrlinkCapabilities.txt",
+      "bytes": 83,
+      "sha256": "6072be99c4f7efe1b31efefc02de2e94ca16aee513501608492a3163c6c2628d"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/assets.json",
+      "bytes": 6535,
+      "sha256": "5c7a1559ba772b9b64023ea89fd5ce4d65839e664f05b569f2f83b00738ed1fa"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/assets.txt",
+      "bytes": 3840,
+      "sha256": "da101e5108bdbbcf174b1f333e80ef6b1166bf40baabca5873e0f85d4531173d"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/browser.json",
+      "bytes": 4208,
+      "sha256": "5d1b8f1270865b52f89b2c8c3d9088448c0ec0c930c68c3844b6a92c050ca0df"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/browser.txt",
+      "bytes": 2238,
+      "sha256": "519c79cc3ba0cf5eecbc0cce262f10e5f217fd5a16be8f1481f482b23c86d897"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/build.json",
+      "bytes": 2067,
+      "sha256": "89cc96a82028c563af4babb664a1814c192c79c87e363a1bf784a40ebd17be61"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/build.txt",
+      "bytes": 1209,
+      "sha256": "22c253970912bfb76e715a455d535ee70c44214b5506b3eb0e0fdfc38590f1a9"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/services.json",
+      "bytes": 3703,
+      "sha256": "05eb6f177d2764b33150dc7414455322caf60cc84354a7c4ad0bffe9bc298e28"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/services.txt",
+      "bytes": 2401,
+      "sha256": "9ac0cd637a8d926dd8c166c4c15ee30cac9f39b811320402be5721af87a1ecbc"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/steamvr-diff.txt",
+      "bytes": 43,
+      "sha256": "fc2422f8a4625c6e41969509553c72949dadb26c7e9601424971abe00598ade1"
+    },
+    {
+      "path": "Docs/Galaxy-XR-Companion/results/typescript-syntax.json",
+      "bytes": 121,
+      "sha256": "cfe022b56f8f5368cc076b7b4cbe7831ceb230ddbe4f39e80d8ec2346f1a3811"
+    },
+    {
+      "path": "Docs/GuiReorganization-2026-09-16.md",
+      "bytes": 2897,
+      "sha256": "279e5eeb5e5aa8f9b3b22524e6e765ce6abe61479c44561e49a00f40e4a0a4b9"
+    },
+    {
+      "path": "Docs/IdentityCleanupBuildEvidence-2026-09-16.json",
+      "bytes": 2284,
+      "sha256": "2214f3dcf584ade6681e0272bc6680c340f1d05a589a77ca50a13eb38020b0f9"
+    },
+    {
+      "path": "Docs/Media/CustomHeadsetInstall.webp",
+      "bytes": 3814826,
+      "sha256": "2f014428287c5b2c0cad4b4983dad3eb90d98e547ced2ee3497ab79aec7d30a8"
+    },
+    {
+      "path": "Docs/OlderIdentityCleanup.md",
+      "bytes": 2230,
+      "sha256": "0882cc267f5e9a4f66d5254314a48091b8417cf1d3cd4a873b81076b4915601e"
+    },
+    {
+      "path": "Docs/SteamLinkTrackingCapabilities.md",
+      "bytes": 6312,
+      "sha256": "d688f123e5e627f3fa387a350c92c8a556b87a6b1aa5b483545265c169dfb506"
+    },
+    {
+      "path": "Docs/StreamFrame.md",
+      "bytes": 11772,
+      "sha256": "414f61508d0dc3c00a6ecb5cf3588b925ddafd33c9f20b4412926eba1af9a9f5"
+    },
+    {
+      "path": "Docs/StreamQualityLayout-2026-09-16.json",
+      "bytes": 1232,
+      "sha256": "b4bbfb599cf04d744ff9c3f045c9008b03eb728f13445aa14ab88081e0a0c0e9"
+    },
+    {
+      "path": "Docs/TrackingCapabilitiesCleanup-2026-09-15.json",
+      "bytes": 2354,
+      "sha256": "74afa9009b5ac029b3aa7b666b7a45a69f72cc4b3279375d6bdc2b8bf529b409"
+    },
+    {
+      "path": "Docs/TunerUsage.md",
+      "bytes": 11307,
+      "sha256": "7863b24778d2240e4d682b55d860b6153cbfc73d830772cf3d46ec97f6971742"
+    },
+    {
+      "path": "Docs/UiReinstallBuildEvidence-2026-09-16.json",
+      "bytes": 3027,
+      "sha256": "8a9c3db8b71b2cf2e78e2ed92695b84de0f4b61eaa36b1ae25c1e69c3111c414"
+    },
+    {
+      "path": "Docs/UiReinstallCleanup-2026-09-16.json",
+      "bytes": 3610,
+      "sha256": "d1065242347326f829eaae23c0d82ab66a3aa4714b46218ed29313f650caccf5"
+    },
+    {
+      "path": "Docs/UiReinstallSourceSnapshot-2026-09-16.json",
+      "bytes": 16918,
+      "sha256": "f5e9620d6bde99fd79f737062b5640330576a2ceaafd20d758335cdb7dc7bbb3"
+    },
+    {
+      "path": "Docs/UninstallBuildEvidence-2026-09-15.json",
+      "bytes": 4449,
+      "sha256": "4923ab74fea3d551d377a06c96c6a371beb2df6f7db0fac1cf8f741eb6b9cfc5"
+    },
+    {
+      "path": "Docs/UninstallCleanup-2026-09-15.json",
+      "bytes": 4683,
+      "sha256": "94f5f7f970a6c3ee056807a211c4118f3492f2cbc4b37f940407390b3c4e6999"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 35823,
+      "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809"
+    },
+    {
+      "path": "README-GALAXY-XR-COMPANION.md",
+      "bytes": 13146,
+      "sha256": "023ca4dff02fb78381b935942d0647cdf6ad9f6c557866f77f66663bd019c5f4"
+    },
+    {
+      "path": "README-GUI-FIXES.md",
+      "bytes": 8808,
+      "sha256": "c153fc60f7f5c5db99b803696488773f6650291ddb41665946dbb2a965970d21"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5200,
+      "sha256": "9287700288e219035e2f2f8e116476bd0c7e504116a564179519c3fde3b2cf09"
+    },
+    {
+      "path": "REPLACE-FILES.txt",
+      "bytes": 1181,
+      "sha256": "7579540b85a3f33580f0a6a7df9898665dd0d632c245de902c9410541edf7ad9"
+    },
+    {
+      "path": "build.js",
+      "bytes": 12263,
+      "sha256": "cce7847dd20dbafb464f6555ff5da3247acb050a70c57da371583a1a43a15c1a"
+    },
+    {
+      "path": "bump-version.js",
+      "bytes": 2186,
+      "sha256": "d9e9a21428a11519e89e972466bd451698d05d646223743f40b456625ecafdde"
+    },
+    {
+      "path": "tools/Build-Portable.ps1",
+      "bytes": 7680,
+      "sha256": "e9cc61e25a88e46ea9ac92d638326fc6951687abf4c7dcf05565afb704ccf603"
+    },
+    {
+      "path": "tools/Enter-PortableBuildEnvironment.ps1",
+      "bytes": 1427,
+      "sha256": "d136a9929ba845e3831062b28785accc7eb34ee241bd6a603cc30ec80dce1715"
+    },
+    {
+      "path": "tools/Generate-CompanionIcons.py",
+      "bytes": 2982,
+      "sha256": "883a4da513a020866e8e8c3dce167643522a83f6980e394eb2c728f77e6a2fe3"
+    },
+    {
+      "path": "tools/Generate-DriverDefaults.ps1",
+      "bytes": 4169,
+      "sha256": "2212667762b3f9b79b6daa75ba2beaeb2b057e9447aea76d70fa5b258e563993"
+    },
+    {
+      "path": "tools/LICENSE-sboys3-camera-calibration",
+      "bytes": 1102,
+      "sha256": "0632921ecd2bdc6c57d90ee96a7dafc63c50ef986a63a482a4c6ec3c13e472e1"
+    },
+    {
+      "path": "tools/PORTABLE_BUILD.md",
+      "bytes": 3092,
+      "sha256": "7f7981c676eb1e8caa378eaf1adab6b155cd2af92ba7906e8558c848124f6706"
+    },
+    {
+      "path": "tools/Package-GitHubRelease.ps1",
+      "bytes": 5717,
+      "sha256": "4acfc0597afff224602a2b6ff0d08744e8d75e3b7bc054aca2510bb8a537bfa5"
+    },
+    {
+      "path": "tools/Repair-PortableJsonEncoding.ps1",
+      "bytes": 1051,
+      "sha256": "589006643b7b835189e709298204ae77708be702225017f64dc38dd197824e3b"
+    },
+    {
+      "path": "tools/Test-CompanionAssets.py",
+      "bytes": 5140,
+      "sha256": "f9c75eac64a36e3b684a1132da1775dc23a528a953db7661c0cb071bac2de871"
+    },
+    {
+      "path": "tools/Test-CompanionModes.cjs",
+      "bytes": 12366,
+      "sha256": "94d957b206d3db375d82abf86d2aa4db93698760a8a8e5ef56082f0d0db5121d"
+    },
+    {
+      "path": "tools/Test-CompanionSettings.ps1",
+      "bytes": 1128,
+      "sha256": "8fba25aa4c8b0247a0ea0198bdd30539dd20712b4903648f9af0f87f99c306dc"
+    },
+    {
+      "path": "tools/Test-FluentBuildHooks.cjs",
+      "bytes": 9037,
+      "sha256": "a9542fa0ac6e8bcbd56f8d4c5a3a922201673cf32bcdf0a6dad84e7adc262487"
+    },
+    {
+      "path": "tools/Test-FluentFixes.cjs",
+      "bytes": 20912,
+      "sha256": "d90f3b2f726f34eb394848a8e2ded488738eb8570a0e4f4717624bfd5f393c45"
+    },
+    {
+      "path": "tools/Test-GuiReadiness.cjs",
+      "bytes": 525,
+      "sha256": "eb65aed189462f6abcb360ca645ebd4bf646b790b2945d7cd14c27fe5d7a65e8"
+    },
+    {
+      "path": "tools/Test-SdrColorPolicy.ps1",
+      "bytes": 1091,
+      "sha256": "1e1022842f3f978bcaaaeca4a40980d7884e30aaab3f1adbdcba986fd6030b83"
+    },
+    {
+      "path": "tools/Test-SteamVRSettingsDiff.cjs",
+      "bytes": 2808,
+      "sha256": "8c0a446354098d9b57f4f6961858b47d4a1ab4db3c0ea7597efb86f7f1a472f5"
+    },
+    {
+      "path": "tools/Test-SteamVRSettingsJournal.ps1",
+      "bytes": 1079,
+      "sha256": "281f722b78b3677b25be28bd02f7753b09c9eb1e0bc28e3a0fcc107bbbed6b09"
+    },
+    {
+      "path": "tools/Test-VrlinkCapabilities.ps1",
+      "bytes": 1798,
+      "sha256": "4ce52a8fbc2f88c0f3ccbf833b9627bbfba5aed2807427cfe5f21ab03e23d970"
+    },
+    {
+      "path": "tools/Verify-ReleaseVersion.ps1",
+      "bytes": 2828,
+      "sha256": "dfe723fed810f97cb3db2ca86675c3cb4b56892d01080b35ae835cb81a856754"
+    },
+    {
+      "path": "tools/board.svg",
+      "bytes": 19748,
+      "sha256": "526ed968571f0b9c7839be5ad7af60e89e67e21ba69f0259ed2a2b49eadbc009"
+    },
+    {
+      "path": "tools/camera_calibration.py",
+      "bytes": 11868,
+      "sha256": "69bea3ad2dbe43bdf5048531cc866a7a264b6ff3c8ad761810295bdfac40f596"
+    },
+    {
+      "path": "tools/capture_calibration_images.py",
+      "bytes": 3694,
+      "sha256": "34102d5b446649fb4b35a99f1c0471601cdd7ccf48a50b594bc281331cc8dc2c"
+    },
+    {
+      "path": "tools/charuco_calibrate.py",
+      "bytes": 13966,
+      "sha256": "c4842cef66cfd7e685137fd23e41e3ea5bda995fffe037ab2c19c8d72214cf58"
+    },
+    {
+      "path": "tools/charuco_capture.py",
+      "bytes": 9341,
+      "sha256": "6fc5b596a53da004eca68c441d28f4e2f68db042be066f17599c3973c2b0db2e"
+    },
+    {
+      "path": "tools/gxr_camera.example.json",
+      "bytes": 284,
+      "sha256": "ca91ae687fad9004e4af99a5836ea086fb0bf8d11c510fa1134f94161cb34018"
+    },
+    {
+      "path": "tools/gxr_common.py",
+      "bytes": 42247,
+      "sha256": "3dcd425acf6a4b995d4c3cb73e1dcb97f4dab3a488e493b3c9c6c4a01286cf96"
+    },
+    {
+      "path": "tools/gxr_mirror.py",
+      "bytes": 8183,
+      "sha256": "a852640c8e1c9817d426602f8fa65bdfc5972c40cbf61cb5136e6f5c6a0ef547"
+    },
+    {
+      "path": "tools/gxr_overlay.py",
+      "bytes": 46041,
+      "sha256": "dd865e656e48daf1a06c5e223f3984b41fc6dcec70a20639f0ead8fa78630031"
+    },
+    {
+      "path": "tools/gxr_sweep.py",
+      "bytes": 29381,
+      "sha256": "9f3183c0b36aa060fdda07f99e459546ff524258be71baf6526d345dcfaec691"
+    },
+    {
+      "path": "tools/lib/stage-companion.cjs",
+      "bytes": 1408,
+      "sha256": "7e3ed13575824bf0c59018d058f1a7bee842d1b8016c656681c16ad4b54f26bb"
+    },
+    {
+      "path": "tools/make_charuco_board.py",
+      "bytes": 5161,
+      "sha256": "ba6963e0ffea5d3a7e47bb46c12c2440640f62f38b4db320b64ae273a8a0b5e5"
+    },
+    {
+      "path": "tools/requirements.txt",
+      "bytes": 46,
+      "sha256": "c03536a79c04d16af4a2956276d8a6d2a6325f1914589b19370a7c19a96b8f54"
+    },
+    {
+      "path": "tools/tests/fluent/mock-backend.cjs",
+      "bytes": 3702,
+      "sha256": "3bf222897b128338ca1e30efac40c198c4908d2f02d63fe526e7e0ac2832eb6d"
+    }
+  ]
+}

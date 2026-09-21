@@ -1,0 +1,39 @@
+PASS Settings booleans are strict and defaults are identified
+PASS Reactive computeds read fresh values synchronously
+PASS Reactive branch switching detaches stale dependencies
+PASS Unsubscribing cancels queued notifications
+PASS Writer coalesces edits and flush waits for persistence
+PASS Writer rejects failed saves rather than claiming success
+PASS Replace-mode write failure cleans up the temporary file
+PASS Installation suspension cancels pending writes safely
+PASS Cold paths cannot construct a broken service graph
+PASS Galaxy XR and neutral configuration paths remain isolated
+PASS Driver detection works before any runtime info is published
+PASS Windows UTF-8 BOM manifests and settings are accepted
+PASS Fresh verified installation initializes editable driver settings
+PASS No installation does not create a missing driver configuration
+PASS About check does not recreate a configuration removed after startup
+PASS Refreshing watchers does not accumulate subscriptions
+PASS Missing copied package can be found through external registration
+PASS A different driver identity is not treated as GalaxyXRNative
+PASS Inaccessible OpenVR paths report Unknown rather than uninstalled
+PASS About checks coalesce and drain the last unsaved edit first
+PASS About reads saved values without resetting or invoking native commands
+  verified boolean states: 248
+PASS Read-back covers every driver boolean in both On and Off states
+PASS Unreadable and malformed settings never overwrite the backing file
+PASS Failed write rolls back a setting and exposes an actionable error
+PASS Driver-disabled and safe-mode-blocked states are read independently
+PASS Invalid driver JSON remains untouched: broken JSON
+PASS Invalid driver JSON remains untouched: []
+PASS Invalid driver JSON remains untouched: null
+PASS Invalid driver JSON remains untouched: "{}"
+PASS Legacy empty GUI sentinel is accepted without weakening driver validation
+PASS Explicit saved identity overrides a stale runtime default
+PASS Stale neutral settings do not claim that another driver is installed
+PASS Native journal enablement changes are reread into the shared state
+PASS Install, uninstall and reinstall preserve the bundle and rebind readiness
+PASS Uninstall drains an older package inspection before removing files
+PASS Uninstall drains an older settings initialization before removing files
+
+Fluent regression tests: 36/36 passed.

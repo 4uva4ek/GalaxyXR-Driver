@@ -393,12 +393,6 @@ export class SystemDiagnosticService {
       return false;
     } finally {
       try {
-        if (installedSuccessfully && !vendor && (!this.dss.values() || this.dss.values()?.meganeX8K?.enable)) {
-          await this.disableSteamVRDriver('MeganeXSuperlight');
-          await this.disableSteamVRDriver('MeganeX8KMark2');
-          await this.disableSteamVRDriver('MeganeXsuperlight8K_Native');
-          await this.disableSteamVRDriver('MeganeX8KMark2_Native');
-        }
         if (installedSuccessfully && vendor !== 'galaxyxr') await this.enableSteamVRDriver(customHeadsetDriverName);
       } finally {
         this.installing = false;

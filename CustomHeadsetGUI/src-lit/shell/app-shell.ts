@@ -5,9 +5,8 @@ import { t, subscribeLocale } from '../locale/i18n';
 import type { AppContext } from '../app-context';
 import { applyTheme } from '../ui/theme';
 import { interactiveStyles } from '../ui/shared-styles';
+import { driverAvailable, parseRoute, permittedRoute, visibleRoutes, type Route } from '../domain/navigation';
 
-const ROUTES = ['driver-settings', 'distortion-profile', 'stream-frame', 'app-settings', 'about'] as const;
-type Route = (typeof ROUTES)[number];
 const LABELS: Record<Route, string> = {
   'driver-settings': 'Driver Settings', 'distortion-profile': 'Distortion Profile',
   'stream-frame': 'Image Settings', 'app-settings': 'App Settings', about: 'About',
@@ -36,15 +35,18 @@ export class AppShell extends LitElement {
   private unsubs: Array<() => void> = [];
   private readonly systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
   private readonly onSystemTheme = () => applyTheme(this.ctx.appSetting.values().colorScheme);
-  private readonly onHash = () => { this.route = this.resolveRoute(); };
+  private readonly onHash = () => this.syncRoute();
+  private readonly onInstallation = () => { this.syncRoute(); this.requestUpdate(); };
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.route = this.resolveRoute();
+    this.syncRoute();
     window.addEventListener('hashchange', this.onHash);
     this.systemTheme.addEventListener('change', this.onSystemTheme);
     const notify = () => this.requestUpdate();
     this.unsubs.push(
+      this.ctx.sds.driverInstalled.subscribe(this.onInstallation),
+      this.ctx.sds.driverState.subscribe(this.onInstallation),
       this.ctx.aus.updateInfo.subscribe(notify), this.ctx.sds.driverVersionMismatch.subscribe(notify),
       this.ctx.checks.checking.subscribe(notify), this.ctx.checks.report.subscribe(notify),
       this.ctx.dss.writeFileError.subscribe(notify), this.ctx.appSetting.writeFileError.subscribe(notify),
@@ -62,9 +64,25 @@ export class AppShell extends LitElement {
     super.disconnectedCallback();
   }
 
-  private resolveRoute(): Route {
-    const route = window.location.hash.replace(/^#\/?/, '').replace(/^\/+/, '');
-    return (ROUTES as readonly string[]).includes(route) ? route as Route : 'driver-settings';
+  private get driverAvailable(): boolean {
+    return driverAvailable(this.ctx.sds.driverInstalled(), this.ctx.sds.driverState());
+  }
+
+  private syncRoute(): void {
+    const requested = parseRoute(window.location.hash);
+    const next = permittedRoute(requested, this.driverAvailable);
+    const redirected = this.route !== next && next === 'app-settings';
+    this.route = next;
+    // Do not lose a valid startup deep-link while initial inspection is pending.
+    // A definitive missing/unknown result replaces it, including browser Back.
+    if (requested !== next && this.ctx.sds.driverState() !== 'checking') {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#/${next}`);
+    }
+    if (redirected && this.isConnected) {
+      void this.updateComplete.then(() => {
+        this.shadowRoot?.querySelector<HTMLElement>('#tab-app-settings')?.focus();
+      });
+    }
   }
 
   private onTabChange(event: Event): void {
@@ -73,7 +91,7 @@ export class AppShell extends LitElement {
     if (this.ctx.checks.checking()) return;
     const tablist = event.currentTarget as HTMLElement & { activeid: string };
     const route = tablist.activeid?.replace(/^tab-/, '');
-    if (route !== this.route && (ROUTES as readonly string[]).includes(route)) {
+    if (route !== this.route && (visibleRoutes(this.driverAvailable) as readonly string[]).includes(route)) {
       this.route = route as Route;
       window.location.hash = `/${route}`;
     }
@@ -81,7 +99,7 @@ export class AppShell extends LitElement {
 
   private renderPage(): TemplateResult {
     const ctx = this.ctx;
-    switch (this.route) {
+    switch (permittedRoute(this.route, this.driverAvailable)) {
       case 'distortion-profile': return html`<app-distortion-profile-page .ctx=${ctx}></app-distortion-profile-page>`;
       case 'stream-frame': return html`<app-stream-frame-page .ctx=${ctx}></app-stream-frame-page>`;
       case 'app-settings': return html`<app-app-settings-page .ctx=${ctx}></app-app-settings-page>`;
@@ -91,6 +109,8 @@ export class AppShell extends LitElement {
   }
 
   render() {
+    const routes = visibleRoutes(this.driverAvailable);
+    const activeRoute = permittedRoute(this.route, this.driverAvailable);
     const update = this.ctx.aus.updateInfo();
     const warn = update?.updateAvailable || update?.installAvailable || this.ctx.sds.driverVersionMismatch();
     const busy = this.ctx.checks.checking();
@@ -98,8 +118,8 @@ export class AppShell extends LitElement {
     return html`
       <header class="header" aria-label="Galaxy XR Companion">
         <img class="brand-icon" src="icons/headset_galaxy_xr_ready_2x.png" alt="Galaxy XR Companion" title="Galaxy XR Companion">
-        <fluent-tablist activeid=${`tab-${this.route}`} aria-label=${t('Settings pages')} ?disabled=${busy} @change=${this.onTabChange}>
-          ${ROUTES.map(route => html`<fluent-tab slot="tab" id=${`tab-${route}`} aria-controls=${`panel-${route}`}>
+        <fluent-tablist activeid=${`tab-${activeRoute}`} aria-label=${t('Settings pages')} ?disabled=${busy} @change=${this.onTabChange}>
+          ${routes.map(route => html`<fluent-tab slot="tab" id=${`tab-${route}`} aria-controls=${`panel-${route}`}>
             ${t(LABELS[route])}${route === 'about' && warn ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
           </fluent-tab>`)}
         </fluent-tablist>
@@ -107,9 +127,9 @@ export class AppShell extends LitElement {
       ${busy ? html`<div class="status" role="status">${t('Checking installation and saved settings…')}</div>` : nothing}
       ${writeError ? html`<div class="status error" role="alert">${t('Settings could not be saved. The controls have been restored to the last verified values.')} ${writeError}</div>` : nothing}
       <main class="content" aria-busy=${String(busy)} .inert=${busy}>
-        ${ROUTES.map(route => html`<section class="panel" role="tabpanel" id=${`panel-${route}`}
-          aria-labelledby=${`tab-${route}`} ?hidden=${this.route !== route} tabindex="0">
-          ${this.route === route ? this.renderPage() : nothing}
+        ${routes.map(route => html`<section class="panel" role="tabpanel" id=${`panel-${route}`}
+          aria-labelledby=${`tab-${route}`} ?hidden=${activeRoute !== route} tabindex="0">
+          ${activeRoute === route ? this.renderPage() : nothing}
         </section>`)}
       </main>`;
   }

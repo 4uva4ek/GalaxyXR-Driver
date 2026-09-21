@@ -66,7 +66,7 @@ export class DriverTroubleshooter extends BasePage {
     return html`<h2>${t('System not ready')}</h2>
     <hr>
     ${sds.driverCheckError() ? html`<p class="read-error" role="alert">${sds.driverCheckError()}</p>` : html``}
-    <p><a href="#/about">${t('Open About to check installation and settings')}</a></p>
+    <p><a href="#/app-settings">${t('Open App Settings to check installation and settings')}</a></p>
 
     <div class="field">
       <div class="title">${t('SteamVR installation')}</div>

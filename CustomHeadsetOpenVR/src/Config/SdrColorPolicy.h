@@ -15,8 +15,8 @@
 // - OFF-PATH UNCHANGED: while sdr10Baseline is off (or in conflict) every
 //   policy field passes the stored config through exactly, so every
 //   consumer that reads only the policy behaves byte-for-byte as before.
-// - NOT A MIGRATION: stored user controls are never modified or pruned;
-//   disabling the baseline restores them exactly. force10bit stays
+// - PURE RESOLVER: stored user controls are never modified or pruned here;
+//   Companion explicitly resets picture controls when the user enables it. force10bit stays
 //   retired and is deliberately absent from this policy.
 // - CONFLICT: a per-device custom shader enabled for "other" headsets
 //   (Galaxy XR lands in that bucket) owns the compositor color path;
@@ -25,8 +25,9 @@
 // - SCOPE: only the controls listed in plan section 4.2. FXAA, pre-encode
 //   CAS, the black-floor ramp bar (user debug overlay), bitrate/preset/QP/
 //   split, tracking, geometry/distortion, blackout/dimming safety and the
-//   nvencTap master switch are NOT part of this policy and keep their
-//   stored values in every state.
+//   nvencTap master switch are NOT scalar overrides in this policy.
+//   ImageEnhancementsEnabled separately bypasses image-processing passes
+//   while the baseline is requested, including legacy overlapping settings.
 
 namespace gxr{
 
@@ -35,7 +36,7 @@ namespace gxr{
 // policy is the neutral baseline (the safe state) and the inactive path
 // overwrites every field with the stored config.
 struct Sdr10BaselinePolicy{
-	// requested state (for GUI/log status, never for behavior)
+	// Requested state also gates the mutually exclusive enhancement mode.
 	bool requested = false;
 	bool conflict = false;
 	bool active = false;
@@ -69,6 +70,13 @@ struct Sdr10BaselinePolicy{
 	int vuiPrimaries = -1;
 	int vuiTransfer = -1;
 };
+
+// Companion mode contract: the saved baseline has priority even for an older
+// settings file that contains both flags. This is an effective runtime gate,
+// not a disk migration. Checking settings must not rewrite user files.
+inline bool ImageEnhancementsEnabled(const StreamFrameConfig &config, const Sdr10BaselinePolicy &policy){
+	return config.enable && !policy.requested;
+}
 
 // Resolve the effective baseline policy from one settings snapshot.
 // see the header comment for the off-path-unchanged and conflict rules.

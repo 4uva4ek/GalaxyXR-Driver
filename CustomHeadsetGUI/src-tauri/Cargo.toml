@@ -1,7 +1,7 @@
 [package]
 name = "custom-headset-gui"
-version = "1.1.5"
-description = "Custom Headset GUI"
+version = "1.2.0"
+description = "Galaxy XR Companion"
 authors = ["hsin-yu chen"]
 license = ""
 repository = ""

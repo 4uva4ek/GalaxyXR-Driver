@@ -1,0 +1,18 @@
+PASS Missing native backend fails explicitly rather than creating a replacement
+PASS Tauri patch renames main window and product, updates icon sources, preserves IDs/security/resources
+PASS Native configuration backup is byte-exact and created only once
+PASS Fresh direct GUI build defaults to Galaxy XR
+PASS Explicit neutral and absent vendor preserve neutral GUI identity
+PASS Explicit Galaxy and absent vendor preserve Galaxy GUI identity
+PASS Empty VENDOR remains the root build script neutral contract
+PASS Unsupported vendor is rejected without overwriting generated identity
+PASS Theme dependency is locked as a direct dependency
+PASS GUI build script still invokes Tauri, not only Vite
+PASS Locale asset verifier accepts three self-contained release-layout fixtures
+PASS Locale asset verifier rejects a missing replacement headset icon
+PASS Portable staging fails on missing executable
+PASS Portable staging rejects an empty executable
+PASS Portable executable has requested human-facing name and original bytes
+PASS Repeated staging removes obsolete portable filename without touching other files
+PASS Both portable build entry points use the validated staging helper
+17 build fixture checks passed.

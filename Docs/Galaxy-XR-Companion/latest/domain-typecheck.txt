@@ -1,0 +1,1 @@
+PASS: strict standalone image-mode and navigation domain typecheck (global TypeScript 5.8.3). Full project dependency build NOT RUN.

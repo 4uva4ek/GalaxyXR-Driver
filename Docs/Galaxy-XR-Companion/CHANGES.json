@@ -1,0 +1,31 @@
+{
+  "format": 2,
+  "application": "Galaxy XR Companion",
+  "delivery": "Cumulative source overlay; extract into the complete existing project root",
+  "backend": "The user-supplied current src-tauri backend is included and retained.",
+  "nativeBuildPerformed": false,
+  "changes": [
+    "Preserve all previous Fluent UI, settings synchronization, navigation, profile routing, icon, and picture-mode fixes.",
+    "Write portable SteamVR JSON as UTF-8 without BOM and accept legacy UTF-8 BOM JSON in the Rust installer.",
+    "Prevent routine Tauri stderr status lines from becoming terminating Windows PowerShell NativeCommandError failures.",
+    "Remove retired non-Galaxy-XR vendor-specific driver code, launcher/bridge code, artwork, public assets, compile entries, and locale/help catalog entries.",
+    "Keep Galaxy XR and generic/neutral driver behavior intact.",
+    "Synchronize the Galaxy XR Companion release version to 1.2.0 across the driver, OpenVR manifest, npm metadata, Tauri configuration, and Cargo metadata.",
+    "Add a Windows GitHub Actions release workflow that verifies version/tag consistency, checks out submodules, installs Node/Rust/MSBuild, runs frontend tests, builds the Galaxy XR portable package, creates a versioned ZIP and SHA-256 checksum, generates release notes, uploads Actions artifacts, and publishes tagged GitHub Releases.",
+    "Add CHANGELOG.md, CREDITS.md, version verification/release packaging helpers, and release documentation.",
+    "Credit the Galaxy XR icons to Vilkka, based on the original Quest Pro iconpack by Lux / Hekky."
+  ],
+  "validation": {
+    "portableBuildHookFixtures": "19/19 passed",
+    "companionNativeNeutral": "132/132 passed",
+    "companionNativeGalaxy": "132/132 passed",
+    "sdrPolicy": "62 passed",
+    "settingsJournal": "36 passed",
+    "vrlinkCapabilities": "passed",
+    "iconAndHelpAssets": "56/56 passed",
+    "fullWindowsTauriBuild": "not run in this environment",
+    "releaseAutomationStatic": "passed",
+    "releaseVersionConsistency": "1.2.0 across 8 checked sources"
+  },
+  "version": "1.2.0"
+}

@@ -11,7 +11,7 @@ Image processing settings apply live within about a second. Identity, input prof
 ## Install
 
 1. Unpack the entire release zip. The GUI folder and the `GalaxyXRNative` folder must stay next to each other.
-2. Run `CustomHeadsetGUI.exe`, go to About, press Install.
+2. Run `Galaxy XR Companion.exe`, go to About, press Install.
 3. Older copies of this fork are removed automatically on the first install. If the stock CustomHeadsetOpenVR driver is also enabled, the GUI shows a notice and a "Switch to this driver" button, press it, two drivers must not claim the headset at once.
 4. Restart SteamVR. The Galaxy XR page in the GUI has everything.
 

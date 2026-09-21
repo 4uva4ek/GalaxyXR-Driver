@@ -6,7 +6,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import '../ui/controls';
 import './driver-banner';
@@ -55,8 +55,8 @@ if (galaxy.calibrationActive()) {
   </div>`);
 }
 }
-if (settings.enable) {
-        parts.push(sectionRow(t('Distortion Correction'), sections['distortion'], 1, () => this.toggleSection('distortion')));
+if (galaxy.imageEnhancementsEnabled) {
+        parts.push(sectionRow(t('Distortion Correction'), sections['distortion'], 0, () => this.toggleSection('distortion')));
 if (sections.distortion) {
           parts.push(noteRow(html`Compensates an imperfect distortion profile on the headset that shows up as rippling or swimming of the world during head rotation. The curve sets a radial scale per distance from the optical center: 1.0 leaves that ring untouched, above 1.0 pulls its content toward the center, below pushes it outward. Real corrections are usually within a percent of 1.0.`));
           parts.push(fieldRow(t('Mode'), html`
@@ -208,7 +208,7 @@ if (advancedMode && settings.distortion.annulus.enable) {
   tip: "Move the center around which the lens correction is applied. Small changes can affect both image sharpness and apparent movement.\n\nMoves the center the correction rings are anchored to, in uv units per eye. Use if the residual wobble is asymmetric."
           }));
 if (advancedMode) {
-            parts.push(sectionRow(t('Eye Alignment'), sections['eyeAlign'], 2, () => this.toggleSection('eyeAlign')));
+            parts.push(sectionRow(t('Eye Alignment'), sections['eyeAlign'], 1, () => this.toggleSection('eyeAlign')));
 if (sections.eyeAlign) {
               parts.push(fieldRow(t('Eye Alignment Left H'), html`
       <app-number .value=${settings.alignment.leftH} step="0.0005" min="-0.01" max="0.01" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.alignment.leftH = e.detail; } save(); }}></app-number>
@@ -238,7 +238,7 @@ if (sections.eyeAlign) {
 }
 }
 }
-        parts.push(sectionRow(t('Share Distortion Profile'), sections['share'], 1, () => this.toggleSection('share')));
+        parts.push(sectionRow(t('Share Distortion Profile'), sections['share'], 0, () => this.toggleSection('share')));
 if (sections.share) {
           parts.push(noteRow(html`Export copies your distortion settings (curves, mode, center offsets) as text or downloads them as a .json file. To use someone else's profile, paste it below and press Import from text, or pick their file with Import .json. Tuner-saved files from the Distortion folder import the same way.`));
           parts.push(html`<div class="field share-field">
@@ -256,7 +256,13 @@ if (sections.share) {
 </div>`);
 }
 } else {
-        parts.push(noteRow(html`Enable Image Enhancements in <a href="#/app-settings">App Settings</a> to use distortion correction and profile sharing.`));
+        parts.push(sectionHeading(t('Distortion Correction')));
+        parts.push(noteRow(galaxy.baselineRequested
+          ? html`<strong>${t('Distortion correction is disabled while SDR 10-bit baseline is on.')}</strong>
+              ${t('Turn the baseline off in Driver Settings, then enable Image Enhancements in App Settings. Enabling the baseline resets lens correction and other picture adjustments.')}
+              <a href="#/driver-settings">${t('Open Driver Settings')}</a>`
+          : html`${t('Enable Image Enhancements in App Settings to use distortion correction and profile sharing.')}
+              <a href="#/app-settings">${t('Open App Settings')}</a>`));
 }
 }
     return html`<app-system-ready .ctx=${this.ctx}>${parts}</app-system-ready>`;

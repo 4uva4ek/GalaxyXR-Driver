@@ -28,7 +28,7 @@ void *ShimTrackedDeviceDriver::GetComponent(const char *pchComponentNameAndVersi
 		}
 	}
 	// this may at some point need to load different shims depending on what the original returns
-	// but the MeganeX shim overwrites all of them so it is not currently a problem
+	// derived shims may overwrite these methods as needed
 	if(strcmp(pchComponentNameAndVersion, vr::IVRDisplayComponent_Version) == 0 && shimDefinition->shimActive && shimDefinition->shimDisplayComponent){
 		vr::IVRDisplayComponent* displayComponent = nullptr;
 		if(shimDefinition->trackedDevice){

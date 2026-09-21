@@ -1,0 +1,154 @@
+{
+  "scope": "Freshly transpiled current Lit adapters/pages/services in Chromium; real Lit/Fluent/RxJS dependencies recovered from uploaded GUI bundle; mocked Tauri/locks and explicit test theme tokens. Not a Vite production build or Windows WebView2 run.",
+  "checks": [
+    {
+      "test": "Current driver page mounts without runtime errors",
+      "passed": true
+    },
+    {
+      "test": "Both identity settings default On",
+      "passed": true
+    },
+    {
+      "test": "Advanced mode shows both identity controls",
+      "passed": true
+    },
+    {
+      "test": "Normal mode hides both identity controls without changing their values",
+      "passed": true
+    },
+    {
+      "test": "Galaxy XR Native Identity: disabling shows recognition warning",
+      "passed": true
+    },
+    {
+      "test": "Galaxy XR Native Identity: warning does not persist an unconfirmed change",
+      "passed": true
+    },
+    {
+      "test": "Galaxy XR Native Identity: Cancel is the initially focused action",
+      "passed": true
+    },
+    {
+      "test": "Galaxy XR Native Identity: Cancel restores the real switch",
+      "passed": true
+    },
+    {
+      "test": "Galaxy XR Native Identity: confirmed Off is saved to the shared setting",
+      "passed": true
+    },
+    {
+      "test": "vrlink Headset Profile: disabling shows recognition warning",
+      "passed": true
+    },
+    {
+      "test": "vrlink Headset Profile: warning does not persist an unconfirmed change",
+      "passed": true
+    },
+    {
+      "test": "vrlink Headset Profile: Cancel is the initially focused action",
+      "passed": true
+    },
+    {
+      "test": "vrlink Headset Profile: Cancel restores the real switch",
+      "passed": true
+    },
+    {
+      "test": "vrlink Headset Profile: confirmed Off is saved to the shared setting",
+      "passed": true
+    },
+    {
+      "test": "Completed confirmation dialogs are removed",
+      "passed": true
+    },
+    {
+      "test": "Hidden controls retain explicit Off and show the recognition warning",
+      "passed": true
+    },
+    {
+      "test": "About settings read-back still updates hidden identity switches",
+      "passed": true
+    },
+    {
+      "test": "Help uses the real browser top layer",
+      "passed": true
+    },
+    {
+      "test": "Help is not clipped by its tiny transformed parent",
+      "passed": true
+    },
+    {
+      "test": "Accessible help name and expanded state are present",
+      "passed": true
+    },
+    {
+      "test": "Technical explanation is collapsed initially",
+      "passed": true
+    },
+    {
+      "test": "Escape closes help and restores trigger focus",
+      "passed": true
+    },
+    {
+      "test": "Help opens from the keyboard",
+      "passed": true
+    },
+    {
+      "test": "Outside click dismisses help",
+      "passed": true
+    },
+    {
+      "test": "light: expanded popup stays within the viewport",
+      "passed": true
+    },
+    {
+      "test": "light: technical details scroll instead of being cut off",
+      "passed": true
+    },
+    {
+      "test": "light: foreground and background are contrasting",
+      "passed": true
+    },
+    {
+      "test": "dark: expanded popup stays within the viewport",
+      "passed": true
+    },
+    {
+      "test": "dark: technical details scroll instead of being cut off",
+      "passed": true
+    },
+    {
+      "test": "dark: foreground and background are contrasting",
+      "passed": true
+    },
+    {
+      "test": "All 169 rewritten help entries render as text with separate technical details",
+      "passed": true
+    },
+    {
+      "test": "Help opens inside nested shadow-root scrolling panes",
+      "passed": true
+    },
+    {
+      "test": "Shadow-root scroll dismisses help when its trigger leaves the pane",
+      "passed": true
+    },
+    {
+      "test": "Older-webview fallback portals help outside the clipping shadow root",
+      "passed": true
+    },
+    {
+      "test": "Fallback is constrained to the visible viewport",
+      "passed": true
+    },
+    {
+      "test": "Removing a help component cleans up its popup",
+      "passed": true
+    },
+    {
+      "test": "Browser run has no uncaught JavaScript errors",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

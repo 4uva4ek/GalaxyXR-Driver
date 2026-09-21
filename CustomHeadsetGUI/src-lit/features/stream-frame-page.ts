@@ -6,7 +6,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import '../ui/controls';
 import './driver-banner';
@@ -48,7 +48,7 @@ if (galaxy.calibrationActive()) {
 }
 }
 if (vendor) {
-        parts.push(html`<div class="field"><div class="section-title"><span>${t('Stream Quality')}</span></div></div>`);
+        parts.push(sectionHeading(t('Stream Quality')));
         parts.push(fieldRow(t('Stream Quality Preset'), html`
       <app-select .width=${300} .value=${galaxyXr.streamQuality} .options=${[{ value: 'efficient', label: 'Efficient — 1536 tile, 300 Mbit/s (any link)' }, { value: 'balanced', label: 'Balanced — 1536 tile, 350 Mbit/s (recommended)' }, { value: 'vivid', label: 'Vivid — 1536 tile, 400 Mbit/s' }, { value: 'sharp', label: 'Sharp — 1536 tile, 450 Mbit/s (good 6 GHz link, headset permitting)' }, { value: 'max', label: 'Max — 2048 tile, 450 Mbit/s (encode-limited on current GPUs)' }, { value: 'custom', label: 'Custom — set tile and bandwidth yourself' }]} @change=${(e: CustomEvent) => { galaxyXr.streamQuality = e.detail; save(); }}></app-select>
         `, {
@@ -173,12 +173,12 @@ if (sections.encoderDbg) {
 }
         parts.push(noteRow(t('Native identity changes take effect after restarting SteamVR.')));
 }
-if (settings.enable) {
-        parts.push(html`<div class="field"><div class="section-title"><span>${t('Image Processing')}</span></div></div>`);
+parts.push(sectionHeading(t('Image Processing')));
+if (galaxy.imageEnhancementsEnabled) {
         parts.push(sectionRow(t('Color'), sections['color'], 1, () => this.toggleSection('color')));
 if (sections.color) {
 if (galaxy.sdr10BaselineActive()) {
-            parts.push(noteRow(t('SDR 10-bit baseline is active: the values below are stored but not applied (the host pipeline runs neutral). Turn it off on the Driver Settings page to restore them.')));
+            parts.push(noteRow(t('SDR 10-bit baseline is on. Disable it in Driver Settings before enabling Image Enhancements in App Settings.')));
 }
           parts.push(fieldRow(t('Brightness'), html`
       <app-number .value=${settings.brightness} step="0.05" min="0.05" max="1.5" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.brightness = e.detail; } save(); }}></app-number>
@@ -343,7 +343,12 @@ if (settings.stationaryDimming.enable) {
 }
 }
 } else {
-        parts.push(noteRow(html`Enable Image Enhancements in <a href="#/app-settings">App Settings</a> to adjust color and sharpening.`));
+        parts.push(noteRow(galaxy.baselineRequested
+          ? html`<strong>${t('Image Enhancements is disabled while SDR 10-bit baseline is on.')}</strong>
+              ${t('Turn the baseline off in Driver Settings, then enable Image Enhancements in App Settings. Enabling the baseline resets picture adjustments to their defaults.')}
+              <a href="#/driver-settings">${t('Open Driver Settings')}</a>`
+          : html`${t('Enable Image Enhancements in App Settings to adjust color and sharpening. Turn enhancements off before enabling SDR 10-bit baseline.')}
+              <a href="#/app-settings">${t('Open App Settings')}</a>`));
 }
 if (advancedMode) {
         parts.push(sectionRow(t('Advanced'), sections['advanced'], 0, () => this.toggleSection('advanced')));

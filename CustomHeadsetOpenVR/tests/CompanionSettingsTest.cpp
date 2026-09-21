@@ -24,6 +24,29 @@ int main() {
             Check(config.galaxyXr.vrlinkHeadsetProfile == profile, "resolver does not change the saved profile switch");
         }
     }
+    // Picture modes are mutually exclusive even for an old/external file
+    // containing both flags. Do not mutate stored state during evaluation.
+    for(bool baseline : {false, true}) for(bool enhancements : {false, true}) {
+        Config config{};
+        config.galaxyXr.sdr10Baseline = baseline;
+        config.streamFrame.enable = enhancements;
+        config.customShader.enableForOther = false;
+        const auto policy = gxr::ResolveSdr10Policy(config);
+        Check(gxr::ImageEnhancementsEnabled(config.streamFrame, policy) == (enhancements && !baseline), "baseline/master truth table gates all enhancement passes");
+        Check(config.streamFrame.enable == enhancements, "runtime mode gate does not rewrite stored master");
+        Check(config.galaxyXr.sdr10Baseline == baseline, "runtime mode gate preserves stored baseline");
+        Check(!baseline || (policy.active && policy.profileSupports10bit), "baseline still requests 10-bit with enhancements bypassed");
+    }
+    {
+        Config config{};
+        config.galaxyXr.sdr10Baseline = true;
+        config.streamFrame.enable = true;
+        config.customShader.enable = true;
+        config.customShader.enableForOther = true;
+        const auto policy = gxr::ResolveSdr10Policy(config);
+        Check(policy.conflict && !policy.active, "external custom-shader conflict remains detectable");
+        Check(!gxr::ImageEnhancementsEnabled(config.streamFrame, policy), "requested baseline still disables normal enhancements in conflict");
+    }
     Check(gxr::IsVrlinkCapabilityKey("supports10bit"), "supports10bit is classified as a capability");
     Check(gxr::IsVrlinkTuningKey("overrideRenderHeight"), "render height follows tuning route");
     Check(!gxr::IsVrlinkTuningKey("enable"), "driver enablement is not profile tuning");

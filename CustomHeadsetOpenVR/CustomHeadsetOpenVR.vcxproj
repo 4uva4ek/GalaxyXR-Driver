@@ -37,7 +37,6 @@
     <ClInclude Include="src\Driver\DriverLog.h" />
     <ClInclude Include="src\Driver\Hooking\Hooking.h" />
     <ClInclude Include="src\Driver\Hooking\InterfaceHookInjector.h" />
-    <ClInclude Include="src\Headsets\MeganeX8K.h" />
     <ClInclude Include="src\Headsets\GalaxyXR.h" />
     <ClInclude Include="src\Headsets\VrlinkCapabilities.h" />
     <ClInclude Include="src\HiddenArea\HiddenArea.h" />
@@ -55,6 +54,7 @@
     <ClCompile Include="..\ThirdParty\zlib\inftrees.c" />
     <ClCompile Include="..\ThirdParty\zlib\trees.c" />
     <ClCompile Include="..\ThirdParty\zlib\uncompr.c" />
+    <ClCompile Include="..\ThirdParty\zlib\zutil.c" />
     <ClCompile Include="src\Config\Config.cpp" />
     <ClCompile Include="src\Config\ConfigLoader.cpp" />
     <ClCompile Include="src\Distortion\DistortionProfileConstructor.cpp" />
@@ -77,14 +77,11 @@
     <ClCompile Include="src\Driver\Hooking\InterfaceHookInjector.cpp" />
     <ClCompile Include="src\Driver\ShaderReplacement.cpp" />
     <ClCompile Include="src\Headsets\BaseHeadset.cpp" />
-    <ClCompile Include="src\Headsets\DreamAir.cpp" />
     <ClCompile Include="src\Headsets\FakeHeadset.cpp" />
-    <ClCompile Include="src\Headsets\MeganeX8K.cpp" />
     <ClCompile Include="src\Headsets\GenericHeadset.cpp" />
     <ClCompile Include="src\Headsets\GalaxyXR.cpp" />
     <ClCompile Include="src\Helpers\DisplayHelper.cpp" />
     <ClCompile Include="src\Helpers\EyeTrackingOutput.cpp" />
-    <ClCompile Include="src\Helpers\PimaxEyeTrackingBridge.cpp" />
     <ClCompile Include="src\HiddenArea\HiddenArea.cpp" />
   </ItemGroup>
   <ItemGroup>

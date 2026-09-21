@@ -3,7 +3,7 @@
 ## Test the build
 
 1. Extract the complete test ZIP. Keep `CustomHeadsetGUI` beside `GalaxyXRNative`.
-2. Close SteamVR completely, then open `CustomHeadsetGUI/custom-headset-gui.exe`.
+2. Close SteamVR completely, then open `CustomHeadsetGUI/Galaxy XR Companion.exe`.
 3. Use **Install** to copy the bundled driver into its managed installation directory. Native Identity is enabled by the same transaction. Use **Uninstall** to remove that installation, then **Install** again from the same bundle to test reinstalling.
 4. After installing this build, run SteamVR and change the desired driver settings. Close SteamVR before testing **Uninstall** again.
 

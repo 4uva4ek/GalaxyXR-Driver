@@ -26,9 +26,7 @@
 #include "../../../ThirdParty/minhook/include/MinHook.h"
 
 
-// this could probably use macros to get the current project location instead of hard coding it for my computer
-// std::string shaderDevPath = "C:/Users/Admin/Desktop/stuff/projects/meganex/CustomHeadsetOpenVR/CustomHeadsetOpenVR/DriverFiles/resources/shaders/d3d11/";
-// treats the current file as a directory to get relative paths
+// Treat the current source file as a directory to locate development shader resources.
 std::string shaderDevPath = __FILE__ "/../../../DriverFiles/resources/shaders/d3d11/";
 
 std::string getShaderPath(){
@@ -362,47 +360,8 @@ std::wstring ConvertUtf8ToWide(const std::string& str){
 }
 
 
-static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionMatrices = {
-	{Config::HeadsetType::MeganeX8K, {
-		// convert sRGB into the section of the dci-p3 color space it occupies
-		0.8224619687143621, 0.17753803128563772, 0.0, 
-		0.033194198850961636, 0.9668058011490385, -1.3877787807814457e-17, 
-		0.01708263072112004, 0.07239744066396342, 0.9105199286149167
-
-	}},
-	
-	// {Config::HeadsetType::DreamAir, {
-	// }},
-	{Config::HeadsetType::DreamAir, {
-		// convert sRGB into the section of the dci-p3 color space it occupies
-		0.7304695448285958, 0.2440673763281347, 0.025463078843269038,
-		0.03779320999796168, 0.9518287439140447, 0.010378046087993819,
-		0.01344114195073836, 0.0475204153264534, 0.9390384427228086
-	}},
-};
-
-
-// corrects to the official white point but results in a warmer image
-static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionWithWhiteMatrices = {
-	{Config::HeadsetType::MeganeX8K, {
-		// best guess for an official white point
-		// the data sheet list it as a mixture of infrared and ultraviolet
-		// convert sRGB into the section of the dci-p3 color space it occupies
-		0.8224619687143621, 0.17753803128563772, 0.0, 
-		0.033194198850961636, 0.9668058011490385, -1.3877787807814457e-17, 
-		0.01708263072112004, 0.07239744066396342, 0.9105199286149167
-
-	}},
-	
-	// {Config::HeadsetType::DreamAir, {
-	// }},
-	{Config::HeadsetType::DreamAir, {
-		// convert sRGB into the section of the dci-p3 color space it occupies
-		0.8086585139263373, 0.2701921842418791, 0.02818862968779734,
-		0.037776947709785444, 0.9514191752817748, 0.010373580450483824,
-		0.009672316745800479, 0.03419594187859908, 0.6757370235197377
-	}},
-};
+static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionMatrices = {};
+static std::map<Config::HeadsetType, std::vector<double>> srgbColorCorrectionWithWhiteMatrices = {};
 
 // compile the new distortion shader from source
 Bytecode DistortionShader(bool muraCorrection = false, bool noDistortion = false){
@@ -442,29 +401,15 @@ Bytecode DistortionShader(bool muraCorrection = false, bool noDistortion = false
 	// create defines for shader settings
 	D3D_SHADER_MACRO defines[50] = {};
 	int definesCount = 0;
-	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K){
-		defines[definesCount++] = {"MEGANEX8K", "1"};
-		if(driverConfig.customShader.subpixelShift && driverConfig.meganeX8K.subpixelShift != 0 && driverConfig.meganeX8K.resolutionY == 3552){
-			// only do this if the subpixel shift is not zero and it is running at full resolution
-			defines[definesCount++] = {"SUBPIXEL_SHIFT_MEGANEX8K", "1"};
-		}
-	}
 	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::Vive){
 		defines[definesCount++] = {"VIVE", "1"};
 		if(driverConfig.customShader.subpixelShift){
 			defines[definesCount++] = {"SUBPIXEL_SHIFT_VIVE", "1"};
 		}
 	}
-	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::DreamAir){
-		defines[definesCount++] = {"DREAMAIR", "1"};
-		if(driverConfig.customShader.subpixelShift && driverConfig.dreamAir.subpixelShift != 0 ){
-			defines[definesCount++] = {"SUBPIXEL_SHIFT_DREAMAIR", "1"};
-		}
-	}
 	std::string resolutionX = std::to_string(driverConfigLoader.info.outputResolutionX);
 	std::string resolutionY = std::to_string(driverConfigLoader.info.outputResolutionY);
 	if(driverConfigLoader.info.outputResolutionX && driverConfigLoader.info.outputResolutionY){
-		// currently only the MeganeX8K can get the resolution to define these but it also the only one that uses it.
 		defines[definesCount++] = {"OUTPUT_RESOLUTION_X", resolutionX.c_str()};
 		defines[definesCount++] = {"OUTPUT_RESOLUTION_Y", resolutionY.c_str()};
 	}
@@ -553,9 +498,6 @@ Bytecode DistortionShader(bool muraCorrection = false, bool noDistortion = false
 			}
 			defines[definesCount++] = {"COLOR_CORRECTION_MATRIX", colorMatrixString.c_str()};
 		}
-	}
-	if(driverConfig.customShader.lensColorCorrection){
-		defines[definesCount++] = {"LENS_COLOR_CORRECTION", "1"};
 	}
 	if(driverConfig.customShader.dither10Bit){
 		defines[definesCount++] = {"DITHER_10BIT", "1"};
@@ -652,16 +594,12 @@ Bytecode DistortionShaderPlain(){
 
 // same as DistortionShader but with mura correction enabled
 Bytecode DistortionShaderMuraCorrection(){
-	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K){
-		// don't compile for headsets that will not use it
-		return {nullptr, 0};
-	}
 	return DistortionShader(true);
 }
 
 // same as DistortionShader but with no distortion enabled
 Bytecode DistortionShaderNoDistortion(){
-	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::MeganeX8K || driverConfigLoader.info.connectedHeadset == Config::HeadsetType::Vive){
+	if(driverConfigLoader.info.connectedHeadset == Config::HeadsetType::Vive){
 		// don't compile for headsets that will not use it
 		return {nullptr, 0};
 	}
@@ -898,8 +836,6 @@ void ShaderReplacement::CheckSettingsThread(){
 			reloadShaders |= isNowEnabled != enabled;
 			enabled = isNowEnabled;
 			if(isNowEnabled && driverConfig.hasBeenUpdated){
-				reloadShaders |= driverConfig.meganeX8K.subpixelShift != driverConfigOld.meganeX8K.subpixelShift;
-				reloadShaders |= driverConfig.dreamAir.subpixelShift != driverConfigOld.dreamAir.subpixelShift;
 				reloadShaders |= driverConfig.customShader.enable != driverConfigOld.customShader.enable;
 				reloadShaders |= driverConfig.customShader.contrast != driverConfigOld.customShader.contrast;
 				reloadShaders |= driverConfig.customShader.contrastMidpoint != driverConfigOld.customShader.contrastMidpoint;
@@ -918,7 +854,6 @@ void ShaderReplacement::CheckSettingsThread(){
 				reloadShaders |= driverConfig.customShader.srgbColorCorrection != driverConfigOld.customShader.srgbColorCorrection;
 				reloadShaders |= driverConfig.customShader.srgbWhitePointCorrection != driverConfigOld.customShader.srgbWhitePointCorrection;
 				reloadShaders |= driverConfig.customShader.srgbColorCorrectionMatrix.size() != driverConfigOld.customShader.srgbColorCorrectionMatrix.size();
-				reloadShaders |= driverConfig.customShader.lensColorCorrection != driverConfigOld.customShader.lensColorCorrection;
 				reloadShaders |= driverConfig.customShader.dither10Bit != driverConfigOld.customShader.dither10Bit;
 				reloadShaders |= driverConfig.customShader.enableFilterForOverlay != driverConfigOld.customShader.enableFilterForOverlay;
 				reloadShaders |= driverConfig.customShader.enableFilterForDashboard != driverConfigOld.customShader.enableFilterForDashboard;

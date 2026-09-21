@@ -1,0 +1,146 @@
+[
+  {
+    "test": "Settings booleans are strict and defaults are identified",
+    "passed": true
+  },
+  {
+    "test": "Reactive computeds read fresh values synchronously",
+    "passed": true
+  },
+  {
+    "test": "Reactive branch switching detaches stale dependencies",
+    "passed": true
+  },
+  {
+    "test": "Unsubscribing cancels queued notifications",
+    "passed": true
+  },
+  {
+    "test": "Writer coalesces edits and flush waits for persistence",
+    "passed": true
+  },
+  {
+    "test": "Writer rejects failed saves rather than claiming success",
+    "passed": true
+  },
+  {
+    "test": "Replace-mode write failure cleans up the temporary file",
+    "passed": true
+  },
+  {
+    "test": "Installation suspension cancels pending writes safely",
+    "passed": true
+  },
+  {
+    "test": "Cold paths cannot construct a broken service graph",
+    "passed": true
+  },
+  {
+    "test": "Galaxy XR and neutral configuration paths remain isolated",
+    "passed": true
+  },
+  {
+    "test": "Driver detection works before any runtime info is published",
+    "passed": true
+  },
+  {
+    "test": "Windows UTF-8 BOM manifests and settings are accepted",
+    "passed": true
+  },
+  {
+    "test": "Fresh verified installation initializes editable driver settings",
+    "passed": true
+  },
+  {
+    "test": "No installation does not create a missing driver configuration",
+    "passed": true
+  },
+  {
+    "test": "About check does not recreate a configuration removed after startup",
+    "passed": true
+  },
+  {
+    "test": "Refreshing watchers does not accumulate subscriptions",
+    "passed": true
+  },
+  {
+    "test": "Missing copied package can be found through external registration",
+    "passed": true
+  },
+  {
+    "test": "A different driver identity is not treated as GalaxyXRNative",
+    "passed": true
+  },
+  {
+    "test": "Inaccessible OpenVR paths report Unknown rather than uninstalled",
+    "passed": true
+  },
+  {
+    "test": "About checks coalesce and drain the last unsaved edit first",
+    "passed": true
+  },
+  {
+    "test": "About reads saved values without resetting or invoking native commands",
+    "passed": true
+  },
+  {
+    "test": "Read-back covers every driver boolean in both On and Off states",
+    "passed": true
+  },
+  {
+    "test": "Unreadable and malformed settings never overwrite the backing file",
+    "passed": true
+  },
+  {
+    "test": "Failed write rolls back a setting and exposes an actionable error",
+    "passed": true
+  },
+  {
+    "test": "Driver-disabled and safe-mode-blocked states are read independently",
+    "passed": true
+  },
+  {
+    "test": "Invalid driver JSON remains untouched: broken JSON",
+    "passed": true
+  },
+  {
+    "test": "Invalid driver JSON remains untouched: []",
+    "passed": true
+  },
+  {
+    "test": "Invalid driver JSON remains untouched: null",
+    "passed": true
+  },
+  {
+    "test": "Invalid driver JSON remains untouched: \"{}\"",
+    "passed": true
+  },
+  {
+    "test": "Legacy empty GUI sentinel is accepted without weakening driver validation",
+    "passed": true
+  },
+  {
+    "test": "Explicit saved identity overrides a stale runtime default",
+    "passed": true
+  },
+  {
+    "test": "Stale neutral settings do not claim that another driver is installed",
+    "passed": true
+  },
+  {
+    "test": "Native journal enablement changes are reread into the shared state",
+    "passed": true
+  },
+  {
+    "test": "Install, uninstall and reinstall preserve the bundle and rebind readiness",
+    "passed": true
+  },
+  {
+    "test": "Uninstall drains an older package inspection before removing files",
+    "passed": true
+  },
+  {
+    "test": "Uninstall drains an older settings initialization before removing files",
+    "passed": true
+  }
+]

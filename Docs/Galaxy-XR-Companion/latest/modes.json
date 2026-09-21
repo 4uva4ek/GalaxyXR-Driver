@@ -1,0 +1,90 @@
+[
+  {
+    "test": "Navigation: checking, no verified version",
+    "passed": true
+  },
+  {
+    "test": "Navigation: not-installed, no verified version",
+    "passed": true
+  },
+  {
+    "test": "Navigation: unknown, 1.2.3",
+    "passed": true
+  },
+  {
+    "test": "Navigation: installed, no verified version",
+    "passed": true
+  },
+  {
+    "test": "Navigation: installed, 1.2.3",
+    "passed": true
+  },
+  {
+    "test": "Navigation: checking, 1.2.3",
+    "passed": true
+  },
+  {
+    "test": "Deep links are recognized but cannot bypass the installation gate",
+    "passed": true
+  },
+  {
+    "test": "Baseline reset is immutable and preserves unrelated and unknown settings",
+    "passed": true
+  },
+  {
+    "test": "Baseline cannot be enabled while Image Enhancements is on",
+    "passed": true
+  },
+  {
+    "test": "Image Enhancements cannot be enabled while baseline is on",
+    "passed": true
+  },
+  {
+    "test": "Explicit transitions require the previous mode to be switched off",
+    "passed": true
+  },
+  {
+    "test": "Turning the baseline off does not restore reset picture adjustments",
+    "passed": true
+  },
+  {
+    "test": "Legacy overlapping flags show baseline priority without a write on inspection",
+    "passed": true
+  },
+  {
+    "test": "Failed baseline save restores confirmed values and reports the error",
+    "passed": true
+  },
+  {
+    "test": "Unknown settings cannot be changed or replaced with defaults",
+    "passed": true
+  },
+  {
+    "test": "Concurrent mode changes cannot save both modes enabled",
+    "passed": true
+  },
+  {
+    "test": "Mode changes wait for pending edits before choosing a snapshot",
+    "passed": true
+  },
+  {
+    "test": "Saved defaults may be omitted; effective readback still reports the correct modes",
+    "passed": true
+  },
+  {
+    "test": "Removed Supports 10-bit control does not erase old compatibility values",
+    "passed": true
+  },
+  {
+    "test": "Disk inspection restores state after external mode edits",
+    "passed": true
+  },
+  {
+    "test": "Driver removal makes all non-App Settings routes unavailable",
+    "passed": true
+  },
+  {
+    "test": "Installed but SteamVR-disabled driver retains all tabs",
+    "passed": true
+  }
+]

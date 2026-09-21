@@ -138,10 +138,6 @@
         <source>Advanced Settings</source>
         <target state="translated">上級設定</target>
       </trans-unit>
-      <trans-unit id="3303629114160653296" datatype="html">
-        <source>Enable MeganeX 8K Driver</source>
-        <target state="translated">MeganeX 8K ドライバーを有効にする</target>
-      </trans-unit>
       <trans-unit id="1136931556684562864" datatype="html">
         <source>FOV Burn-In Prevention</source>
         <target state="translated">FOV 焼き付き予防</target>
@@ -450,10 +446,6 @@
         <source>sRGB Color Correction</source>
         <target state="translated">sRGB色補正</target>
       </trans-unit>
-      <trans-unit id="8550993829997950174" datatype="html">
-        <source>Enable for MeganeX 8K</source>
-        <target state="translated">MeganeX 8K向けに有効化</target>
-      </trans-unit>
       <trans-unit id="8390407398188435348" datatype="html">
         <source>Enable for Other HMDs</source>
         <target state="translated">その他のHMD向けに有効化</target>
@@ -494,21 +486,9 @@
         <source>Forces the black level clamp to be disabled. This can make headsets like the Vive darker at the expense of more smearing.</source>
         <target state="translated">黒レベルのクランプを強制的に無効にします。これにより、Viveのようなヘッドセットでは、より多くのスミア（引きずり）が発生する代わりに、黒をより暗く表現できます。</target>
       </trans-unit>
-      <trans-unit id="5106755418798621895" datatype="html">
-        <source>Enables sRGB color correction. The MeganeX is a Display-P3 display and normally colors are oversaturated by mapping the srgb outputs of applications to the full color space. When this is enabled, only the srgb portion of the display is used, which can make colors look more accurate.</source>
-        <target state="translated">sRGB色補正を有効にします。MeganeXはDisplay-P3対応ディスプレイであり、通常、アプリケーションのsRGB出力をフルカラースペースにマッピングするため、色が過飽和になります。これを有効にすると、ディスプレイのsRGB部分のみが使用され、色がより正確に見えるようになります。</target>
-      </trans-unit>
-      <trans-unit id="2336565079874618391" datatype="html">
-        <source>Enables the custom shader for the MeganeX 8K.</source>
-        <target state="translated">MeganeX 8K用のカスタムシェーダーを有効にします。</target>
-      </trans-unit>
       <trans-unit id="7080815701953186727" datatype="html">
         <source>Enables the custom shader for all other HMDs. Non-native SteamVR headsets likely won&apos;t work yet.</source>
         <target state="translated">その他すべてのHMD用のカスタムシェーダーを有効にします。SteamVRにネイティブ対応していないヘッドセットは、まだ動作しない可能性があります。</target>
-      </trans-unit>
-      <trans-unit id="2210953895431071691" datatype="html">
-        <source>When enabled, the Custom Headset driver will run the MeganeX superlight 8K.</source>
-        <target state="translated">有効にすると、カスタムヘッドセットドライバーがMeganeX superlight 8Kとして動作します。</target>
       </trans-unit>
       <trans-unit id="8242705724014165192" datatype="html">
         <source>The resolution to run the DisplayPort connection at.</source>
@@ -529,10 +509,6 @@
       <trans-unit id="238553294014386856" datatype="html">
         <source>Re-Install Driver</source>
         <target state="translated">ドライバーを再インストール</target>
-      </trans-unit>
-      <trans-unit id="6835956377369507232" datatype="html">
-        <source>Samples subpixels from the correct locations in the image to improve sharpness by lighting up individual subpixels. This can have a remarkable effect on the MeganeX where it can extract detail from more than 300% of the 1:1 resolution. The Vive is also supported but the improvement is less noticeable.</source>
-        <target state="translated">画像内の正しい位置からサブピクセルをサンプリングし、個々のサブピクセルを点灯させることでシャープネスを向上させます。MeganeXでは特に効果が大きく、1:1解像度の300%以上のディテールを引き出すことができます。Viveも対応していますが、改善効果はそれほど目立ちません。</target>
       </trans-unit>
       <trans-unit id="5683939155976813564" datatype="html">
         <source>The inter pupillary distance of the virtual cameras in SteamVR applications. You set the headset&apos;s physical IPD in the Shiftall Configurator. This IPD should be matched with what you set in the Shiftall Configurator to get the correct world scale.</source>
@@ -814,10 +790,6 @@
         <source> Affiliate Links </source>
         <target state="translated">アフィリエイトリンク</target>
       </trans-unit>
-      <trans-unit id="3076617424804562566" datatype="html">
-        <source>Pimax</source>
-        <target state="translated">Pimax</target>
-      </trans-unit>
       <trans-unit id="2878875963830731582" datatype="html">
         <source>$25 Off</source>
         <target state="translated">$25 オフ</target>
@@ -830,25 +802,9 @@
         <source>Auto (based on headset)</source>
         <target state="translated">自動（ヘッドセットに応じて）</target>
       </trans-unit>
-      <trans-unit id="2088381581994595582" datatype="html">
-        <source>MeganeX8K</source>
-        <target state="translated">MeganeX8K</target>
-      </trans-unit>
-      <trans-unit id="7582797498140593002" datatype="html">
-        <source>Dream Air</source>
-        <target state="translated">Dream Air</target>
-      </trans-unit>
       <trans-unit id="1440423095101259239" datatype="html">
         <source>Show Incompatible Profiles</source>
         <target state="translated">非対応プロファイルを表示</target>
-      </trans-unit>
-      <trans-unit id="1067866594366598865" datatype="html">
-        <source>Enable Dream Air Driver</source>
-        <target state="translated">Dream Air ドライバーを有効にする</target>
-      </trans-unit>
-      <trans-unit id="606988768018169130" datatype="html">
-        <source>When enabled, the Custom Headset driver will run the Pimax Dream Air.</source>
-        <target state="translated">有効にすると、カスタムヘッドセットドライバーがPimax Dream Airを動作させます。</target>
       </trans-unit>
       <trans-unit id="2886905340153306704" datatype="html">
         <source>The inter pupillary distance of the virtual cameras in SteamVR applications. This IPD should be matched with what you set for the headset&apos;s physical IPD to get the correct world scale.</source>
@@ -865,10 +821,6 @@
       <trans-unit id="6717304138460300521" datatype="html">
         <source>Enable for Other Native HMDs</source>
         <target state="translated">他のネイティブHMD用に有効化</target>
-      </trans-unit>
-      <trans-unit id="5052404124223641771" datatype="html">
-        <source>Enables the custom shader for all other native HMDs that don&apos;t have specific toggles at the bottom. This includes all native SteamVR headsets like the Index, Vive, BSB, etc. Non-native SteamVR headsets like the Quest, Pimax, etc will not work.</source>
-        <target state="translated">下部に個別のトグルがない他のすべてのネイティブHMDに対してカスタムシェーダーを有効にします。これにはIndex、Vive、BSBなどのすべてのネイティブSteamVRヘッドセットが含まれます。QuestやPimaxなどの非ネイティブSteamVRヘッドセットでは動作しません。</target>
       </trans-unit>
       <trans-unit id="6907320896515802256" datatype="html">
         <source>The custom shader is not enabled for the current headset.</source>
@@ -990,25 +942,9 @@
         <source>Corrects the sRGB white point in addition to the colors. This may result in a warmer image but more accurate colors to the sRGB standard.</source>
         <target state="translated">色の補正に加えてsRGBの白点も補正します。画像は暖かみがかって見えるかもしれませんが、sRGB標準により正確な色合いになります。</target>
       </trans-unit>
-      <trans-unit id="3650433553188506936" datatype="html">
-        <source>This corrects color uniformity issues created by the lenses. On the MeganeX this fixes the warmer colors in the center of the lenses. On the Dream Air this fixes the red tint around the edges.</source>
-        <target state="translated">レンズによって生じる色の均一性の問題を補正します。MeganeXではレンズ中央部の暖色寄りの色を修正し、Dream Airでは周辺部の赤い色かぶりを修正します。</target>
-      </trans-unit>
-      <trans-unit id="3501090981182430993" datatype="html">
-        <source>Enables 10 bit dithering. This allows a 10 bit input to be shown on an 8 bit display. Pixels are dithered spatially and temporally to allow more colors to be represented. This works for the MeganeX and all other native headsets but will only have an effect for 10 bit VR applications. There may be some slight benefit to having this on when other color corrections are used.</source>
-        <target state="translated">10ビットディザリングを有効にします。これにより、10ビットの入力を8ビットディスプレイで表示できます。画素を空間的・時間的にディザリングすることで、より多くの色を表現できます。MeganeXとその他のネイティブヘッドセットすべてに対応していますが、10ビットのVRアプリケーションで使用した場合のみ効果があります。他のカラー補正を併用した場合、わずかな効果がある場合があります。</target>
-      </trans-unit>
       <trans-unit id="2185525877914813434" datatype="html">
         <source>Adjusts the color of the image for any headset that can use the custom shader. This can also be used to decrease or increase the brightness of the scene.</source>
         <target state="translated">カスタムシェーダーを使用可能なすべてのヘッドセットで画像の色を調整します。シーンの明るさを下げる・上げる用途にも使用できます。</target>
-      </trans-unit>
-      <trans-unit id="6874124726590243001" datatype="html">
-        <source>Enable for Dream Air</source>
-        <target state="translated">Dream Air用に有効化</target>
-      </trans-unit>
-      <trans-unit id="6572848840051801784" datatype="html">
-        <source>Enables the custom shader for the Dream Air.</source>
-        <target state="translated">Dream Air に対してカスタムシェーダーを有効にします。</target>
       </trans-unit>
       <trans-unit id="5076719159866344759" datatype="html">
         <source>General Headset Settings</source>
@@ -1021,10 +957,6 @@
       <trans-unit id="7213133553923604199" datatype="html">
         <source>Take Compositor Screenshots</source>
         <target state="translated">コンポジタースクリーンショットを撮影</target>
-      </trans-unit>
-      <trans-unit id="6046379908052840609" datatype="html">
-        <source>Makes SteamVR take compositor debug screenshots whenever a normal screenshot is taken. These screenshots are higher resolution and also include the exact output sent to the headset. The folder containing them will open when a screenshot is taken. In some cases standard screenshots do not work with the MeganeX but these are still functional. They are more performance intensive than normal screenshots.</source>
-        <target state="translated">通常のスクリーンショットを撮影した際に、SteamVR がコンポジターデバッグスクリーンショットを撮影するようになります。これらのスクリーンショットは高解像度で、ヘッドセットに送信される実際の出力も含まれます。スクリーンショットを撮影すると、それらが保存されているフォルダーが開きます。MeganeX では標準スクリーンショットが機能しない場合もありますが、これらは依然として使用可能です。通常のスクリーンショットよりもパフォーマンスに負荷がかかります。</target>
       </trans-unit>
       <trans-unit id="492689708075506397" datatype="html">
         <source>Use Vive Bluetooth</source>
@@ -1102,10 +1034,6 @@
         <source>Enable Eye Tracking</source>
         <target state="translated">視線追跡を有効にする</target>
       </trans-unit>
-      <trans-unit id="2292160599470132016" datatype="html">
-        <source>Enables eye tracking support for the headset. Pimax headsets require the pi_server runtime. Use mbucchia/Quad-Views-Foveated for foveated rendering. This may require restarting the game if turned on after a game is started.</source>
-        <target state="translated">ヘッドセットの視線追跡サポートを有効にします。Pimax ヘッドセットには pi_server ランタイムが必要です。注視ポイントレンダリングには mbucchia/Quad-Views-Foveated を使用してください。ゲーム起動後に有効にした場合は、ゲームの再起動が必要になる場合があります。</target>
-      </trans-unit>
       <trans-unit id="7005186918826158340" datatype="html">
         <source>Additional IPD</source>
         <target state="translated">追加 IPD</target>
@@ -1129,14 +1057,6 @@
       <trans-unit id="2102961643795704214" datatype="html">
         <source> tab.</source>
         <target state="translated"> のタブで利用できます。</target>
-      </trans-unit>
-      <trans-unit id="7092489041770374525" datatype="html">
-        <source>Pimax Play must be open and logged in for this to work. Pimax has not provided me any integration with their DRM so this flaky method needs to be used. It has been <x id="INTERPOLATION" equiv-text="{{ daysSinceDreamAirBlocked }}"/> days since the Dream Air could start without Pimax Play if Pimax allowed it for everyone.</source>
-        <target state="translated">Pimax Playが開かれており、ログインしている状態である必要があります。PimaxはDRMとの統合を提供していないため、この不安定な方法を使用する必要があります。Pimaxがすべてのユーザーに許可していればPimax PlayなしでDream Airが起動できた状態から、<x id="INTERPOLATION" equiv-text="{{ daysSinceDreamAirBlocked }}"/>日が経過しています。</target>
-      </trans-unit>
-      <trans-unit id="963585036176740737" datatype="html">
-        <source>Automatically launch the Dream Air headset when the GUI is opened. This will only launch if a Pimax headset is enabled.</source>
-        <target state="translated">GUIを開いたときにDream Airヘッドセットを自動的に起動します。Pimaxヘッドセットが有効な場合にのみ起動します。</target>
       </trans-unit>
       <trans-unit id="7459620849547189151" datatype="html">
         <source>Launch on GUI Startup</source>
@@ -1205,10 +1125,6 @@
       <trans-unit id="5409696716939740879" datatype="html">
         <source>Unblock All</source>
         <target state="translated">すべてブロック解除</target>
-      </trans-unit>
-      <trans-unit id="9113006425690094381" datatype="html">
-        <source>MeganeX 8K</source>
-        <target state="translated">MeganeX 8K</target>
       </trans-unit>
       <trans-unit id="365798284983671240" datatype="html">
         <source>This headset is not currently being run by this driver. None of these settings will have an effect. Enable this driver and restart SteamVR with the headset connected to change this.</source>

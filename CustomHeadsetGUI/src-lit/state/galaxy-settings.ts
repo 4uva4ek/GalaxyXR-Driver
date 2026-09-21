@@ -15,6 +15,7 @@ import type { DriverSettingService } from '../services/driver-setting';
 import type { DriverInfoService } from '../services/driver-info';
 import type { Settings, StreamFrameConfig, ControllersConfig, GalaxyXrConfig, HandOffsets } from '../domain/types';
 import { vendor } from '../environment';
+import { baselineRequested, imageEnhancementsEnabled, changePictureMode } from '../domain/image-mode';
 
 function defaultStreamFrame(): StreamFrameConfig { return structuredClone(driverDefaults.streamFrame!); }
 
@@ -50,6 +51,47 @@ export class GalaxySettingsBase {
   controllerDefaults: ControllersConfig = defaultControllers();
   settings?: StreamFrameConfig;
   defaults: StreamFrameConfig = defaultStreamFrame();
+  readonly imageModeChanging = signal(false);
+  readonly imageModeError = signal('');
+  get baselineRequested(): boolean { return baselineRequested(this.dss.values()); }
+  get imageEnhancementsEnabled(): boolean { return imageEnhancementsEnabled(this.dss.values()); }
+
+  async setSdr10Baseline(enabled: boolean): Promise<boolean> {
+    return this.setPictureMode('baseline', enabled);
+  }
+
+  async setImageEnhancements(enabled: boolean): Promise<boolean> {
+    return this.setPictureMode('enhancements', enabled);
+  }
+
+  private async setPictureMode(mode: 'baseline' | 'enhancements', enabled: boolean): Promise<boolean> {
+    if (this.imageModeChanging() || this.dss.inspecting) return false;
+    this.imageModeChanging.set(true);
+    this.imageModeError.set('');
+    try {
+      // Drain pending edits before taking a snapshot; both mode flags and the
+      // reset then travel through the same save/rollback path in one write.
+      await this.dss.flush();
+      if (this.dss.inspecting || this.dss.readFileError()) return false;
+      const next = changePictureMode(this.dss.values(), this.defaults, mode, enabled);
+      if (!next) {
+        this.imageModeError.set(mode === 'baseline'
+          ? 'Turn Image Enhancements off before enabling SDR 10-bit baseline.'
+          : 'Turn SDR 10-bit baseline off before enabling Image Enhancements.');
+        return false;
+      }
+      const saved = await this.dss.save(next);
+      if (!saved) this.imageModeError.set(this.dss.writeFileError() ?? 'The picture mode could not be saved.');
+      return saved;
+    } catch (error) {
+      this.imageModeError.set(String(error));
+      return false;
+    } finally {
+      this.imageModeChanging.set(false);
+      this.revision.update(x => x + 1);
+    }
+  }
+
   // bumped on every edit so the curve component redraws immediately
   revision = signal(0);
   // friendly band layout inputs; the driver consumes the raw bands array,

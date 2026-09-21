@@ -1511,8 +1511,6 @@ struct ControllersConfig{
 struct CustomShaderConfig{
 	// if shaders should be replaced in the compositor
 	bool enable = false;
-	bool enableForMeganeX8K = true;
-	bool enableForDreamAir = true;
 	bool enableForOther = false;
 	// contrast with 50 being normal
 	double contrast = 50;
@@ -1544,8 +1542,6 @@ struct CustomShaderConfig{
 	// a 3x3 matrix to apply to the linear colors
 	// if this is an array of 9 flat elements it will override the headset's default matrix
 	std::vector<double> srgbColorCorrectionMatrix = {};
-	// correct color uniformity issues of the lenses on the MeganeX
-	bool lensColorCorrection = true;
 	// if a 10 bit input will be dithered down to 8 bit
 	bool dither10Bit = false;
 	// if the filter should be enabled for overlays (defaults false to avoid performance hit when no overlay is shown)
@@ -1578,9 +1574,7 @@ public:
 	enum HeadsetType{
 		None = 0,
 		Other = 1,
-		MeganeX8K = 2,
 		Vive = 3,
-		DreamAir = 4,
 	};
 	
 	class BaseHeadsetConfig{
@@ -1677,44 +1671,13 @@ public:
 		StationaryDimmingConfig stationaryDimming = {};
 	};
 	
-	class MeganeX8KConfig : public BaseHeadsetConfig{
-	public:
-		MeganeX8KConfig(){
-			headsetType = HeadsetType::MeganeX8K;
-			distortionProfile = "MeganeX8K Default";
-			distortionProfileDeviceType = "MeganeX8K";
-			edidVendorId = 0xcc4c; // SFL
-			displayRotation = 1;
-			subpixelOffsets = {-0.33 / 3552.0, 0, 0, 0, 0.33 / 3552.0, 0};
-		}
-	};
-	// config for the MeganeX superlight 8K
-	MeganeX8KConfig meganeX8K = {};
-	
-	class DreamAirConfig : public BaseHeadsetConfig{
-		public:
-		DreamAirConfig(){
-			headsetType = HeadsetType::DreamAir;
-			distortionProfile = "Dream Air Default";
-			distortionProfileDeviceType = "DreamAir";
-			maxFovX = 96;
-			maxFovY = 86;
-			edidVendorId = 53826; // PVR
-			displayRotation = 3;
-			subpixelOffsets = {0.33 / 3552.0, 0, 0, 0, -0.33 / 3552.0, 0};
-			eyeRotation = 2;
-			enableEyeTracking = true;
-		}
-	};
-	// config for the Dream Air
-	DreamAirConfig dreamAir = {};
 	
 	class FakeHeadsetConfig : public BaseHeadsetConfig{
 		public:
 		FakeHeadsetConfig(){
 			enable = false;
 			headsetType = HeadsetType::Other;
-			distortionProfile = "MeganeX8K Default";
+			distortionProfile = "None";
 			displayRotation = 0;
 			// use a 1080p monitor
 			directMode = false;
@@ -1770,7 +1733,7 @@ class DistortionProfileConfig{
 public:
 	// name of distortion profile, this will be it's filename
 	std::string name = "None";
-	// the headset device this profile is for, empty for all devices, or "MeganeX8K" for the MeganeX superlight 8K
+	// the headset device this profile is for; leave empty to apply to all devices
 	std::string device = "";
 	// description to display
 	std::string description = "";

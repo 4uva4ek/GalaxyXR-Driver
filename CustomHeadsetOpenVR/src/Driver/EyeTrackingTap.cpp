@@ -22,7 +22,7 @@ void EyeTrackingTap::OnCreateComponent(vr::PropertyContainerHandle_t container, 
 		(unsigned long long)handle, (int)error);
 	if(handle != vr::k_ulInvalidInputComponentHandle
 			&& handle == eyeTrackingOutput.eyeTrackingComponentHandle){
-		// this was our own MeganeX publisher registering, not a foreign driver
+		// this component belongs to our own EyeTrackingOutput, not a foreign driver
 		DriverLog("EyeTrackingTap: (component belongs to our own EyeTrackingOutput, samples will be ignored)");
 	}
 }
@@ -32,8 +32,7 @@ void EyeTrackingTap::OnUpdateComponent(vr::VRInputComponentHandle_t component,
 	if(!data){
 		return;
 	}
-	// skip samples our own EyeTrackingOutput publishes (MeganeX + Pimax
-	// bridge); the tap only wants foreign (vrlink) gaze
+	// skip samples our own EyeTrackingOutput publishes; the tap only wants foreign (vrlink) gaze
 	if(component != vr::k_ulInvalidInputComponentHandle
 			&& component == eyeTrackingOutput.eyeTrackingComponentHandle){
 		return;
