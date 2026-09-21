@@ -86,9 +86,11 @@ vr::EVRInitError CustomHeadsetDeviceProvider::Init(vr::IVRDriverContext *pDriver
 	// vrlink reads its stream/profile keys from steamvr.vrsettings during
 	// its own init, before any HMD Activate; write ours now so the FIRST
 	// connect of a session already runs the current config (09-03 race)
-	if(driverConfig.galaxyXr.nativeIdentity){
-		GalaxyXR_EarlyApplyVrlinkSettings();
-	}
+	#ifdef VENDOR_GALAXYXR
+	GalaxyXR_EarlyApplyVrlinkSettings(); // Settings routing is independent of the identity override.
+	#else
+	if(driverConfig.galaxyXr.nativeIdentity){ GalaxyXR_EarlyApplyVrlinkSettings(); }
+	#endif
 	// inject hooks into functions
 	InjectHooks(this, pDriverContext);
 	hidModifier.InjectHooks();
@@ -384,6 +386,25 @@ static bool InputPathInteresting(const std::string &lower){
 		|| lower.find("pinch") != std::string::npos;
 }
 
+static bool NativeHandSerial(const char* serial){
+	if(!serial){ return false; }
+	return strcmp(serial, "VRLINKQ_Hand_Left") == 0
+		|| strcmp(serial, "VRLINKQ_Hand_Right") == 0;
+}
+
+static bool PhysicalGalaxyControllerSerial(const char* serial){
+	if(!serial){ return false; }
+	std::string value = serial;
+	return value.rfind("SamsungVST-Controller", 0) == 0
+		|| (value.rfind("VRLINK", 0) == 0
+			&& value.find("Controller") != std::string::npos);
+}
+
+static bool NativeHandDiagnosticPath(const std::string &lower){
+	return lower.find("index_pinch") != std::string::npos
+		|| lower.find("/input/grip") != std::string::npos;
+}
+
 // classify a component path into a distortion tuner control role. exact
 // suffix matches against the confirmed vrlink surface (session log): joystick
 // x/y scalars + joystick/a/b/x/y click booleans + grip value scalars.
@@ -407,17 +428,24 @@ static int TunerRoleForPath(const std::string &lower, bool isScalar){
 	return 0;
 }
 
-void CustomHeadsetDeviceProvider::OnInputComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle){
-	if(!name || handle == vr::k_ulInvalidInputComponentHandle){
+void CustomHeadsetDeviceProvider::OnInputComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle, vr::EVRInputError error){
+	if(!name || error != vr::VRInputError_None || handle == vr::k_ulInvalidInputComponentHandle){
+		if(name && error != vr::VRInputError_None){
+			DriverLog("HandInputDiag: boolean create FAILED container=%llu path=%s error=%d",
+				(unsigned long long)container, name, (int)error);
+		}
 		return;
 	}
 	InputComponentInfo info;
 	info.container = container;
+	info.openVRID = ResolveContainerId(container);
 	info.name = name;
 	std::string lower = info.name;
 	for(auto &c : lower){ c = (char)tolower(c); }
 	info.interesting = InputPathInteresting(lower);
 	info.tunerRole = TunerRoleForPath(lower, false);
+	info.nativeHand = info.openVRID != vr::k_unTrackedDeviceIndexInvalid && IsNativeHand(info.openVRID);
+	info.diagnostic = info.nativeHand && NativeHandDiagnosticPath(lower);
 	// hand classification from the quest layout: x/y buttons exist only on
 	// the left controller, a/b only on the right. once known, resolve the
 	// openVR id too so pose updates can be routed per hand.
@@ -427,7 +455,7 @@ void CustomHeadsetDeviceProvider::OnInputComponentCreated(vr::PropertyContainerH
 		// lock itself, and std::mutex is non-recursive — nesting it here
 		// deadlocked vrserver at the first x/click creation and tripped a
 		// SteamVR safe-mode block (session 24 regression)
-		uint32_t id = ResolveContainerId(container);
+		uint32_t id = info.openVRID;
 		std::lock_guard<std::mutex> handGuard(poseLogLock);
 		containerHand[container] = hand;
 		if(id != vr::k_unTrackedDeviceIndexInvalid){
@@ -436,32 +464,42 @@ void CustomHeadsetDeviceProvider::OnInputComponentCreated(vr::PropertyContainerH
 	}
 	// always log creates: component names are the map of vrlink's input
 	// surface, and not having them cost a session
-	DriverLog("InputTap: boolean component container=%llu path=%s handle=%llu%s",
+	DriverLog("InputTap: boolean component container=%llu path=%s handle=%llu id=%u%s%s",
 		(unsigned long long)container, name, (unsigned long long)handle,
-		info.interesting ? " [watched]" : "");
+		info.openVRID, info.interesting ? " [watched]" : "",
+		info.nativeHand ? " [native-hand passthrough]" : "");
 	std::lock_guard<std::mutex> guard(poseLogLock);
 	inputComponents[handle] = info;
 }
 
-void CustomHeadsetDeviceProvider::OnScalarComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle){
-	if(!name || handle == vr::k_ulInvalidInputComponentHandle){
+void CustomHeadsetDeviceProvider::OnScalarComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle, vr::EVRInputError error){
+	if(!name || error != vr::VRInputError_None || handle == vr::k_ulInvalidInputComponentHandle){
+		if(name && error != vr::VRInputError_None){
+			DriverLog("HandInputDiag: scalar create FAILED container=%llu path=%s error=%d",
+				(unsigned long long)container, name, (int)error);
+		}
 		return;
 	}
 	InputComponentInfo info;
 	info.container = container;
+	info.openVRID = ResolveContainerId(container);
 	info.name = name;
 	info.isScalar = true;
 	std::string lower = info.name;
 	for(auto &c : lower){ c = (char)tolower(c); }
 	info.interesting = InputPathInteresting(lower);
 	info.tunerRole = TunerRoleForPath(lower, true);
-	DriverLog("InputTap: scalar component container=%llu path=%s handle=%llu%s",
+	info.nativeHand = info.openVRID != vr::k_unTrackedDeviceIndexInvalid && IsNativeHand(info.openVRID);
+	info.diagnostic = info.nativeHand && NativeHandDiagnosticPath(lower);
+	DriverLog("InputTap: scalar component container=%llu path=%s handle=%llu id=%u%s%s",
 		(unsigned long long)container, name, (unsigned long long)handle,
-		info.interesting ? " [watched]" : "");
+		info.openVRID, info.interesting ? " [watched]" : "",
+		info.nativeHand ? " [native-hand passthrough]" : "");
 	// grip capacitive touch: vrlink never creates /input/grip/touch for these
 	// controllers; synthesize it next to grip/value (before taking the lock:
 	// the create call re-enters our own hook)
-	bool wantGripTouch = driverConfig.galaxyXr.nativeInputProfile && driverConfig.galaxyXr.synthesizeGripTouch
+	bool wantGripTouch = !info.nativeHand
+		&& driverConfig.galaxyXr.nativeInputProfile && driverConfig.galaxyXr.synthesizeGripTouch
 		&& lower.size() >= 17 && lower.compare(lower.size() - 17, 17, "/input/grip/value") == 0;
 	if(wantGripTouch && vr::VRDriverInput()){
 		vr::VRInputComponentHandle_t touchHandle = vr::k_ulInvalidInputComponentHandle;
@@ -477,7 +515,33 @@ void CustomHeadsetDeviceProvider::OnScalarComponentCreated(vr::PropertyContainer
 	inputComponents[handle] = info;
 }
 
-void CustomHeadsetDeviceProvider::OnScalarComponentUpdated(vr::VRInputComponentHandle_t handle, float value){
+void CustomHeadsetDeviceProvider::OnScalarComponentUpdated(vr::VRInputComponentHandle_t handle, float value, double timeOffset, vr::EVRInputError error){
+	{
+		double now = std::chrono::duration_cast<std::chrono::microseconds>(
+			std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
+		bool doLog = false;
+		std::string name;
+		uint32_t id = vr::k_unTrackedDeviceIndexInvalid;
+		{
+			std::lock_guard<std::mutex> guard(poseLogLock);
+			auto found = inputComponents.find(handle);
+			if(found != inputComponents.end() && found->second.diagnostic){
+				InputComponentInfo &info = found->second;
+				doLog = error != vr::VRInputError_None || !info.diagHaveScalar
+					|| std::fabs(value - info.diagLastScalar) >= 0.10f
+					|| now - info.diagLastLogTime >= 0.5;
+				info.diagHaveScalar = true;
+				info.diagLastScalar = value;
+				if(doLog){ info.diagLastLogTime = now; }
+				name = info.name;
+				id = info.openVRID;
+			}
+		}
+		if(doLog){
+			DriverLog("HandInputDiag: scalar id=%u path=%s value=%.3f timeOffset=%.4f result=%d",
+				id, name.c_str(), value, timeOffset, (int)error);
+		}
+	}
 	// grip touch from grip value (hysteresis 0.03 / 0.015); updated outside the lock
 	{
 		vr::VRInputComponentHandle_t touchHandle = vr::k_ulInvalidInputComponentHandle;
@@ -554,7 +618,28 @@ void CustomHeadsetDeviceProvider::OnScalarComponentUpdated(vr::VRInputComponentH
 	}
 }
 
-void CustomHeadsetDeviceProvider::OnBooleanComponentUpdated(vr::VRInputComponentHandle_t handle, bool value){
+void CustomHeadsetDeviceProvider::OnBooleanComponentUpdated(vr::VRInputComponentHandle_t handle, bool value, double timeOffset, vr::EVRInputError error){
+	{
+		bool doLog = false;
+		std::string name;
+		uint32_t id = vr::k_unTrackedDeviceIndexInvalid;
+		{
+			std::lock_guard<std::mutex> guard(poseLogLock);
+			auto found = inputComponents.find(handle);
+			if(found != inputComponents.end() && found->second.diagnostic){
+				InputComponentInfo &info = found->second;
+				doLog = error != vr::VRInputError_None || !info.diagHaveBool || info.diagLastBool != value;
+				info.diagHaveBool = true;
+				info.diagLastBool = value;
+				name = info.name;
+				id = info.openVRID;
+			}
+		}
+		if(doLog){
+			DriverLog("HandInputDiag: boolean id=%u path=%s value=%d timeOffset=%.4f result=%d",
+				id, name.c_str(), (int)value, timeOffset, (int)error);
+		}
+	}
 	if(tunerInputActive.load(std::memory_order_relaxed)){
 		std::lock_guard<std::mutex> tunerGuard(poseLogLock);
 		auto found = inputComponents.find(handle);
@@ -915,11 +1000,21 @@ static std::map<vr::VRInputComponentHandle_t, int> skeletonTapHands;
 void CustomHeadsetDeviceProvider::OnSkeletonComponentCreated(vr::PropertyContainerHandle_t container, const char *name, const char *skeletonPath, vr::VRInputComponentHandle_t handle){
 	std::string path = skeletonPath ? skeletonPath : "";
 	int hand = path.find("right") != std::string::npos ? 1 : 0;
+	uint32_t id = ResolveContainerId(container);
+	bool physicalController = id != vr::k_unTrackedDeviceIndexInvalid && IsStreamedController(id);
+	DriverLog("SkeletonTap: component %s (%s) hand=%s handle=%llu id=%u mode=%s",
+		name ? name : "?", path.c_str(), hand ? "right" : "left",
+		(unsigned long long)handle, id,
+		physicalController ? "physical-controller-adjustable" : "passthrough");
+	// Native hands (and anything not positively identified as a physical
+	// Galaxy XR controller) keep their original skeleton data unchanged.
+	if(!physicalController){
+		return;
+	}
 	{
 		std::lock_guard<std::mutex> lock(skeletonTapMutex);
 		skeletonTapHands[handle] = hand;
 	}
-	DriverLog("SkeletonTap: component %s (%s) hand=%s handle=%llu", name ? name : "?", path.c_str(), hand ? "right" : "left", (unsigned long long)handle);
 }
 
 bool CustomHeadsetDeviceProvider::HandleSkeletonUpdate(vr::VRInputComponentHandle_t handle, const vr::VRBoneTransform_t *bones, uint32_t count, vr::VRBoneTransform_t *outBones){
@@ -1080,6 +1175,12 @@ static void CaInit(double P[6], double p0Var, double v0Var, double a0Var){
 }
 
 bool CustomHeadsetDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::DriverPose_t &pose){
+	// Native hand devices are published by vrlink with Controller class but
+	// are not physical Galaxy XR controllers. Their pose, tracking state,
+	// velocity and timing must reach SteamVR byte-for-byte unchanged.
+	if(openVRID != vr::k_unTrackedDeviceIndex_Hmd && IsNativeHand(openVRID)){
+		return true;
+	}
 	// raw tracking status, captured BEFORE forceTracking can launder it.
 	// the estimators gate on these: forceTracking's job is keeping
 	// devices alive for SteamVR, not feeding fake-OK into filters.
@@ -4438,12 +4539,12 @@ bool CustomHeadsetDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr:
 	return true;
 }
 
-bool CustomHeadsetDeviceProvider::IsStreamedController(uint32_t openVRID){
+CustomHeadsetDeviceProvider::StreamedDeviceKind CustomHeadsetDeviceProvider::GetStreamedDeviceKind(uint32_t openVRID){
 	{
 		std::lock_guard<std::mutex> guard(streamedIdentityLock);
-		auto found = streamedControllerCache.find(openVRID);
-		if(found != streamedControllerCache.end()){
-			return found->second != 0;
+		auto found = streamedDeviceKindCache.find(openVRID);
+		if(found != streamedDeviceKindCache.end()){
+			return found->second;
 		}
 	}
 	// property query with NO lock held (concurrency law: never call out
@@ -4452,20 +4553,33 @@ bool CustomHeadsetDeviceProvider::IsStreamedController(uint32_t openVRID){
 	vr::ETrackedPropertyError propError = vr::TrackedProp_Success;
 	char serial[128] = {};
 	vr::VRProperties()->GetStringProperty(container, vr::Prop_SerialNumber_String, serial, sizeof(serial), &propError);
-	bool streamed = false;
+	StreamedDeviceKind kind = StreamedDeviceKind::Other;
 	if(propError == vr::TrackedProp_Success){
-		streamed = strncmp(serial, "VRLINK", 6) == 0 || strncmp(serial, "SamsungVST", 10) == 0;
+		if(NativeHandSerial(serial)){
+			kind = StreamedDeviceKind::NativeHand;
+		}else if(PhysicalGalaxyControllerSerial(serial)){
+			kind = StreamedDeviceKind::PhysicalController;
+		}
 	}else{
 		// property not readable yet: do not cache, do not touch
-		return false;
+		return StreamedDeviceKind::Other;
 	}
 	{
 		std::lock_guard<std::mutex> guard(streamedIdentityLock);
-		streamedControllerCache[openVRID] = streamed ? 1 : 0;
+		streamedDeviceKindCache[openVRID] = kind;
 	}
-	DriverLog("VelocityFix: id=%u serial=%s streamed=%d%s", openVRID, serial, streamed ? 1 : 0,
-		streamed ? "" : " (native velocity, never touched)");
-	return streamed;
+	const char* kindName = kind == StreamedDeviceKind::PhysicalController ? "physical-controller"
+		: (kind == StreamedDeviceKind::NativeHand ? "native-hand-passthrough" : "other-passthrough");
+	DriverLog("DeviceClassifier: id=%u serial=%s kind=%s", openVRID, serial, kindName);
+	return kind;
+}
+
+bool CustomHeadsetDeviceProvider::IsNativeHand(uint32_t openVRID){
+	return GetStreamedDeviceKind(openVRID) == StreamedDeviceKind::NativeHand;
+}
+
+bool CustomHeadsetDeviceProvider::IsStreamedController(uint32_t openVRID){
+	return GetStreamedDeviceKind(openVRID) == StreamedDeviceKind::PhysicalController;
 }
 
 // direction secant over the full derive ring: raw displacement newest-oldest
@@ -4945,7 +5059,7 @@ bool CustomHeadsetDeviceProvider::HandleDeviceAdded(const char *&pchDeviceSerial
 		pDriver = new ShimTrackedDeviceDriver(genericHeadsetShim, pDriver);
 		
 		#ifdef VENDOR_GALAXYXR
-		if(driverConfig.galaxyXr.nativeIdentity){
+		{ // Keep settings hot reload active even when identity stamping is off.
 			GalaxyXRHmdShim* galaxyXrHmdShim = new GalaxyXRHmdShim();
 			galaxyXrHmdShim->deviceProvider = this;
 			shims.insert(galaxyXrHmdShim);
@@ -4964,8 +5078,7 @@ bool CustomHeadsetDeviceProvider::HandleDeviceAdded(const char *&pchDeviceSerial
 		std::string serial = pchDeviceSerialNumber ? pchDeviceSerialNumber : "";
 		// SamsungVST-Controller-* on the patched APK, VRLINKQ2_Controller_* on
 		// the stock one. "Controller" excludes the VRLINKQ_Hand_* hand trackers.
-		bool streamedController = (serial.rfind("SamsungVST-Controller", 0) == 0)
-			|| (serial.rfind("VRLINK", 0) == 0 && serial.find("Controller") != std::string::npos);
+		bool streamedController = PhysicalGalaxyControllerSerial(serial.c_str());
 		if(streamedController){
 			GalaxyXRControllerShim* controllerShim = new GalaxyXRControllerShim(serial);
 			shims.insert(controllerShim);

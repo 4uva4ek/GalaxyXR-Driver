@@ -1,12 +1,14 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+/* TypeScript config for the Lit/Fluent frontend (2026-09-20 migration).
+ * Replaces the Angular base config; the old tsconfig.app.json / tsconfig.spec.json
+ * are removed at cutover. `tsc --noEmit` is the type-check gate of `npm run build:ui`;
+ * Vite/esbuild do the actual transpilation (esbuild strips types, it does not check).
+ * Decorators: Lit's lit/decorators.js under legacy (experimental) decorators with
+ * assignment semantics, so instance fields do not shadow Lit reactive accessors.
+ */
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "outDir": "./dist/out-tsc",
     "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
@@ -15,19 +17,21 @@
     "sourceMap": true,
     "declaration": false,
     "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "moduleResolution": "bundler",
-    "importHelpers": true,
     "target": "ES2022",
-    "module": "ES2022",
+    "module": "ESNext",
     "lib": [
       "ES2022",
-      "dom"
-    ]
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [],
+    "noEmit": true
   },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "strictTemplates": true
-  }
+  "include": [
+    "src-lit/**/*.ts",
+    "src/environment.ts",
+    "src/environment-gen.ts"
+  ]
 }

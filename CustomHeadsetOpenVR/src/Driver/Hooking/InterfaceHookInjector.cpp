@@ -3,6 +3,7 @@
 #include "InterfaceHookInjector.h"
 #include "../DeviceProvider.h"
 #include "../EyeTrackingTap.h"
+#include <atomic>
 
 static CustomHeadsetDeviceProvider *Driver = nullptr;
 
@@ -52,23 +53,78 @@ static Hook<vr::EVRInputError(*)(vr::IVRDriverInput *, vr::PropertyContainerHand
 static Hook<vr::EVRInputError(*)(vr::IVRDriverInput *, vr::VRInputComponentHandle_t, vr::EVRSkeletalMotionRange, const vr::VRBoneTransform_t *, uint32_t)>
 	UpdateSkeletonComponentHook004("IVRDriverInput004::UpdateSkeletonComponent");
 
+// Do not hand vrserver any DriverPose_t but the caller's own.
+//
+// The detour copied the caller's pose, ran the handler over the copy and
+// forwarded that copy. Doing so stops SteamVR promoting vrlink's native hand
+// devices to a controller role: Prop_ControllerRoleHint_Int32 stays correct
+// while GetControllerRoleForTrackedDeviceIndex returns Invalid for the whole
+// hand session, so /user/hand/left|right resolve to no device and every hand
+// binding is dead - while index_pinch still reaches IVRDriverInput and returns
+// VRInputError_None, which is why nothing looks wrong at the driver boundary.
+//
+// Bisected live on SteamVR 2.17.9 / Steam Link 2.0.20, reading
+// GetTrackedDeviceIndexForControllerRole across the hand/controller swap:
+//
+//   forward a stack copy for every device                  -> hands broken
+//   detour not installed at all                            -> hands work
+//   forward the caller's object for every device           -> hands work
+//   run the handler over the caller's object (const_cast)  -> hands broken
+//   forward the copy only for devices we modified          -> hands broken
+//   forward a persistent per-device static buffer          -> hands broken
+//
+// Every object other than the caller's own breaks it, whatever its lifetime,
+// and for any device - forwarding a copy for the CONTROLLERS alone still takes
+// the hands down. Writing into the caller's struct breaks it too. Why vrserver
+// behaves this way is not established; only that it reproducibly does.
+//
+// Until that is understood, correctness wins over the pose corrections: the
+// handler still runs, so its estimator state, aligner and diagnostics stay
+// live, but vrserver always gets the pose it gave us. THIS MEANS THE PHYSICAL
+// CONTROLLER POSE CORRECTIONS (grip convention, Kalman/CA velocity, trims) DO
+// NOT REACH SteamVR. See the pull request's test matrix and trade-off notes.
+static void PoseAbiWarn(uint32_t unPoseStructSize)
+{
+	static std::atomic<bool> reported{ false };
+	if (!reported.exchange(true, std::memory_order_relaxed))
+	{
+		DriverLog("PoseABI: caller struct=%u ours=%u%s", unPoseStructSize,
+			(unsigned)sizeof(vr::DriverPose_t),
+			unPoseStructSize == (uint32_t)sizeof(vr::DriverPose_t) ? "" : " - MISMATCH, handler skipped");
+	}
+}
+
 static void DetourTrackedDevicePoseUpdated005(vr::IVRServerDriverHost *_this, uint32_t unWhichDevice, const vr::DriverPose_t &newPose, uint32_t unPoseStructSize)
 {
-	//TRACE("ServerTrackedDeviceProvider::DetourTrackedDevicePoseUpdated(%d)", unWhichDevice);
+	PoseAbiWarn(unPoseStructSize);
+	if (unPoseStructSize != sizeof(vr::DriverPose_t))
+	{
+		TrackedDevicePoseUpdatedHook005.originalFunc(_this, unWhichDevice, newPose, unPoseStructSize);
+		return;
+	}
+	// the handler works on a private copy purely for its own state and
+	// diagnostics; the copy is deliberately discarded, see above
 	auto pose = newPose;
 	if (Driver->HandleDevicePoseUpdated(unWhichDevice, pose))
 	{
-		TrackedDevicePoseUpdatedHook005.originalFunc(_this, unWhichDevice, pose, unPoseStructSize);
+		TrackedDevicePoseUpdatedHook005.originalFunc(_this, unWhichDevice, newPose, unPoseStructSize);
 	}
 }
 
 static void DetourTrackedDevicePoseUpdated006(vr::IVRServerDriverHost *_this, uint32_t unWhichDevice, const vr::DriverPose_t &newPose, uint32_t unPoseStructSize)
 {
-	//TRACE("ServerTrackedDeviceProvider::DetourTrackedDevicePoseUpdated(%d)", unWhichDevice);
+	PoseAbiWarn(unPoseStructSize);
+	if (unPoseStructSize != sizeof(vr::DriverPose_t))
+	{
+		TrackedDevicePoseUpdatedHook006.originalFunc(_this, unWhichDevice, newPose, unPoseStructSize);
+		return;
+	}
+	// the handler works on a private copy purely for its own state and
+	// diagnostics; the copy is deliberately discarded, see above
 	auto pose = newPose;
 	if (Driver->HandleDevicePoseUpdated(unWhichDevice, pose))
 	{
-		TrackedDevicePoseUpdatedHook006.originalFunc(_this, unWhichDevice, pose, unPoseStructSize);
+		TrackedDevicePoseUpdatedHook006.originalFunc(_this, unWhichDevice, newPose, unPoseStructSize);
 	}
 }
 
@@ -90,32 +146,30 @@ static void DetourTrackedDeviceAdded006(vr::IVRServerDriverHost *_this, const ch
 static vr::EVRInputError DetourCreateBooleanComponent004(vr::IVRDriverInput *_this, vr::PropertyContainerHandle_t ulContainer, const char *pchName, vr::VRInputComponentHandle_t *pHandle)
 {
 	auto error = CreateBooleanComponentHook004.originalFunc(_this, ulContainer, pchName, pHandle);
-	if(pHandle){
-		Driver->OnInputComponentCreated(ulContainer, pchName, *pHandle);
-	}
+	Driver->OnInputComponentCreated(ulContainer, pchName,
+		pHandle ? *pHandle : vr::k_ulInvalidInputComponentHandle, error);
 	return error;
 }
 
 static vr::EVRInputError DetourUpdateBooleanComponent004(vr::IVRDriverInput *_this, vr::VRInputComponentHandle_t ulComponent, bool bNewValue, double fTimeOffset)
 {
 	auto error = UpdateBooleanComponentHook004.originalFunc(_this, ulComponent, bNewValue, fTimeOffset);
-	Driver->OnBooleanComponentUpdated(ulComponent, bNewValue);
+	Driver->OnBooleanComponentUpdated(ulComponent, bNewValue, fTimeOffset, error);
 	return error;
 }
 
 static vr::EVRInputError DetourCreateScalarComponent004(vr::IVRDriverInput *_this, vr::PropertyContainerHandle_t ulContainer, const char *pchName, vr::VRInputComponentHandle_t *pHandle, vr::EVRScalarType eType, vr::EVRScalarUnits eUnits)
 {
 	auto error = CreateScalarComponentHook004.originalFunc(_this, ulContainer, pchName, pHandle, eType, eUnits);
-	if(pHandle){
-		Driver->OnScalarComponentCreated(ulContainer, pchName, *pHandle);
-	}
+	Driver->OnScalarComponentCreated(ulContainer, pchName,
+		pHandle ? *pHandle : vr::k_ulInvalidInputComponentHandle, error);
 	return error;
 }
 
 static vr::EVRInputError DetourUpdateScalarComponent004(vr::IVRDriverInput *_this, vr::VRInputComponentHandle_t ulComponent, float fNewValue, double fTimeOffset)
 {
 	auto error = UpdateScalarComponentHook004.originalFunc(_this, ulComponent, fNewValue, fTimeOffset);
-	Driver->OnScalarComponentUpdated(ulComponent, fNewValue);
+	Driver->OnScalarComponentUpdated(ulComponent, fNewValue, fTimeOffset, error);
 	return error;
 }
 

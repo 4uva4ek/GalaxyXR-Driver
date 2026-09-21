@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>select-probe</title></head>
+<body>
+<pre id="out" style="white-space:pre-wrap;font-family:monospace">INIT…
+REJECT: TypeError: Cannot read properties of undefined (reading 'selectOption')
+    at Bc.selectOption (http://localhost:8323/bundle.js:345:8035)
+    at set value (http://localhost:8323/bundle.js:345:3693)
+    at Nu.j (http://localhost:8323/bundle.js:1187:5696)
+    at Nu._$AI (http://localhost:8323/bundle.js:1187:5501)
+    at Au.p (http://localhost:8323/bundle.js:1187:3252)
+    at e.$ (http://localhost:8323/bundle.js:1187:4346)
+    at e._$AI (http://localhost:8323/bundle.js:1187:3898)
+    at Ru (http://localhost:8323/bundle.js:1187:6719)
+    at qu.update (http://localhost:8323/bundle.js:1187:7074)
+    at qu.performUpdate (http://localhost:8323/bundle.js:1186:9301)
+app-select.shadowRoot=true
+shadow children=1
+fluent-dropdown present=false
+SHADOW_HTML_START&gt;&gt;
+&lt;!----&gt;
+&lt;&lt;SHADOW_HTML_END
+bare fluent-dropdown: shadowRoot=true children=5 typeofSelectOption=function
+DONE</pre>
+<script type="module">
+  const out = document.getElementById('out');
+  const log = (m) => { out.textContent += '\n' + m; };
+  window.addEventListener('error', (e) => log('WINERR: ' + ((e.error && e.error.stack) || e.message)));
+  window.addEventListener('unhandledrejection', (e) => log('REJECT: ' + ((e.reason && e.reason.stack) || e.reason)));
+  await import('./bundle.js');
+  await new Promise(r => setTimeout(r, 300));
+
+  const sel = document.createElement('app-select');
+  sel.value = '1';
+  sel.options = [ { value: 1, label: 'One' }, { value: 'x', label: 'X' } ];
+  document.body.appendChild(sel);
+  await new Promise(r => setTimeout(r, 250));
+  log(`app-select.shadowRoot=${!!sel.shadowRoot}`);
+  if (sel.shadowRoot) {
+    log(`shadow children=${sel.shadowRoot.childNodes.length}`);
+    const dd = sel.shadowRoot.querySelector('fluent-dropdown');
+    log(`fluent-dropdown present=${!!dd}`);
+    log(`SHADOW_HTML_START>>`);
+    log(sel.shadowRoot.innerHTML.replace(/\s+/g, ' ').slice(0, 600));
+    log(`<<SHADOW_HTML_END`);
+    if (dd) {
+      log(`dd.shadowRoot=${!!dd.shadowRoot} dd.children=${dd.shadowRoot ? dd.shadowRoot.childNodes.length : -1}`);
+      log(`dd.checked/props: value=${dd.value} hasSelectOption=${typeof dd.selectOption}`);
+    }
+  }
+  // Also: create a bare fluent-dropdown with an option, directly
+  const bare = document.createElement('fluent-dropdown');
+  const opt = document.createElement('fluent-option');
+  opt.value = 'a'; opt.textContent = 'A';
+  bare.appendChild(opt);
+  document.body.appendChild(bare);
+  await new Promise(r => setTimeout(r, 250));
+  log(`bare fluent-dropdown: shadowRoot=${!!bare.shadowRoot} children=${bare.shadowRoot ? bare.shadowRoot.childNodes.length : -1} typeofSelectOption=${typeof bare.selectOption}`);
+  log('DONE');
+</script>
+
+
+<pre style="font-family: monospace; padding: 1rem; white-space: pre-wrap; margin: 0px;">Failed to start the GUI:
+TypeError: Cannot read properties of undefined (reading 'invoke')</pre><app-select></app-select><fluent-dropdown id="dropdown-1" type="dropdown" value="" appearance="outline"><fluent-option id="option-2">A</fluent-option>
+  <button aria-haspopup="listbox" role="combobox" type="button" slot="control" id="input-3">
+    
+  </button>
+</fluent-dropdown></body></html>

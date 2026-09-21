@@ -53,6 +53,9 @@ private:
 	bool capabilityInterfaceWarning = false;
 	bool capabilityActive = false; // protected by trackingCapabilitiesMutex
 	uint32_t capabilityDeviceId = vr::k_unTrackedDeviceIndexInvalid;
+	bool identityApplied = false;
+	bool appliedProfileRoute = true;
+	int iconPollFrames = 0;
 	bool appliedNativeResolution = false;
 	bool appliedHeadsetProfile = false;
 	int appliedProfileMaxSfw = 0;

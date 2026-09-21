@@ -170,13 +170,20 @@ private:
 	static void ComputeRingSecant(const VelFixState &state, bool useSmoothed, double secantVel[3], double secantAng[3]);
 	// cached device classes (Prop_DeviceClass_Int32), resolved on first pose
 	std::map<uint32_t, int> deviceClasses = {};
-	// streamed-controller identity cache (serial prefix VRLINK*/SamsungVST*
-	// = vrlink device). the velocity fix must never touch lighthouse
-	// devices: their native velocity is correct and mixed sessions
-	// (knuckles + playspace override) are a supported setup. queried once
-	// per id OUTSIDE any lock, then cached.
-	std::map<uint32_t, int> streamedControllerCache = {};
+	// Strict vrlink device classification. A VRLINK prefix alone is not
+	// enough: native hand devices use VRLINKQ_Hand_* serials and must never
+	// enter any physical-controller pose/filter path. Unknown devices pass
+	// through untouched. Queried outside locks and cached only after the
+	// serial property is readable.
+	enum class StreamedDeviceKind : int {
+		Other = 0,
+		PhysicalController = 1,
+		NativeHand = 2,
+	};
+	std::map<uint32_t, StreamedDeviceKind> streamedDeviceKindCache = {};
 	std::mutex streamedIdentityLock;
+	StreamedDeviceKind GetStreamedDeviceKind(uint32_t openVRID);
+	bool IsNativeHand(uint32_t openVRID);
 	bool IsStreamedController(uint32_t openVRID);
 	// derive-mode adaptive smoothing state (pure math under its own lock;
 	// never calls out — lock discipline)
@@ -570,6 +577,7 @@ private:
 	// throw died (snap back? dropout? zero?) with direct evidence.
 	struct InputComponentInfo {
 		vr::PropertyContainerHandle_t container = 0;
+		uint32_t openVRID = vr::k_unTrackedDeviceIndexInvalid;
 		std::string name;
 		bool lastValue = false;
 		bool haveValue = false;
@@ -593,6 +601,15 @@ private:
 		int tunerRole = 0;
 		float tunerScalar = 0;
 		bool tunerBool = false;
+		// Temporary native-hand diagnostics. These are observational only:
+		// the original IVRDriverInput call is made before this tap.
+		bool nativeHand = false;
+		bool diagnostic = false;
+		bool diagHaveBool = false;
+		bool diagLastBool = false;
+		bool diagHaveScalar = false;
+		float diagLastScalar = 0;
+		double diagLastLogTime = 0;
 	};
 	std::map<vr::VRInputComponentHandle_t, InputComponentInfo> inputComponents = {};
 	// gate for tuner input capture on the hot component-update path
@@ -683,10 +700,10 @@ private:
 	std::atomic<bool> alignerGripActive {false};
 	double alignerGripCm[2][3] = {};
 public:
-	void OnInputComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle);
-	void OnBooleanComponentUpdated(vr::VRInputComponentHandle_t handle, bool value);
-	void OnScalarComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle);
-	void OnScalarComponentUpdated(vr::VRInputComponentHandle_t handle, float value);
+	void OnInputComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle, vr::EVRInputError error);
+	void OnBooleanComponentUpdated(vr::VRInputComponentHandle_t handle, bool value, double timeOffset, vr::EVRInputError error);
+	void OnScalarComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle, vr::EVRInputError error);
+	void OnScalarComponentUpdated(vr::VRInputComponentHandle_t handle, float value, double timeOffset, vr::EVRInputError error);
 	void OnPoseComponentCreated(vr::PropertyContainerHandle_t container, const char* name, vr::VRInputComponentHandle_t handle);
 	void OnSkeletonComponentCreated(vr::PropertyContainerHandle_t container, const char* name, const char* skeletonPath, vr::VRInputComponentHandle_t handle);
 	bool HandleSkeletonUpdate(vr::VRInputComponentHandle_t handle, const vr::VRBoneTransform_t* bones, uint32_t count, vr::VRBoneTransform_t* outBones);

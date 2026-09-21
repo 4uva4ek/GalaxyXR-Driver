@@ -3,6 +3,9 @@
 #include "nlohmann/json.hpp"
 #include "../Driver/DriverLog.h"
 #include <filesystem>
+#include <functional>
+#include <limits>
+#include <vector>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -61,6 +64,29 @@ inline void RecordChange(Json& journal, const Json& settings, const std::string&
     else entry.erase("lastValue");
 }
 
+// Restoration is allowed only with journal proof AND an unchanged raw value.
+// Equal-looking defaults or values written by another tool are not ownership.
+inline bool PlanOwnedRestore(const Json& entry, const Json& settings,
+    const std::string& section, const std::string& key, bool& present, Json& value) {
+    if(!entry.is_object() || !entry.contains("present") || !entry["present"].is_boolean()
+        || !entry.contains("lastPresent") || !entry["lastPresent"].is_boolean()
+        || (entry["present"].get<bool>() && !entry.contains("value"))
+        || (entry["lastPresent"].get<bool>() && !entry.contains("lastValue")))
+        throw std::runtime_error("invalid SteamVR restoration entry");
+    if(!settings.is_object() || (settings.contains(section) && !settings[section].is_object()))
+        throw std::runtime_error("invalid SteamVR settings section");
+    const bool currentPresent = settings.contains(section) && settings[section].contains(key);
+    if(currentPresent != entry["lastPresent"].get<bool>()) return false;
+    if(currentPresent && settings[section][key] != entry["lastValue"]) return false;
+    present = entry["present"].get<bool>();
+    value = present ? entry["value"] : Json();
+    // The API can restore scalar settings, not arbitrary JSON or null values.
+    if(present && !(value.is_boolean() || value.is_string() || value.is_number())) return false;
+    if(value.is_number_integer() && (value.get<double>() < std::numeric_limits<int32_t>::min()
+        || value.get<double>() > std::numeric_limits<int32_t>::max())) return false;
+    return present != currentPresent || (present && value != settings[section][key]);
+}
+
 #if defined(_WIN32) && defined(VENDOR_GALAXYXR)
 class MutationLock {
     HANDLE handle = nullptr;
@@ -112,6 +138,75 @@ inline void WriteJournal(const std::filesystem::path& path, const Json& journal)
         throw std::runtime_error("could not commit SteamVR journal");
 }
 
+// Restore inactive destinations as one journaled operation. Do not move or
+// delete unjournaled keys: older/user-written values must be reviewed manually.
+inline void RestoreOwnedMatching(const std::function<bool(const std::string&, const std::string&)>& select) {
+    try {
+        MutationLock lock;
+        const auto journalPath = EnvironmentPath(L"APPDATA") / "GalaxyXR" / "CustomHeadset" / "steamvr-changes.json";
+        if(!std::filesystem::exists(journalPath)) return;
+        Json journal = ReadJson(journalPath);
+        const auto paths = ReadJson(EnvironmentPath(L"LOCALAPPDATA") / "openvr" / "openvrpaths.vrpath");
+        const auto settingsPath = std::filesystem::weakly_canonical(std::filesystem::u8path(
+            paths.at("config").at(0).get<std::string>()) / "steamvr.vrsettings");
+        const auto recordedPath = std::filesystem::weakly_canonical(std::filesystem::u8path(journal.at("settingsPath").get<std::string>()));
+        if(_wcsicmp(recordedPath.c_str(), settingsPath.c_str()) != 0)
+            throw std::runtime_error("SteamVR settings path differs from recovery journal");
+        if(journal.value("schema", 0) != 1 || journal.value("driver", "") != "GalaxyXRNative"
+            || !journal.at("entries").is_object()) throw std::runtime_error("invalid recovery journal");
+        const Json settings = ReadJson(settingsPath);
+        struct Restore { std::string section, key; bool present; Json value, before; };
+        std::vector<Restore> plan;
+        const auto entries = journal.at("entries");
+        for(const auto& section : entries.items()) {
+            if(!section.value().is_object()) throw std::runtime_error("invalid journal section");
+            for(const auto& key : section.value().items()) {
+                bool present = false; Json value;
+                if(!select(section.key(), key.key())) continue;
+                if(!PlanOwnedRestore(key.value(), settings, section.key(), key.key(), present, value)) {
+                    DriverLog("GalaxyXR: keeping %s.%s (not an unchanged, restorable app-owned value)", section.key().c_str(), key.key().c_str());
+                    continue;
+                }
+                // Also check the live API, so a not-yet-flushed edit cannot be
+                // mistaken for our last persisted value. Absence is checked on disk.
+                if(key.value()["lastPresent"].get<bool>()) {
+                    const auto& last = key.value().at("lastValue");
+                    vr::EVRSettingsError e = vr::VRSettingsError_None; bool match = false;
+                    if(last.is_boolean()) match = vr::VRSettings()->GetBool(section.key().c_str(), key.key().c_str(), &e) == last.get<bool>();
+                    else if(last.is_number_integer()) match = vr::VRSettings()->GetInt32(section.key().c_str(), key.key().c_str(), &e) == last.get<int32_t>();
+                    else if(last.is_number_float()) match = vr::VRSettings()->GetFloat(section.key().c_str(), key.key().c_str(), &e) == last.get<float>();
+                    else if(last.is_string()) {
+                        std::vector<char> text(last.get<std::string>().size() + 2, 0);
+                        vr::VRSettings()->GetString(section.key().c_str(), key.key().c_str(), text.data(), static_cast<uint32_t>(text.size()), &e);
+                        match = last.get<std::string>() == text.data();
+                    }
+                    if(e != vr::VRSettingsError_None || !match) continue;
+                }
+                plan.push_back({section.key(), key.key(), present, value, key.value()});
+                RecordChange(journal, settings, section.key(), key.key(), present, value);
+            }
+        }
+        if(plan.empty()) return;
+        WriteJournal(journalPath, journal); // Intent is durable BEFORE touching SteamVR.
+        for(const auto& item : plan) {
+            vr::EVRSettingsError e = vr::VRSettingsError_None;
+            const char* sec = item.section.c_str(); const char* key = item.key.c_str();
+            if(!item.present) vr::VRSettings()->RemoveKeyInSection(sec, key, &e);
+            else if(item.value.is_boolean()) vr::VRSettings()->SetBool(sec, key, item.value.get<bool>(), &e);
+            else if(item.value.is_string()) vr::VRSettings()->SetString(sec, key, item.value.get<std::string>().c_str(), &e);
+            else if(item.value.is_number_integer()) vr::VRSettings()->SetInt32(sec, key, item.value.get<int32_t>(), &e);
+            else vr::VRSettings()->SetFloat(sec, key, item.value.get<float>(), &e);
+            if(e != vr::VRSettingsError_None) {
+                journal["entries"][item.section][item.key] = item.before;
+                WriteJournal(journalPath, journal); // Keep previous recovery evidence on a failed write.
+            }
+            DriverLog("GalaxyXR: restore previous destination %s.%s: error=%d", sec, key, (int)e);
+        }
+    } catch(const std::exception& e) {
+        DriverLog("GalaxyXR: skipped SteamVR owned-setting restoration: %s", e.what());
+    }
+}
+
 template<class Apply>
 inline void Mutate(const char* section, const char* key, bool present, const Json& value,
     vr::EVRSettingsError* error, Apply apply) {
@@ -149,9 +244,14 @@ inline void Mutate(const char* section, const char* key, bool present, const Jso
     }
 }
 #else
+inline void RestoreOwnedMatching(const std::function<bool(const std::string&, const std::string&)>&) {}
 template<class Apply>
 inline void Mutate(const char*, const char*, bool, const Json&, vr::EVRSettingsError*, Apply apply) { apply(); }
 #endif
+
+inline void RestoreOwnedKey(const char* section, const char* key) {
+    RestoreOwnedMatching([&](const std::string& s, const std::string& k) { return s == section && k == key; });
+}
 
 inline void SetInt32(const char* section, const char* key, int32_t value, vr::EVRSettingsError* error = nullptr) {
     Mutate(section, key, true, value, error, [&]{ vr::VRSettings()->SetInt32(section, key, value, error); });

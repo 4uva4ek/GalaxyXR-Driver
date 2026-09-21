@@ -1,0 +1,42 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "CustomHeadsetGUI",
+  "version": "1.1.5",
+  "identifier": "com.sboys3.custom-headset",
+  "build": {
+    "frontendDist": "../dist/fluent",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "npm run dev:ui",
+    "beforeBuildCommand": "npm run build:ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Custom Headset",
+        "width": 960,
+        "height": 600,
+        "minWidth": 960,
+        "minHeight": 600,
+        "zoomHotkeysEnabled": true,
+        "resizable": false,
+        "fullscreen": false,
+        "maximizable": false,
+        "url": "en-US/index.html"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

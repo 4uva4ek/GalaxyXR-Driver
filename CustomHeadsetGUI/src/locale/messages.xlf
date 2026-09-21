@@ -916,6 +916,747 @@
       <trans-unit id="8561844269846608277" datatype="html">
         <source>Forces all tracked devices to always report as valid and tracking, even if no tracking data is received. This may reduce grey screens but also has the effect of making all tracked devices snap to the origin if they completely lose tracking.</source>
       </trans-unit>
+      <trans-unit id="steamvrInstallNotFound" datatype="html">
+        <source>The driver install needs a SteamVR installation. If SteamVR is already installed, launch it once (this registers its OpenVR paths) and then retry. You can also install SteamVR from the Driver Settings tab.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-eb2286ed0abbf29e" datatype="html">
+        <source>Adaptive Direction Lead - EXPERIMENT A</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5eee5d6ba623b98e" datatype="html">
+        <source>Adaptive Measurement Trust - EXPERIMENT B</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-9f088dbebd6c3c70" datatype="html">
+        <source>Advanced</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6508e057890ba113" datatype="html">
+        <source>Angular Smoothing: Separate (tau slow/fast ms, speed low/high rad/s)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-22edb246b303c0b7" datatype="html">
+        <source>Annulus Tuning Band</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-56f24ccf5e3adb40" datatype="html">
+        <source>App preferences could not be verified. Use the About-page settings check after correcting the file or its permissions.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bb50ae835aa39444" datatype="html">
+        <source>Appearance preview (what you will see)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c67b05dac5ea02bb" datatype="html">
+        <source>Band Layout (count / first r / last r)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a3aeeb34e3331e7b" datatype="html">
+        <source>Band Range and Feather</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-fba63b25190ac4de" datatype="html">
+        <source>Band Ring Opacity</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-7f11032b1ef207bf" datatype="html">
+        <source>Band Segments</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4346c639a78f283c" datatype="html">
+        <source>Bandwidth Override (Mbit/s)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-04b271c182745a68" datatype="html">
+        <source>Based On</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8a43127e29f62f41" datatype="html">
+        <source>Black Floor: Black Point (sRGB code)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-9f20bb5737f87bd1" datatype="html">
+        <source>Black Floor: Diagnostic Ramp Bar</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ef07872ad2b6fc0b" datatype="html">
+        <source>Black Floor: Range Remap</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-87c436e7cda39f3d" datatype="html">
+        <source>Black Floor: Shadow Lift (floor / knee, sRGB codes)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-586b4264dc260578" datatype="html">
+        <source>Blackout Headset Screens</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-67a214347074def3" datatype="html">
+        <source>Both drivers are installed, and SteamVR only lets one of them run. Nothing on this page takes effect until you switch.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ec811d30a89ce96d" datatype="html">
+        <source>Brightness</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bb06da6c3263c408" datatype="html">
+        <source>CAS Sharpening</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-198f2711e662218d" datatype="html">
+        <source>CBR Key Frame Budget (x frames)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8fbfbcc775b19041" datatype="html">
+        <source>Calibration Grid</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ca9b712418c40387" datatype="html">
+        <source>Camera Pattern: Opaque Background</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-cbcdafab980d54b4" datatype="html">
+        <source>Center Tuner (in-headset)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b402af5aedef62d7" datatype="html">
+        <source>Check installation and settings</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f009b62ccccb6ea9" datatype="html">
+        <source>Checking installation and saved settings…</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ec963ffc911b8401" datatype="html">
+        <source>Checking…</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6b73191a0a4b6742" datatype="html">
+        <source>Color</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5d1af9c684b05a28" datatype="html">
+        <source>Color Matrix</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-dcabe0d0c676bb0b" datatype="html">
+        <source>Color Multiplier</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d8ae43564b98d0db" datatype="html">
+        <source>Controller Aligner (in-headset)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1a221772fc9be711" datatype="html">
+        <source>Controller Bypass</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b31b4434716fd6af" datatype="html">
+        <source>Controller Fix</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f66b95a0c83db743" datatype="html">
+        <source>Controller Fix Mode</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-55ef4c7674de293f" datatype="html">
+        <source>Controller Mesh Offset X (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bd8253410d9147ab" datatype="html">
+        <source>Controller Mesh Offset Y (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-50bb949e32adc2f3" datatype="html">
+        <source>Controller Mesh Offset Z (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-65ca4c35f67a8f2e" datatype="html">
+        <source>Controller Model Size</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f9457edd2edda597" datatype="html">
+        <source>Controller Offsets</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-baebf11e8395f926" datatype="html">
+        <source>Controllers</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-daedef346b2c12a4" datatype="html">
+        <source>Controllers Advanced</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d340ed8be8f7ead2" datatype="html">
+        <source>Convert k1/k2 to spline</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5eb6a50f2ebfe9fc" datatype="html">
+        <source>Correction Gain</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-252001c1b33cd274" datatype="html">
+        <source>Custom Headset's driver is disabled</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2a14ced3f79de809" datatype="html">
+        <source>Custom: Bandwidth (Mbit/s)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-aede1721bfe969e3" datatype="html">
+        <source>Custom: Tile Width (streamFormatWidth)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1a03bd2fd107c453" datatype="html">
+        <source>Debug</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-78e5c37a9c5255b7" datatype="html">
+        <source>Debug: Skeleton Hand Offset X (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d957f4093db7c0ad" datatype="html">
+        <source>Debug: Skeleton Hand Offset Y (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-cb68ca75b2d37730" datatype="html">
+        <source>Debug: Skeleton Hand Offset Z (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e6fdffbb82b605ae" datatype="html">
+        <source>Default value</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-733e1d98fa906224" datatype="html">
+        <source>Deferred Scratch Eviction</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-7868af598c4a5fc4" datatype="html">
+        <source>Derive Smoothing (tau slow/fast ms, speed low/high)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-35be73ca130cb88a" datatype="html">
+        <source>Derive Split Direction: Angular</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5f0c149dbd047cb1" datatype="html">
+        <source>Derive Split Direction: Linear</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-63da75e423740c96" datatype="html">
+        <source>Dimming Timing</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-7688275f01e91a05" datatype="html">
+        <source>Direct Render Path</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1eba444748a72808" datatype="html">
+        <source>Disables CustomHeadsetOpenVR and enables this driver. Restart SteamVR afterwards. You can switch back from the other GUI at any time.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f8bf3a7eea5bb515" datatype="html">
+        <source>Distortion Correction</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e94913bbdf25d671" datatype="html">
+        <source>Distortion tuner guide</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4211d62323bea8cc" datatype="html">
+        <source>Dither</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c205924de0fe636c" datatype="html">
+        <source>Documentation</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c247137227a0f484" datatype="html">
+        <source>Drag points to shape the curve. Double click adds a point, right click removes one.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d68d0ea5f6b1dfd0" datatype="html">
+        <source>Driver enabled in SteamVR</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-94a70b3195598fcf" datatype="html">
+        <source>Driver enablement is unknown. Run the installation and settings check on the About page.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6e6aea15fec9d0a6" datatype="html">
+        <source>Driver settings are missing or could not be loaded</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-511aa92b3c5811fe" datatype="html">
+        <source>Driver settings could not be changed</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-406f75738bad6340" datatype="html">
+        <source>Driver settings valid</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-41bc7f067dc31783" datatype="html">
+        <source>Editable driver settings</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3693e7913a44ffcf" datatype="html">
+        <source>Encoder</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-311b116f8ad02bec" datatype="html">
+        <source>Encoder Bitrate (separate, Mbit/s)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-40cbc8527370c5db" datatype="html">
+        <source>Exact Covariance Transition (A/B)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0ad5815853141ab2" datatype="html">
+        <source>Experimental: Simulate Oculus Touch</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-70b0716396277909" datatype="html">
+        <source>Eye Alignment</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d3bbff9df9f8c24c" datatype="html">
+        <source>Eye Alignment Left H</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-dd67e7acf3fd7093" datatype="html">
+        <source>Eye Alignment Left V</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6582ff4bf86a6225" datatype="html">
+        <source>Eye Alignment Right H</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6aecd1d31daf5f66" datatype="html">
+        <source>Eye Alignment Right V</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-82e0151aef19d5df" datatype="html">
+        <source>FXAA Anti-Aliasing</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-494a176604302323" datatype="html">
+        <source>Failed to register driver using vrpathreg. Make sure SteamVR is installed and closed.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3947f15e24b62da8" datatype="html">
+        <source>Field-retired experiments - kept for reproducibility. Each lost a live test. Values here stay ACTIVE while hidden; re-test only if the transport fresh-rate materially improves.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-50009ce1da4d15e1" datatype="html">
+        <source>File</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f48fa919756aaf6a" datatype="html">
+        <source>Fixation Dot (VOR probe)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6b5fd77b24ac046b" datatype="html">
+        <source>Force CBR</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-561da2de904c4ca1" datatype="html">
+        <source>Force Calibration Grid</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-852f72b0c8947dbd" datatype="html">
+        <source>Force Frame Rate</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-9cfe7eedb358df4e" datatype="html">
+        <source>Fovea Edge Falloff</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-58a2b4954d6ff22b" datatype="html">
+        <source>Fovea Strength</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-124ca43453ea408e" datatype="html">
+        <source>Fovea Tile On Top</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e0a2cb29d8d882c9" datatype="html">
+        <source>Foveated QP: Fovea / Periphery Delta</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3c8b566bf8daf8f4" datatype="html">
+        <source>Galaxy XR Native Identity</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1d121761d9c61d53" datatype="html">
+        <source>Gaze Aim Assist (strength 0-1 / max bend deg / min speed m/s)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-106d32f0bffe1517" datatype="html">
+        <source>Gaze Debug Ring</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3ebf784618938631" datatype="html">
+        <source>Gaze FOV Tangents</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6705a87fdf220974" datatype="html">
+        <source>Gaze Prediction (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2153984e4cb9e504" datatype="html">
+        <source>Graveyard (retired experiments)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a48df57574dd42d9" datatype="html">
+        <source>Grip Convention</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ee0d03a47c23a6ba" datatype="html">
+        <source>Grip Point r - Left / Right (cm, controller local frame)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a06b8356ec503f8f" datatype="html">
+        <source>Grip Touch From Grip Pressure</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b52850be81a88a45" datatype="html">
+        <source>Grip-Point Velocity Compensator</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b0e9d8b8165051d1" datatype="html">
+        <source>Hand Anchor Pitch (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d7d65eb2a3ea9bc8" datatype="html">
+        <source>Hand Anchor Roll (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-27333c234ab5a6fe" datatype="html">
+        <source>Hand Anchor X (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ab4d211613b5ade0" datatype="html">
+        <source>Hand Anchor Y (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1626b6752066f747" datatype="html">
+        <source>Hand Anchor Yaw (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-487b2058281586a8" datatype="html">
+        <source>Hand Anchor Z (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-79c6188047ac85f2" datatype="html">
+        <source>Headset</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d1b3a58583bec2d2" datatype="html">
+        <source>Headset and controller identity changes apply after restarting SteamVR.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f1d7f28f78abaa3c" datatype="html">
+        <source>Hitch Diagnostics (HITCHDIAG)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-85995741fbe65514" datatype="html">
+        <source>Host processing inactive (enable Image Processing on the Stream Frame page).</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-fe8ef75c5ff23643" datatype="html">
+        <source>Image Enhancements</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-edc4137a77b696c3" datatype="html">
+        <source>Image Processing</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-caf4fba39e1d6a0f" datatype="html">
+        <source>Input Pre-Smoothing (ms) / Scope</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5cf13568160ec469" datatype="html">
+        <source>Install Failed</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-98399dba7ffa9dc3" datatype="html">
+        <source>Installation and settings check</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6dc79adbdcc55d6b" datatype="html">
+        <source>Interactive Tuner (in-headset)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-9cc3eeee319c524e" datatype="html">
+        <source>Kalman Advanced Settings</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-cceed1f259b3f6ee" datatype="html">
+        <source>Kalman Angular Velocity Frame</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bce343db478cdfae" datatype="html">
+        <source>Kalman CA Accel Decay τ (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4b6b30ccd08db408" datatype="html">
+        <source>Kalman CA Magnitude Channel (jerk m/s³, decay τ ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-abffeeea92defb37" datatype="html">
+        <source>Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg, lead ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-62efdcbb5cb28cb8" datatype="html">
+        <source>Kalman CA: Report Acceleration</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-434ff48015876c19" datatype="html">
+        <source>Kalman Device-Time Measurements</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-51c6141c412c6450" datatype="html">
+        <source>Kalman Direction Lead (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a6d1340a889df77a" datatype="html">
+        <source>Kalman Direction Smoothing (linear ms / angular ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-658a6432eb4a702d" datatype="html">
+        <source>Kalman Duplicate Distrust Scale (Soft mode)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3dcf5158b7654118" datatype="html">
+        <source>Kalman Duplicate-Coast Cap (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b06a54df8a00a5d5" datatype="html">
+        <source>Kalman Duplicate-Sample Handling</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-eecb380f03b19b26" datatype="html">
+        <source>Kalman Freeze Coast Turn</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0f12f9a069b7a3db" datatype="html">
+        <source>Kalman Loss Coast (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-96359120100eda0c" datatype="html">
+        <source>Kalman Release Rewind (ms) / Hold (ms) - EXPERIMENT</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2b364b384c04f160" datatype="html">
+        <source>Kalman Smoothed Lag Epoch</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c175692ad844445a" datatype="html">
+        <source>Kalman Smoothed Reporting Lag (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-281c2c2b3864d6dc" datatype="html">
+        <source>Kalman Throw Strength (source / fast accel / scale / spin scale)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8c9e55665593af89" datatype="html">
+        <source>Kalman Tuning (accel m/s², pos mm, ang accel, ori deg, lead ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c982b23dfadd0a00" datatype="html">
+        <source>Last check</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2b7a68f25aa67a5b" datatype="html">
+        <source>Latch Angular Min Speed (rad/s) / Input Prefilter</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-12f1ff50ec4e370b" datatype="html">
+        <source>Left Hand Position Offset (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d2ac9a03757fa56a" datatype="html">
+        <source>Left Hand Rotation Offset (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-561bc8925bee076c" datatype="html">
+        <source>Limited Range Video (fixes the black floor)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-67bf54adf1850d50" datatype="html">
+        <source>Mirror Offsets For Right Hand</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5e23ec6a300dc60a" datatype="html">
+        <source>Mode</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c712aa137804336a" datatype="html">
+        <source>NVENC (retired): AQ Strength</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-96f236b5ad9b1a42" datatype="html">
+        <source>NVENC (retired): Bitrate Follows Streamer Backoff</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0f9143caf96d94e9" datatype="html">
+        <source>NVENC (retired): Max QP</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3f8087f1befd26c8" datatype="html">
+        <source>NVENC (retired): Min QP / Min QP intra</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8eeb1a2c2d342714" datatype="html">
+        <source>NVENC (retired): True Preset Merge</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e9baccdf7fa75d54" datatype="html">
+        <source>NVENC (retired): VUI Full Range / Matrix / Primaries / Transfer</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a8319b9fd0f613f2" datatype="html">
+        <source>NVENC Tap</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f550f813fcfb3225" datatype="html">
+        <source>NVENC: Fix Level</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-fb394c97daf69a3b" datatype="html">
+        <source>NVENC: Verbose Log</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-fbb7cfb237019f0d" datatype="html">
+        <source>Native Render Resolution</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4a4582b56301fa2b" datatype="html">
+        <source>Native identity changes take effect after restarting SteamVR.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ac69bfc22243ea37" datatype="html">
+        <source>No runtime information</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-61d523e2a949773f" datatype="html">
+        <source>Not-baseline: the device custom shader is enabled for this headset and owns the color path. Disable it to use the baseline.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5320102e9787bb42" datatype="html">
+        <source>Nothing on this page takes effect until it is enabled.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ca7981b46ecf2c17" datatype="html">
+        <source>Off</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5c37c0ab037543f3" datatype="html">
+        <source>Official Controller Input Profile</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0c5fa1c78bb59c0f" datatype="html">
+        <source>Official Pose Components</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-130011756125313c" datatype="html">
+        <source>On</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b96748b84d1d209a" datatype="html">
+        <source>Open About to check installation and settings</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c76d7d7c427b7723" datatype="html">
+        <source>Open an issue</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-194b1cc0dd31e4ea" datatype="html">
+        <source>Optical Center Offset</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-25514da6b3f911c8" datatype="html">
+        <source>Peak Headroom (%)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2450da5a516db970" datatype="html">
+        <source>Per Axis Curves</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3b81110e307250d7" datatype="html">
+        <source>Per Eye Curves</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1cd41267c5208c94" datatype="html">
+        <source>Per Eye Strength</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5d413b3f28524c6f" datatype="html">
+        <source>Per-hand trims are added on top of the shared offsets above, unmirrored. Turn Mirror Offsets on to hide them and drive both hands from one set.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8f72e972113632ed" datatype="html">
+        <source>Periphery Strength</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-992ff29ee5981121" datatype="html">
+        <source>Pointer Tip Offset</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d7f1d78145d88a6f" datatype="html">
+        <source>Pointer Tip Trim X (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ed6b9680ed0f7a6a" datatype="html">
+        <source>Pointer Tip Trim Y (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e752304cb14a1196" datatype="html">
+        <source>Pointer Tip Trim Z (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-997cd805e0e8da95" datatype="html">
+        <source>Pose Logging (diagnostic)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c1f15fbac12f2111" datatype="html">
+        <source>Pose Logging: Burst Channel</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-22542dd88e630597" datatype="html">
+        <source>Position Offset (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-38cd7925ee776bdb" datatype="html">
+        <source>Position-Freeze Protection (3dof Fallback)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-cb54d989018df9ed" datatype="html">
+        <source>Position-Freeze Velocity Decay (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0656a647263b0a38" datatype="html">
+        <source>Preset Override (P1-P7)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e2f0d2cbe2d877d0" datatype="html">
+        <source>Probe Capture (scoring run)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-64542bdbaed1ff87" datatype="html">
+        <source>Process At Submit Layer</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0241291147a16fab" datatype="html">
+        <source>Profile: Supports 10-bit</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-12d8405ce5d34cb4" datatype="html">
+        <source>Reads the configuration files again and synchronizes every setting toggle, including hidden advanced controls. It does not reset settings or restart SteamVR. Missing keys use their defaults; unreadable files are reported as unknown.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bc75e3d081a6f356" datatype="html">
+        <source>Release Latch (derive)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ce860706f9d4a161" datatype="html">
+        <source>Releases and changelog</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1d9d2ea26523efad" datatype="html">
+        <source>Report a Problem</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-998f50ff123b0cad" datatype="html">
+        <source>Requested - written at SteamVR start; confirm 10-bit in driver_vrlink.txt. Observed state is unknown until then.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b03f57c84adcc4cf" datatype="html">
+        <source>Reset curve</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-942087cc2d41e013" datatype="html">
+        <source>Retry</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-39fb2d82f32fe936" datatype="html">
+        <source>Right Hand Position Offset (cm)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3eb1e32d04070179" datatype="html">
+        <source>Right Hand Rotation Offset (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-030ff9e118e102a8" datatype="html">
+        <source>Rotation Offset (deg)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5110f9cce3e75918" datatype="html">
+        <source>SDR 10-bit baseline</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-d7ee5449db745dd8" datatype="html">
+        <source>SDR 10-bit baseline is active: the values below are stored but not applied (the host pipeline runs neutral). Turn it off on the Driver Settings page to restore them.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-fefd5c8292b73bde" datatype="html">
+        <source>Saved value</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6d0e3ba1476c2373" datatype="html">
+        <source>Segment Layout (per band)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-818cd8d91aea3a16" datatype="html">
+        <source>Setting</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4039a6c61f887edf" datatype="html">
+        <source>Settings could not be saved. The controls have been restored to the last verified values.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-05ec055ea6fc598e" datatype="html">
+        <source>Settings pages</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-983cd4f9fb44394b" datatype="html">
+        <source>Setup and image processing guide</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-bdeb0d53cb0771e2" datatype="html">
+        <source>Share Distortion Profile</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-410a07377d7d619a" datatype="html">
+        <source>Show all checked settings</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5b22d334533bbc65" datatype="html">
+        <source>Skip Color While Dashboard Open</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-43fd703a5b5b824e" datatype="html">
+        <source>Source Code and Releases</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-261935b572ac77c3" datatype="html">
+        <source>Split Direction Source</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-94814840eda81d65" datatype="html">
+        <source>Split Direction Window (ms) / Weight Power</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-7b65656b769c2ad5" datatype="html">
+        <source>Split Magnitude Source</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e9f73b0eeef22399" datatype="html">
+        <source>Split-Frame Encoding</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a3b50c476732c740" datatype="html">
+        <source>State</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b918b214081dcd72" datatype="html">
+        <source>Stationary Dimming</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-a30ccc0a7f7c15e1" datatype="html">
+        <source>Stop calibration</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f059348cf984d83c" datatype="html">
+        <source>Stream Quality</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-8bd4c368c8dc7322" datatype="html">
+        <source>Stream Quality Preset</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-3589b7f5bc2b8a3e" datatype="html">
+        <source>Strength Left</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5c6360930333dfc3" datatype="html">
+        <source>Strength Right</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-24b9a2799159d4cc" datatype="html">
+        <source>Swim Probe Logging</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ad442ede1dc2f615" datatype="html">
+        <source>Switch to the Galaxy XR driver</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e9c6774106452937" datatype="html">
+        <source>Sync Timeout (ms)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-506f6cf1751cf0ee" datatype="html">
+        <source>The Galaxy XR driver is disabled in SteamVR.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-c5751e82db510f71" datatype="html">
+        <source>The stock CustomHeadsetOpenVR driver currently has the headset.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e7588bdac03de56a" datatype="html">
+        <source>This verifies saved configuration, not live hardware behavior. Changes that require a SteamVR restart may not be active yet. Runtime telemetry is the last reported state, not proof that SteamVR is currently running.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1c081e4a38697d2a" datatype="html">
+        <source>Throw Strength Trim (scale / spin scale)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-7b31ef1dce70cddb" datatype="html">
+        <source>Tuner Adjust Rate</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-aaeac88f2a992ce2" datatype="html">
+        <source>Tuner Step Size</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-14155dfa06d49c04" datatype="html">
+        <source>Unable to verify installation</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-5f1bdfca54886bfb" datatype="html">
+        <source>Uninstall Failed</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f7ec524eb8ea6bbd" datatype="html">
+        <source>Uninstall complete</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b764cdc0eab71374" datatype="html">
+        <source>Unknown</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6fc40480f15650f9" datatype="html">
+        <source>VBV Frames</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-980b10e3e81d06b1" datatype="html">
+        <source>Value source</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-0071f9708c508a5f" datatype="html">
+        <source>Velocity Consumer Test / Pose Assist</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-54d47a0d2595fb13" datatype="html">
+        <source>Vibrance</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-e981ddae45d8f4ca" datatype="html">
+        <source>Warning</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-390699113913ffbe" datatype="html">
+        <source>Warped Overlays (profile validation)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-ea9c2052cfcfe5bb" datatype="html">
+        <source>World-Locked Grid</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-4a2b3adc124fc287" datatype="html">
+        <source>Zero-Copy v3 (experimental)</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-f6ec859909b9b5fb" datatype="html">
+        <source>boolean settings checked</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-b0ff2439fe5da1e8" datatype="html">
+        <source>exaggerated</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-6ab9f1eb8f7d3388" datatype="html">
+        <source>k1</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-854cb536052bd461" datatype="html">
+        <source>k1/k2 mode: adjust the values below the plot. Convert to spline for per radius control.</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-015f7e6bc5aeaf48" datatype="html">
+        <source>k2</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-2f8cfe725de87b4f" datatype="html">
+        <source>vrlink (retired): Encode Width</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-73869898915164bf" datatype="html">
+        <source>vrlink (retired): Max Video Queue Latency (us) / Backoff Recovery Coefficient</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-1099c901b0573e57" datatype="html">
+        <source>vrlink Debug Overlay</source>
+      </trans-unit>
+      <trans-unit id="fluent-fix-53f595c13ea3a4a1" datatype="html">
+        <source>vrlink Headset Profile</source>
+      </trans-unit>
     </body>
   </file>
 </xliff>

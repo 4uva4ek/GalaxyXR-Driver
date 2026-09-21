@@ -1,0 +1,95 @@
+/* Global document styles for the Lit/Fluent frontend (2026-09-20 migration).
+   Ports src/styles.scss (box-sizing reset, --color-scheme default, body, links)
+   and src/simple-form.scss color helpers, using Fluent design tokens with
+   neutral fallbacks. Shadow-DOM scoped page styles (the .field grid etc.) live
+   in src-lit/features/page-base.ts so they reach each page's shadow root. */
+
+*,
+*::after,
+*::before {
+  box-sizing: border-box;
+}
+
+:root {
+  /* The shell effect overrides this from the app-setting colorScheme. */
+  --color-scheme: light;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+html {
+  color-scheme: var(--color-scheme);
+  height: 100%;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--colorNeutralForeground1, #202020);
+  background: var(--colorNeutralBackground2, #f5f5f5);
+  overflow: hidden;
+}
+
+a {
+  color: var(--colorBrandForegroundLink, #1a73e8);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Native dialog (DialogService) uses these tokens for a consistent look. */
+dialog.app-dialog {
+  border: 1px solid var(--colorNeutralStroke1, #888);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  color: var(--colorNeutralForeground1, #202020);
+  background: var(--colorNeutralBackground1, #fff);
+  color-scheme: var(--color-scheme);
+}
+dialog.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+dialog.app-dialog h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.1rem;
+}
+dialog.app-dialog .app-dialog-message {
+  white-space: pre-wrap;
+  margin: 0 0 1rem;
+}
+dialog.app-dialog .app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+dialog.app-dialog .app-dialog-btn {
+  border: 1px solid var(--colorNeutralStroke1, #888);
+  background: transparent;
+  color: var(--colorNeutralForeground1, #202020);
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+dialog.app-dialog .app-dialog-btn:hover { background: rgba(127, 127, 127, 0.15); }
+dialog.app-dialog .app-dialog-btn.primary {
+  background: var(--colorBrandBackground, #0067c0);
+  color: #fff;
+  border-color: var(--colorBrandBackground, #0067c0);
+}
+dialog.app-dialog .app-dialog-btn.danger {
+  background: var(--colorPaletteRedBackground3, #b00020);
+  color: #fff;
+  border-color: var(--colorPaletteRedBackground3, #b00020);
+}
+
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

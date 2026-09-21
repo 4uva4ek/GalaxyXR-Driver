@@ -1,6 +1,0 @@
-@use '../../../simple-form.scss' as sf;
-
-:host {
-    @include sf.formStyle();
-     padding: 1rem;
-}

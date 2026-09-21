@@ -1,11 +1,12 @@
 let fs = require("fs")
 let path = require("path")
 let child_process = require("child_process")
+const { stageCompanion } = require("./tools/lib/stage-companion.cjs")
 
 // Vendor-aware build script, adapted from CustomHeadsetOpenVR.
 // Builds the driver (MSBuild) and the GUI (npm) and stages a release folder.
 //   node build.js --vendor galaxyxr   -> GalaxyXRNative vendor driver
-//   node build.js                     -> vendor-neutral CustomHeadsetOpenVR
+//   node build.js --vendor neutral    -> vendor-neutral CustomHeadsetOpenVR
 
 // Argument parsing
 let args = process.argv.slice(2)
@@ -16,6 +17,7 @@ let buildGui = true
 for (let i = 0; i < args.length; i++) {
 	switch (args[i]) {
 		case "--vendor":
+			if (!args[i + 1]) { console.error("--vendor requires galaxyxr or neutral"); process.exit(1) }
 			vendor = args[++i].toLowerCase()
 			break
 		case "--no-driver":
@@ -193,6 +195,7 @@ function buildDriverTask() {
 				return
 			}
 
+			try {
 			console.log("Driver compilation complete.")
 
 			// Copy DriverFiles to staging (pre-build event already copied to default output)
@@ -204,7 +207,8 @@ function buildDriverTask() {
 					)
 					console.log("Copied driver files to staging.")
 				} catch (e) {
-					console.error("Failed to copy driver files.")
+					reject(new Error(`Failed to copy driver files: ${e.message}`))
+					return
 				}
 			}
 
@@ -257,8 +261,15 @@ function buildDriverTask() {
 				}
 			}
 
-			console.log("Driver build complete.")
-			resolve()
+            for (const required of [renamedDll, manifestPath, defaultSettingsPath,
+                path.join(driverOutput, "resources", "icons", "galaxy_xr", "headset_galaxy_xr_ready.png"),
+                path.join(driverOutput, "resources", "icons", "galaxy_xr", "headset_galaxy_xr_searching.gif")]) {
+                if (!fs.existsSync(required) || !fs.statSync(required).isFile() || fs.statSync(required).size === 0)
+                    throw new Error(`Portable driver output is incomplete: ${required}`)
+            }
+            console.log("Driver build complete.")
+            resolve()
+            } catch (error) { reject(error) }
 		})
 
 		child.on("error", reject)
@@ -301,17 +312,12 @@ function buildGuiTask() {
 			}
 
 			let tauriBundleDir = path.join(__dirname, "output", "CustomHeadsetGUI", "release")
-			let guiExe = "custom-headset-gui.exe"
-
-			if (fs.existsSync(path.join(tauriBundleDir, guiExe))) {
-				fs.copyFileSync(
-					path.join(tauriBundleDir, guiExe),
-					path.join(guiOutput, guiExe)
-				)
-				console.log(`Copied ${guiExe} to staging.`)
-			} else {
-				console.error(`Could not find ${guiExe} after build.`)
-			}
+            try {
+                console.log(`Staged ${stageCompanion(tauriBundleDir, guiOutput)}`)
+            } catch (error) {
+                reject(error)
+                return
+            }
 
 			console.log("GUI build complete.")
 			resolve()
