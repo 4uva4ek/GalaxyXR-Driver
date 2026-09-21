@@ -33,6 +33,15 @@ jobs:
           cache: npm
           cache-dependency-path: GalaxyXRDriverGUI/package-lock.json
 
+      # Check the actual Git checkout, not just files left in a local ZIP extract.
+      - name: Verify build helpers are present and tracked
+        shell: pwsh
+        run: |
+          node .\tools\verify-build-sources.cjs --require-tracked
+          if ($LASTEXITCODE -ne 0) { throw 'Build source checkout is incomplete; see missing/ignored file report above' }
+          node --test .\tools\tests\build-sources.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Build-source tracking regressions failed' }
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -43,6 +52,14 @@ jobs:
         uses: microsoft/setup-msbuild@v3
         with:
           msbuild-architecture: x64
+
+      - name: Test release-version validation and both PowerShell wrappers
+        shell: pwsh
+        env:
+          REQUIRE_POWERSHELL_TESTS: '1'
+        run: |
+          node --test .\tools\tests\release-version.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release version regressions failed' }
 
       - name: Verify release version
         id: version

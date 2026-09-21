@@ -1,0 +1,13 @@
+{
+  "version": "1.2.0",
+  "scope": "Small build-source tracking fix for the renamed GalaxyXRDriver checkout. No application, dependency-lock, or driver changes.",
+  "files": {
+    ".github/workflows/release.yml": "c3bd5bef29ded702915a38e4f6515d6b8886688db9df268906004d11191e220f",
+    ".gitignore": "753a98e23ea654ec9408fff0380f9966e1e1f3d8dead88bfc0f76b52306c0a37",
+    "BUILD-SOURCE-FIX-VALIDATION.md": "5a7576889062781f573a636a032f63043217deb7c41bacb0eee6776cb04ad724",
+    "README-BUILD-SOURCE-FIX.md": "942a10c22d1c08d7a40e1d9c7334ca12a0787f53dcffd89eb282aa4a31a082b9",
+    "tools/lib/stage-companion.cjs": "7eeffbb7f5b85c5529d998ffd041ad059ec7931948b6ed5b6efdb57f47108187",
+    "tools/tests/build-sources.test.cjs": "b5b303716294f039ac6b3c00d301ecb81e77415d4c5c02b4a7962e5d10aed32e",
+    "tools/verify-build-sources.cjs": "a5ae9d8f9bbaa9193dd31b6e0f0cba8a74d507aa2941fe57ce3b8cd3cd3a3e56"
+  }
+}

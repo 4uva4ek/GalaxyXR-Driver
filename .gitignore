@@ -13,3 +13,8 @@ node_modules/
 *.tsbuildinfo
 # Per-developer Visual Studio state.
 *.vcxproj.user
+
+# Portable build helpers are source, not generated native libraries.
+# Re-include the parent as well as its contents after the broad lib rule.
+!/tools/lib/
+!/tools/lib/**
