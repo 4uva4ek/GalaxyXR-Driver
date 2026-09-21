@@ -1,0 +1,205 @@
+{
+  "scope": "Layout-only HTML fixture made by production grouping helper/CSS; template adapter and native inputs, not full Lit/Fluent production rendering",
+  "results": [
+    {
+      "width": 1100,
+      "theme": "light",
+      "result": "PASS",
+      "metrics": {
+        "width": 1100,
+        "scroll": 1100,
+        "headers": [
+          {
+            "title": "\u25be\n          Controllers",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Controller Fix",
+            "x": 54
+          },
+          {
+            "title": "\u25be\n          Controller Advanced",
+            "x": 91
+          },
+          {
+            "title": "Image Processing",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Color",
+            "x": 54
+          }
+        ],
+        "rows": [
+          {
+            "text": "Official Controller Input Profile",
+            "x": 42
+          },
+          {
+            "text": "Grip Convention",
+            "x": 79
+          },
+          {
+            "text": "Prediction strength",
+            "x": 116
+          },
+          {
+            "text": "Brightness",
+            "x": 79
+          }
+        ],
+        "redundant": false
+      }
+    },
+    {
+      "width": 1100,
+      "theme": "dark",
+      "result": "PASS",
+      "metrics": {
+        "width": 1100,
+        "scroll": 1100,
+        "headers": [
+          {
+            "title": "\u25be\n          Controllers",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Controller Fix",
+            "x": 54
+          },
+          {
+            "title": "\u25be\n          Controller Advanced",
+            "x": 91
+          },
+          {
+            "title": "Image Processing",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Color",
+            "x": 54
+          }
+        ],
+        "rows": [
+          {
+            "text": "Official Controller Input Profile",
+            "x": 42
+          },
+          {
+            "text": "Grip Convention",
+            "x": 79
+          },
+          {
+            "text": "Prediction strength",
+            "x": 116
+          },
+          {
+            "text": "Brightness",
+            "x": 79
+          }
+        ],
+        "redundant": false
+      }
+    },
+    {
+      "width": 600,
+      "theme": "light",
+      "result": "PASS",
+      "metrics": {
+        "width": 600,
+        "scroll": 600,
+        "headers": [
+          {
+            "title": "\u25be\n          Controllers",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Controller Fix",
+            "x": 38
+          },
+          {
+            "title": "\u25be\n          Controller Advanced",
+            "x": 59
+          },
+          {
+            "title": "Image Processing",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Color",
+            "x": 38
+          }
+        ],
+        "rows": [
+          {
+            "text": "Official Controller Input Profile",
+            "x": 32
+          },
+          {
+            "text": "Grip Convention",
+            "x": 53
+          },
+          {
+            "text": "Prediction strength",
+            "x": 74
+          },
+          {
+            "text": "Brightness",
+            "x": 53
+          }
+        ],
+        "redundant": false
+      }
+    },
+    {
+      "width": 600,
+      "theme": "dark",
+      "result": "PASS",
+      "metrics": {
+        "width": 600,
+        "scroll": 600,
+        "headers": [
+          {
+            "title": "\u25be\n          Controllers",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Controller Fix",
+            "x": 38
+          },
+          {
+            "title": "\u25be\n          Controller Advanced",
+            "x": 59
+          },
+          {
+            "title": "Image Processing",
+            "x": 16
+          },
+          {
+            "title": "\u25be\n          Color",
+            "x": 38
+          }
+        ],
+        "rows": [
+          {
+            "text": "Official Controller Input Profile",
+            "x": 32
+          },
+          {
+            "text": "Grip Convention",
+            "x": 53
+          },
+          {
+            "text": "Prediction strength",
+            "x": 74
+          },
+          {
+            "text": "Brightness",
+            "x": 53
+          }
+        ],
+        "redundant": false
+      }
+    }
+  ]
+}

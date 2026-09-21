@@ -1,0 +1,9 @@
+PASS Renames project folders, overlays files, keeps dependencies and backs up originals
+PASS Repeated apply supports already renamed checkouts
+PASS Update folder cannot be inside the target or target itself
+PASS Missing project root refuses before source moves
+PASS A destination collision rolls source moves back
+PASS Does not copy generated dependencies or retired Angular source
+PASS Copies workflow and build helpers, leaving unrelated root files intact
+PASS Symlink/junction destination refuses without modifying its target
+8/8 source-update fixture checks passed.

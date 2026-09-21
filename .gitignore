@@ -6,12 +6,10 @@ output
 *_test.hlsl
 build
 HidModifierPrivate.cpp
-tools/**
-# Generated GitHub release packages
+# All build/release/test helpers are version-controlled source.
 release/
-
-# These release helper scripts are source files and must be committed even
-# though the repository historically ignores generated/local tools content.
-!tools/
-!tools/Verify-ReleaseVersion.ps1
-!tools/Package-GitHubRelease.ps1
+.source-backups/
+node_modules/
+*.tsbuildinfo
+# Per-developer Visual Studio state.
+*.vcxproj.user

@@ -1,0 +1,57 @@
+PASS ICO header is valid and contains 13 entries
+PASS ICO 32px frame has correct dimensions and 32-bit metadata
+PASS ICO 16px frame has correct dimensions and 32-bit metadata
+PASS ICO 20px frame has correct dimensions and 32-bit metadata
+PASS ICO 24px frame has correct dimensions and 32-bit metadata
+PASS ICO 28px frame has correct dimensions and 32-bit metadata
+PASS ICO 40px frame has correct dimensions and 32-bit metadata
+PASS ICO 48px frame has correct dimensions and 32-bit metadata
+PASS ICO 56px frame has correct dimensions and 32-bit metadata
+PASS ICO 64px frame has correct dimensions and 32-bit metadata
+PASS ICO 80px frame has correct dimensions and 32-bit metadata
+PASS ICO 96px frame has correct dimensions and 32-bit metadata
+PASS ICO 128px frame has correct dimensions and 32-bit metadata
+PASS ICO 256px frame has correct dimensions and 32-bit metadata
+PASS All embedded ICO frames are nonempty transparent RGBA images
+PASS ICO begins with 32px and contains Tauri-required sizes
+PASS Additional Windows scaling sizes are present without duplicates
+PASS Tauri 32x32.png is square RGBA
+PASS Tauri 128x128.png is square RGBA
+PASS Tauri 128x128@2x.png is square RGBA
+PASS Tauri icon.png is square RGBA
+PASS Both public favicon paths agree
+PASS All 14 supplied status assets are available
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_alert_searching.gif
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_alert_searching.gif
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_alert_searching_2x.gif
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_alert_searching_2x.gif
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_error.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_error.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_error_2x.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_error_2x.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_off.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_off.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_off_2x.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_off_2x.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_ready.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_2x.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_ready_2x.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_alert.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_ready_alert.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_ready_alert_2x.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_ready_alert_2x.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_searching.gif
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_searching.gif
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_searching_2x.gif
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_searching_2x.gif
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_standby.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_standby.png
+PASS Driver keeps original GUI artwork bytes: headset_galaxy_xr_standby_2x.png
+PASS Supplied dimensions/animation retained: headset_galaxy_xr_standby_2x.png
+PASS Nine distinct OpenVR status properties are declared
+PASS Every driver status points to supplied base and matching 2x art
+PASS 168 help entries contain a plain summary and technical details
+PASS Every documented help entry matches its current TypeScript source
+PASS Main document title uses Galaxy XR Companion
+56/56 companion asset/catalog checks passed

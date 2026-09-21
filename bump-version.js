@@ -10,10 +10,10 @@ if(!version || /^\d+\.\d+\.\d+(\-[a-z0-9\.]+)?$/.test(version) === false){
 }
 
 
-let tauriConfig = path.join(__dirname, "CustomHeadsetGUI/src-tauri/tauri.conf.json")
-let tauriConfigCargo = path.join(__dirname, "CustomHeadsetGUI/src-tauri/Cargo.toml")
-let driverConfigCpp = path.join(__dirname, "CustomHeadsetOpenVR/src/Config/Config.cpp")
-let driverManifestJson = path.join(__dirname, "CustomHeadsetOpenVR/DriverFiles/driver.vrdrivermanifest")
+let tauriConfig = path.join(__dirname, "GalaxyXRDriverGUI/src-tauri/tauri.conf.json")
+let tauriConfigCargo = path.join(__dirname, "GalaxyXRDriverGUI/src-tauri/Cargo.toml")
+let driverConfigCpp = path.join(__dirname, "GalaxyXRDriver/src/Config/Config.cpp")
+let driverManifestJson = path.join(__dirname, "GalaxyXRDriver/DriverFiles/driver.vrdrivermanifest")
 
 let tauriConfigData = JSON.parse(fs.readFileSync(tauriConfig, "utf8"))
 tauriConfigData.version = version

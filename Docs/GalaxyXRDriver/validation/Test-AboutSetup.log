@@ -1,0 +1,20 @@
+PASS Default and invalid routes open About
+PASS Before installation, About and App Settings remain available
+PASS Runtime checking is read-only and uses the detected SteamVR path
+PASS Launch success is not driver initialization success
+PASS A running SteamVR session is not launched a second time
+PASS Failed launch is reported instead of silently succeeding
+PASS A failed runtime read removes an older green status
+PASS Invalidation rejects an in-flight stale runtime report
+PASS Runtime refresh calls coalesce
+PASS No installation means no native runtime check or launch
+PASS Cancelled cleanup does not call native reset or change saved files
+PASS Cleanup before driver installation is available and preserves the uninstalled state
+PASS Cleanup without registered SteamVR passes null to native local-only reset
+PASS Successful reset reloads all driver and app defaults and clears runtime data
+PASS Pending edits cannot rewrite freshly cleaned configuration
+PASS Native cleanup failure reloads unchanged files and always clears busy state
+PASS Cleanup is serialized against installation and other cleanup requests
+PASS Installation actions are owned by About, not App Settings
+
+About/setup service checks: 18/18 passed.

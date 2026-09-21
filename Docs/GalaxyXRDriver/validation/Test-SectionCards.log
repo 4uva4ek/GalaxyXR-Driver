@@ -1,0 +1,12 @@
+PASS Top-level headings produce separate cards
+PASS Parent controls belong to their parent card body
+PASS Child controls are nested inside a second card, not flat siblings
+PASS Deep sections add another ownership level
+PASS Image Processing owns its Color section
+PASS Header rendering never calls feature actions or saves settings
+PASS Collapsing removes descendant controls but keeps an accessible header
+PASS No redundant Expand or Collapse labels remain
+PASS Rows before the first heading stay outside section cards
+PASS All four settings pages use the shared grouping helper
+PASS Shared styles indent complete child cards and collapse cleanly on narrow screens
+11/11 section-card checks passed using inert template adapter (not a production Lit render).

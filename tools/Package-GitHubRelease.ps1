@@ -19,12 +19,12 @@ $ReleaseDirectory = [IO.Path]::GetFullPath($ReleaseDirectory)
 New-Item -ItemType Directory -Force -Path $ReleaseDirectory | Out-Null
 
 if (-not $StagingDirectory) {
-    $preferred = Join-Path $repo "output/CustomHeadset-STAGING-$Version-Galaxyxr-Windows"
+    $preferred = Join-Path $repo "output/GalaxyXRDriver-STAGING-$Version-Galaxyxr-Windows"
     if (Test-Path -LiteralPath $preferred -PathType Container) {
         $StagingDirectory = $preferred
     } else {
         $matches = @(Get-ChildItem -LiteralPath (Join-Path $repo 'output') -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like "CustomHeadset-STAGING-$Version-*-Windows" -and (Test-Path -LiteralPath (Join-Path $_.FullName 'GalaxyXRNative')) })
+            Where-Object { $_.Name -like "GalaxyXRDriver-STAGING-$Version-*-Windows" -and (Test-Path -LiteralPath (Join-Path $_.FullName 'GalaxyXRNative')) })
         if ($matches.Count -ne 1) {
             throw "Could not uniquely locate the Galaxy XR staging directory for version $Version. Pass -StagingDirectory explicitly."
         }
@@ -34,7 +34,7 @@ if (-not $StagingDirectory) {
 $StagingDirectory = [IO.Path]::GetFullPath($StagingDirectory)
 
 $required = @(
-    'CustomHeadsetGUI/Galaxy XR Companion.exe',
+    'GalaxyXRDriverGUI/Galaxy XR Companion.exe',
     'GalaxyXRNative/driver.vrdrivermanifest',
     'GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll',
     'GalaxyXRNative/resources/settings/default.vrsettings'
@@ -51,13 +51,13 @@ foreach ($relative in $required) {
 Get-Content -Raw -LiteralPath (Join-Path $StagingDirectory 'GalaxyXRNative/driver.vrdrivermanifest') | ConvertFrom-Json | Out-Null
 Get-Content -Raw -LiteralPath (Join-Path $StagingDirectory 'GalaxyXRNative/resources/settings/default.vrsettings') | ConvertFrom-Json | Out-Null
 
-$packageName = "Galaxy-XR-Companion-v$Version-Windows-x64"
+$packageName = "GalaxyXRDriver-v$Version-Windows-x64"
 $workRoot = Join-Path $repo 'build/github-release'
 $packageRoot = Join-Path $workRoot $packageName
 if (Test-Path -LiteralPath $packageRoot) { Remove-Item -LiteralPath $packageRoot -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
 
-Copy-Item -LiteralPath (Join-Path $StagingDirectory 'CustomHeadsetGUI') -Destination $packageRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $StagingDirectory 'GalaxyXRDriverGUI') -Destination $packageRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $StagingDirectory 'GalaxyXRNative') -Destination $packageRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $repo 'CREDITS.md') -Destination $packageRoot -Force
 Copy-Item -LiteralPath (Join-Path $repo 'CHANGELOG.md') -Destination $packageRoot -Force
@@ -108,7 +108,7 @@ $notes = @(
     '',
     "- Windows x64 portable package: ``$packageName.zip``",
     "- Source commit: ``$Commit``",
-    '- Keep `CustomHeadsetGUI` and `GalaxyXRNative` together after extraction.'
+    '- Keep `GalaxyXRDriverGUI` and `GalaxyXRNative` together after extraction.'
 ) -join "`r`n"
 
 $notesPath = Join-Path $ReleaseDirectory "$packageName-release-notes.md"

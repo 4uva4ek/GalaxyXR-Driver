@@ -6,13 +6,13 @@ The release workflow is `.github/workflows/release.yml`.
 
 The current release version is **1.2.0**. The workflow verifies that this version agrees across:
 
-- `CustomHeadsetOpenVR/src/Config/Config.cpp`
-- `CustomHeadsetOpenVR/DriverFiles/driver.vrdrivermanifest`
-- `CustomHeadsetGUI/package.json`
-- `CustomHeadsetGUI/package-lock.json`
-- `CustomHeadsetGUI/src-tauri/tauri.conf.json`
-- `CustomHeadsetGUI/src-tauri/Cargo.toml`
-- `CustomHeadsetGUI/src-tauri/Cargo.lock`
+- `GalaxyXRDriver/src/Config/Config.cpp`
+- `GalaxyXRDriver/DriverFiles/driver.vrdrivermanifest`
+- `GalaxyXRDriverGUI/package.json`
+- `GalaxyXRDriverGUI/package-lock.json`
+- `GalaxyXRDriverGUI/src-tauri/tauri.conf.json`
+- `GalaxyXRDriverGUI/src-tauri/Cargo.toml`
+- `GalaxyXRDriverGUI/src-tauri/Cargo.lock`
 
 A tagged release must use exactly `v<version>`. For 1.2.0, use `v1.2.0`.
 
@@ -33,7 +33,7 @@ The Windows workflow then:
 4. runs `npm ci` and the frontend test suite;
 5. runs `node build.js --vendor galaxyxr`, which builds both the native OpenVR driver and Tauri application;
 6. validates the staged executable, driver DLL, manifest and default settings;
-7. packages the complete portable pair into `Galaxy-XR-Companion-v1.2.0-Windows-x64.zip`;
+7. packages the complete portable pair into `GalaxyXRDriver-v1.2.0-Windows-x64.zip`;
 8. creates a SHA-256 checksum;
 9. generates release notes from the 1.2.0 changelog plus all non-merge commits since the previous `v*` tag;
 10. uploads the ZIP and metadata as Actions artifacts; and
@@ -44,8 +44,8 @@ A manual **Run workflow** invocation performs the same build/package validation 
 ## Portable ZIP layout
 
 ```text
-Galaxy-XR-Companion-v1.2.0-Windows-x64/
-├── CustomHeadsetGUI/
+GalaxyXRDriver-v1.2.0-Windows-x64/
+├── GalaxyXRDriverGUI/
 │   └── Galaxy XR Companion.exe
 ├── GalaxyXRNative/
 │   ├── driver.vrdrivermanifest
@@ -57,7 +57,7 @@ Galaxy-XR-Companion-v1.2.0-Windows-x64/
 └── RELEASE-NOTES.md
 ```
 
-Keep `CustomHeadsetGUI` and `GalaxyXRNative` together after extraction.
+Keep `GalaxyXRDriverGUI` and `GalaxyXRNative` together after extraction.
 
 ## Icon attribution
 

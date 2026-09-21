@@ -1,0 +1,140 @@
+#pragma once
+#include "Config.h"
+#include <string>
+#include <vector>
+#include <mutex>
+#include <atomic>
+
+
+// This class loads config files and watches for changes to them, updating the global config object as needed.
+class ConfigLoader{
+public:
+	// class to contain info from elsewhere in the driver to write to info.json
+	// this is not structured in the same way as the json file so check WriteInfo in ConfigLoader.cpp
+	class Info{
+	public:
+		double renderFovX = 0;
+		double renderFovY = 0;
+		double renderFovMaxX = 0;
+		double renderFovMaxY = 0;
+		double combinedFovX = 0;
+		double combinedFovY = 0;
+		uint32_t renderResolution1To1X = 0;
+		uint32_t renderResolution1To1Y = 0;
+		double renderResolution1To1Percent = 0;
+		uint32_t renderResolution100PercentX = 0;
+		uint32_t renderResolution100PercentY = 0;
+		// output resolution of the compositor per eye
+		uint32_t outputResolutionX = 0;
+		uint32_t outputResolutionY = 0;
+		std::string debugLog = "";
+		// the actual name this driver is registered under in SteamVR (CustomHeadsetOpenVR or GalaxyXRNative)
+		// discovered at Init time from the driver handle; the default is a fallback if discovery fails
+		std::string driverName = "CustomHeadsetOpenVR";
+		// Current-session proof for Companion; never infer runtime success from version alone.
+		std::atomic<bool> runtimeInitialized{false};
+		std::atomic<bool> runtimeLockedOut{false};
+		std::atomic<uint32_t> runtimeProcessId{0};
+		std::string driverResources = "";
+		std::string steamvrResources = "";
+		Config::HeadsetType connectedHeadset = Config::HeadsetType::None;
+		// if a headset that does not use the steamvr compositor is connected
+		bool nonNativeHeadsetFound = false;
+		// if the SteamVR dashboard is currently open
+		bool isDashboardOpen = false;
+		// used when watching info
+		bool hasBeenUpdated = true;
+		// notifies thread that it should be written (uses diagnostic thread)
+		bool needToWrite = true;
+	};
+	Info info;
+
+	// class to contain diagnostic data written to diagnostic.json at 4 times per second
+	class DiagnosticInfo{
+	public:
+		// SteamVR server process ID
+		uint32_t vrserverPID = 0;
+		
+		// Eye tracking data
+		bool eyeTrackingValid = false;
+		float leftAngleX = 0;
+		float leftAngleY = 0;
+		float rightAngleX = 0;
+		float rightAngleY = 0;
+		float focalPointX = 0;
+		float focalPointY = 0;
+		float focalPointZ = 0;
+
+		// stream frame processing state for the camera calibration tools
+		// (tools/gxr_*.py poll this at 4 Hz as their handshake with the
+		// driver: a pattern index written into settings.json is confirmed
+		// shown once calibPatternShown echoes it and calibPatternFrames
+		// has advanced past a few frames)
+		bool streamFrameActive = false;
+		uint64_t streamFrameCounter = 0;
+		int calibPatternShown = -1;
+		uint32_t calibPatternFrames = 0;
+		bool calibBlackout = false;
+		// per-eye projection tangents (raw OpenVR y-down convention) and
+		// eye texture region size + the aspect the radius space uses
+		bool projValid = false;
+		float proj[2][4] = {};
+		uint32_t eyeTexWidth = 0;
+		uint32_t eyeTexHeight = 0;
+		float eyeAspect = 1;
+		// map bake state so a tool can confirm its written map is live
+		int mapCols = 0;
+		int mapRows = 0;
+		bool mapActive = false;
+	};
+	DiagnosticInfo diagnosticInfo;
+
+	bool started = false;
+	// read from info. used in the compositor to get info from the main driver
+	bool watchInfo = false;
+	// parse the config file into the global config object
+	void ParseConfig();
+	// load a distortion profile config from disk
+	DistortionProfileConfig ParseDistortionConfig(std::string name);
+	// save the info.json file to disk
+	void WriteInfo();
+	// read the info.json file from disk
+	void ReadInfo();
+	// write the diagnostic.json file to disk (high frequency, 4 times per second)
+	void WriteDiagnosticInfo();
+	// start the config parser
+	void Start();
+	// thread to write info
+	// void WriteInfoThread();
+	// thread to write diagnostic info at 4 times per second
+	void WriteDiagnosticInfoThread();
+	// thread to watch for file changes
+	void WatcherThread();
+	// thread for watching distortions if enabled
+	void WatcherThreadDistortions();
+	// get folder with trailin slash for config files
+	std::string GetConfigFolder();
+	// one-time copy of settings.json + Distortion/ from the legacy CustomHeadset
+	// folder into the vendor config folder. no-op in neutral builds and when the
+	// vendor folder already has settings. called from Start().
+	void MigrateLegacyConfig();
+private:
+	bool hasLoggedConfigFileNotFound = false;
+	std::mutex infoWriteLock;
+	std::mutex diagnosticWriteLock;
+};
+
+// global config loader object, used to load config files and watch for changes
+extern ConfigLoader driverConfigLoader;
+
+// check if custom shaders are enabled for the current headset type
+inline bool IsCustomShaderEnabled(){
+	if(!driverConfig.customShader.enable){
+		return false;
+	}
+	// all other headsets that do not have explicit toggles
+	if(driverConfigLoader.info.connectedHeadset != Config::HeadsetType::None){
+		return driverConfig.customShader.enableForOther;
+	}
+	return false;
+}

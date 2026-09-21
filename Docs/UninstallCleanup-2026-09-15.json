@@ -39,22 +39,22 @@
       "reason": "Automatic approval review rejected validated literal-path deletion: blocked by policy"
     },
     {
-      "path": "output/CustomHeadsetGUI",
-      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\output\\CustomHeadsetGUI",
+      "path": "output/GalaxyXRDriverGUI",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\output\\GalaxyXRDriverGUI",
       "bytes": 2304685633.0,
       "status": "deferred",
       "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
     },
     {
-      "path": "CustomHeadsetGUI/dist",
-      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\CustomHeadsetGUI\\dist",
+      "path": "GalaxyXRDriverGUI/dist",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\GalaxyXRDriverGUI\\dist",
       "bytes": 6293826.0,
       "status": "deferred",
       "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"
     },
     {
-      "path": "CustomHeadsetGUI/.angular",
-      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\CustomHeadsetGUI\\.angular",
+      "path": "GalaxyXRDriverGUI/.angular",
+      "absolutePath": "D:\\Angelo\\Desktop\\SteamLink-GalaxyXR-Windows-Toolkit-FULL\\CustomHeadsetOpenVrGxR\\GalaxyXRDriverGUI\\.angular",
       "bytes": 4542718.0,
       "status": "deferred",
       "reason": "Disposable GUI compiler/cache outputs or downloaded installer archives; deletion not retried after policy rejection"

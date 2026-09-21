@@ -13,19 +13,19 @@
   },
   "sources": [
     {
-      "path": "CustomHeadsetOpenVR/src/Config/SteamVRSettingsJournal.h",
+      "path": "GalaxyXRDriver/src/Config/SteamVRSettingsJournal.h",
       "sha256": "250F34E5819AC12BC840635CD0D672B0264E052A9E672A2FC3A347A119F261F1"
     },
     {
-      "path": "CustomHeadsetOpenVR/src/Headsets/GalaxyXR.cpp",
+      "path": "GalaxyXRDriver/src/Headsets/GalaxyXR.cpp",
       "sha256": "CA20DB0FA754B1C00FBFDF7BD7C285311B21147D2ED9D7464923177188655164"
     },
     {
-      "path": "CustomHeadsetOpenVR/src/Driver/DriverLockout.cpp",
+      "path": "GalaxyXRDriver/src/Driver/DriverLockout.cpp",
       "sha256": "78B3DF24B16A3DBE2203CD1BF4C5F846B12D5649F8E8C374DAB012FE9B5FBB5A"
     },
     {
-      "path": "CustomHeadsetOpenVR/src/Headsets/VrlinkCapabilities.h",
+      "path": "GalaxyXRDriver/src/Headsets/VrlinkCapabilities.h",
       "sha256": "5DB99920B1F8730F6C07CAC8FD197AC79163C3766AF2474B179EB9F837B6A543"
     },
     {
@@ -40,7 +40,7 @@
     "rust": "1.98.1",
     "jsTauriVersions": "@tauri-apps/api 2.5.0, CLI 2.5.0, fs/dialog/shell 2.2.1, opener 2.2.6",
     "artifact": {
-      "path": "output/CustomHeadset-Uninstall-Test-20260915-Final/CustomHeadsetGUI/custom-headset-gui.exe",
+      "path": "output/CustomHeadset-Uninstall-Test-20260915-Final/GalaxyXRDriverGUI/galaxyxrdriver-gui.exe",
       "bytes": 15127552,
       "sha256": "CE8B6B883113127C6F97B630F090CE90A4779096073E446DE4B9BB31634891D3"
     },
@@ -55,39 +55,39 @@
   },
   "finalSourceHashes": [
     {
-      "path": "CustomHeadsetGUI/src-tauri/src/driver_installation.rs",
+      "path": "GalaxyXRDriverGUI/src-tauri/src/driver_installation.rs",
       "sha256": "07CB184D76E27FC39554C59564D1AE26129FFEA9A4942DA5B7A17F3B8081F13B"
     },
     {
-      "path": "CustomHeadsetGUI/src-tauri/src/lib.rs",
+      "path": "GalaxyXRDriverGUI/src-tauri/src/lib.rs",
       "sha256": "9EE19B4F38C32EDCA811623AD257694BDC2877B1EEDB1A4E7EA590C07C2DC3B6"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/helpers.ts",
+      "path": "GalaxyXRDriverGUI/src/app/helpers.ts",
       "sha256": "4C32EAE5CA5E7F939BA5D5C0078C84510E66BD1CA735D9787D8EFD8AC189BB3D"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/tauri_wrapper.ts",
+      "path": "GalaxyXRDriverGUI/src/app/tauri_wrapper.ts",
       "sha256": "098FC007C69B54310C23F98D145302A2EFE97FE698F2DC9EFC7EFC17DA80A18D"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.ts",
+      "path": "GalaxyXRDriverGUI/src/app/pages/about/about.component.ts",
       "sha256": "0F88979803CA61F049B8997E1BF31E8147FF4D77D0BB6E51DD43A9D6F8151528"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.html",
+      "path": "GalaxyXRDriverGUI/src/app/pages/about/about.component.html",
       "sha256": "1A84055253C56979835C8C740F0E7E60FDE61AC082E63ADA4277609133FB3896"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/services/system-diagnostic.service.ts",
+      "path": "GalaxyXRDriverGUI/src/app/services/system-diagnostic.service.ts",
       "sha256": "8AFD00EB2E209A096169AC4E8CFBEBC251CD547AC0612B5BFA987DB1EEF786AA"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/services/steamvr-settings-diff.ts",
+      "path": "GalaxyXRDriverGUI/src/app/services/steamvr-settings-diff.ts",
       "sha256": "840E2697ADCD47FD91522699F7718C284AB834AF084D411DEA6745D5F54853CC"
     },
     {
-      "path": "CustomHeadsetGUI/src/environment-gen.ts",
+      "path": "GalaxyXRDriverGUI/src/environment-gen.ts",
       "sha256": "1BDF9DBA86D5FAC7177FA17F8611C7F0FC90B1D1249CACFBCFDEA82ED070DA84"
     },
     {

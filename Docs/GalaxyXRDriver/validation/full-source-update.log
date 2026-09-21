@@ -1,0 +1,3 @@
+Updated 442 source files. Backup: /mnt/data/source-update-rehearsal/old-project/.source-backups/2026-09-21T14-58-23-058Z-9d0709
+Use GalaxyXRDriverGUI and GalaxyXRDriver.sln from now on. Run npm ci, then rebuild both application and driver.
+PASS full source migration rehearsal: 462 overlay files match exactly; old roots archived; ThirdParty and unique local files preserved.

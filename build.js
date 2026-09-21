@@ -50,7 +50,7 @@ if (vendor == "neutral") {
 }
 
 // Extract version from Config.cpp
-let configCppPath = path.join(__dirname, "CustomHeadsetOpenVR", "src", "Config", "Config.cpp")
+let configCppPath = path.join(__dirname, "GalaxyXRDriver", "src", "Config", "Config.cpp")
 let configCppData = fs.readFileSync(configCppPath, "utf8")
 let versionRegex = /std::string\s*driverVersion\s*=\s*"(\d+\.\d+\.\d+(\-[a-z0-9\.]+)?)"/
 let versionMatch = configCppData.match(versionRegex)
@@ -78,9 +78,9 @@ switch (vendor) {
 
 // Define output directories
 let vendorTag = vendor ? `-${vendor.charAt(0).toUpperCase()}${vendor.slice(1)}` : ""
-let stagingFolder = `CustomHeadset-STAGING-${version}${vendorTag}-Windows`
+let stagingFolder = `GalaxyXRDriver-STAGING-${version}${vendorTag}-Windows`
 let outputDir = path.join(__dirname, "output", stagingFolder)
-let defaultDriverOutput = path.join(__dirname, "output", "CustomHeadsetOpenVR")
+let defaultDriverOutput = path.join(__dirname, "output", "GalaxyXRDriver")
 
 console.log(`Output directory: ${outputDir}`)
 
@@ -140,7 +140,7 @@ if (!fs.existsSync(msbuildPath)) {
 
 // Compute staging paths
 let driverOutput = path.join(outputDir, driverName)
-let guiOutput = path.join(outputDir, "CustomHeadsetGUI")
+let guiOutput = path.join(outputDir, "GalaxyXRDriverGUI")
 
 // Create staging output directories
 fs.mkdirSync(driverOutput, { recursive: true })
@@ -159,14 +159,14 @@ function buildDriverTask() {
 		console.log("")
 		console.log("=== Building driver ===")
 
-		let solutionPath = path.join(__dirname, "CustomHeadsetOpenVR.sln")
+		let solutionPath = path.join(__dirname, "GalaxyXRDriver.sln")
 
 		let msbuildArgs = [
 			solutionPath,
 			"/t:Rebuild",
 			"/p:Configuration=Release",
 			"/p:Platform=x64",
-			`/p:IntermediateOutputPath=CustomHeadsetOpenVR\\x64\\Release\\staging\\`,
+			`/p:IntermediateOutputPath=GalaxyXRDriver\\x64\\Release\\staging\\`,
 			"/p:SkipPostBuild=true",
 			"/m",
 			"/v:minimal",
@@ -213,9 +213,9 @@ function buildDriverTask() {
 			}
 
 			// Rename DLL for vendor
-			let stagingDll = path.join(driverOutput, "bin", "win64", "driver_CustomHeadsetOpenVR.dll")
+			let stagingDll = path.join(driverOutput, "bin", "win64", "driver_GalaxyXRDriver.dll")
 			let renamedDll = path.join(driverOutput, "bin", "win64", `driver_${driverName}.dll`)
-			if (driverName !== "CustomHeadsetOpenVR" && fs.existsSync(stagingDll)) {
+			if (stagingDll !== renamedDll && fs.existsSync(stagingDll)) {
 				fs.renameSync(stagingDll, renamedDll)
 				console.log(`Renamed DLL to driver_${driverName}.dll`)
 			}
@@ -287,7 +287,7 @@ function buildGuiTask() {
 		console.log("")
 		console.log("=== Building GUI ===")
 
-		let guiDir = path.join(__dirname, "CustomHeadsetGUI")
+		let guiDir = path.join(__dirname, "GalaxyXRDriverGUI")
 		let env = { ...process.env, VENDOR: vendor }
 
 		let stdout = []
@@ -311,7 +311,7 @@ function buildGuiTask() {
 				return
 			}
 
-			let tauriBundleDir = path.join(__dirname, "output", "CustomHeadsetGUI", "release")
+			let tauriBundleDir = path.join(__dirname, "output", "GalaxyXRDriverGUI", "release")
             try {
                 console.log(`Staged ${stageCompanion(tauriBundleDir, guiOutput)}`)
             } catch (error) {

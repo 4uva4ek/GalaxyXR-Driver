@@ -8,7 +8,7 @@
     {
       "bytes": 15047168,
       "sha256": "5EA3066953AFDAFC993A8CEAFF954949D2D91FE17CD7A6146BF58BFCE997591D",
-      "path": "CustomHeadsetGUI/custom-headset-gui.exe"
+      "path": "GalaxyXRDriverGUI/galaxyxrdriver-gui.exe"
     },
     {
       "bytes": 1541632,
@@ -21,31 +21,31 @@
   "review": "No issues found in cleanup scope, journals, backup and busy-state wiring",
   "sourceHashes": [
     {
-      "path": "CustomHeadsetGUI/src-tauri/src/driver_installation.rs",
+      "path": "GalaxyXRDriverGUI/src-tauri/src/driver_installation.rs",
       "sha256": "8AB9A9F01B94649853F10DC4868AA49046864ABB8702AD1AB3C5DA6AED0C7A30"
     },
     {
-      "path": "CustomHeadsetGUI/src-tauri/src/lib.rs",
+      "path": "GalaxyXRDriverGUI/src-tauri/src/lib.rs",
       "sha256": "37F16FCA58006CE4CE67F936D64FF7C4FD53E547D68036A676014602CE0E89BC"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/tauri_wrapper.ts",
+      "path": "GalaxyXRDriverGUI/src/app/tauri_wrapper.ts",
       "sha256": "397971C80448AA11A5DD11D11B28EEC5F1F870855752809B22F1959A81FE4024"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/services/system-diagnostic.service.ts",
+      "path": "GalaxyXRDriverGUI/src/app/services/system-diagnostic.service.ts",
       "sha256": "BD85B54AF697E580A3231DBE76DFA8EE50C2ED3DF6F91C59FDA72174BF879C15"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.ts",
+      "path": "GalaxyXRDriverGUI/src/app/pages/about/about.component.ts",
       "sha256": "FBB6EE772B182DCB1F7FBDCA637CFF5BCF3FAAF1FC8F9650FA65B462472B8D16"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.html",
+      "path": "GalaxyXRDriverGUI/src/app/pages/about/about.component.html",
       "sha256": "E00489893C2537446A7EDB034DB4DC8140B3D0B63175BC38510EE97248C18DB6"
     },
     {
-      "path": "CustomHeadsetGUI/src/app/pages/about/about.component.spec.ts",
+      "path": "GalaxyXRDriverGUI/src/app/pages/about/about.component.spec.ts",
       "sha256": "BE779893D6AF0D5D2EB7FD98832A853F4816275DE269BC45DD4255DBC78B5580"
     },
     {

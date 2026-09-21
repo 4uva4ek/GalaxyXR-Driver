@@ -1,12 +1,12 @@
 > **Galaxy XR Companion cumulative update:** see [README-GALAXY-XR-COMPANION.md](README-GALAXY-XR-COMPANION.md) for the current Lit/Tauri setup, source replacement instructions and full portable build. The project background below is retained from the original source.
 
-# CustomHeadsetOpenVR GxR
+# GalaxyXRDriver
 
 A SteamVR driver for the Samsung Galaxy XR over Steam Link / vrlink. It makes the headset and its controllers show up in SteamVR as what they are, fixes controller tracking and throw velocity, and processes the streamed image (color, sharpening, anti-aliasing, distortion correction) right before it is encoded.
 
 It is a fork of [CustomHeadsetOpenVR by sboys3](https://github.com/sboys3/CustomHeadsetOpenVR) and ships as a separate vendor driver (`GalaxyXRNative`), so it can be installed next to the original and switched with one click.
 
-<picture><img src="./CustomHeadsetGUI/public/CustomHeadsetCropped.png" height="96"><img/></picture>
+<picture><img src="./GalaxyXRDriverGUI/public/GalaxyXRDriverCropped.png" height="96"><img/></picture>
 
 ## What it does
 
@@ -26,19 +26,23 @@ It is a fork of [CustomHeadsetOpenVR by sboys3](https://github.com/sboys3/Custom
 - Distortion correction. The Galaxy XR owns its own lens correction, so this driver pre-warps the image before handing it off rather than replacing the profile. Corrections come from camera-measured per-eye displacement maps or by-eye radial curves, with profile export/import.
 - Blackout for leaving the headset connected without burn-in.
 
-Everything is configured from the GUI's **Galaxy XR** page. Identity, input profile, resolution and quality need a SteamVR restart.
+Configure the driver in **Galaxy XR Companion 1.2.0**, using Driver Settings, Image Settings, and the calibration pages. About opens by default and owns installation, setup verification, and Clean Settings. Identity, input profile, resolution and quality changes need a SteamVR restart.
 
 ## Installing
 
 1. Download the latest release from the [releases page](https://github.com/timkhronos/CustomHeadsetOpenVrGxR/releases/latest).
-2. Extract the whole folder from the zip. The `CustomHeadsetGUI` and `GalaxyXRNative` folders must stay next to each other.
-3. Run `Galaxy XR Companion.exe` in `CustomHeadsetGUI`, go to About, press Install.
+2. Extract the whole folder from the zip. The `GalaxyXRDriverGUI` and `GalaxyXRNative` folders must stay next to each other.
+3. Run `Galaxy XR Companion.exe` in `GalaxyXRDriverGUI`, go to About, press Install.
 4. If the stock CustomHeadsetOpenVR driver is also enabled, the GUI shows a notice and a "Switch to this driver" button. Press it.
-5. Restart SteamVR.
+5. On About, select **Start SteamVR** and connect the headset through Steam Link. Wait for **Driver initialization verified in SteamVR**. Installed files and a successful launch request alone do not count as runtime verification. Check the picture and controller tracking in the headset to complete setup.
 
 Older copies of this fork that were installed into `SteamVR\drivers\CustomHeadsetOpenVR` are removed automatically on the first install, and their settings and distortion profiles are copied into the new settings folder.
 
-![Installation Tutorial](Docs/Media/CustomHeadsetInstall.webp)
+![Installation Tutorial](Docs/Media/GalaxyXRDriverInstall.webp)
+
+## Building or applying a source update
+
+The source directories are now `GalaxyXRDriverGUI` and `GalaxyXRDriver`, with `GalaxyXRDriver.sln`. Do not merge the renamed folders blindly into the old layout. Extract a source update separately and use `tools/Apply-SourceUpdate.cjs`; see [the current update instructions](README-GALAXY-XR-COMPANION.md). Existing AppData paths and the `GalaxyXRNative` OpenVR identifier are intentionally retained.
 
 ## Updating
 
@@ -46,11 +50,11 @@ Same as installing: extract the new zip, run the GUI, go to About and press Inst
 
 ## Recommended settings
 
-On the Galaxy XR page:
+In Driver Settings and Image Settings:
 
 - Headset: Native Identity on, Native Render Resolution on (default), Stream Quality Preset High.
 - Controllers: Official Controller Input Profile on. Leave Controller Fix Mode on Kalman CA.
-- Image Processing: Enable on. Leave the Custom Shader on the device pages disabled, the image processing replaces it.
+- Picture mode: keep **SDR 10-bit baseline** for unprocessed SDR output. To tune color or sharpening, turn the baseline off before enabling **Image Enhancements**. To return to the baseline, first turn Image Enhancements off. Enabling the baseline resets picture adjustments and active lens corrections after confirmation.
 
 Then restart SteamVR once.
 

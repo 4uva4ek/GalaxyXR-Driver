@@ -1,0 +1,7 @@
+PASS XML parses: GalaxyXRDriver/GalaxyXRDriver.vcxproj
+PASS XML parses: GalaxyXRDriver/GalaxyXRDriver.vcxproj.filters
+PASS 49 non-ThirdParty C++ source/header entries resolve
+PASS 8 version sources agree on 1.2.0; npm/Cargo names consistent
+PASS 19 JavaScript files pass node --check
+PASS Renamed source roots/solution present; legacy root folders absent
+PASS Workflow YAML parses; renamed GUI/build/test steps inspected

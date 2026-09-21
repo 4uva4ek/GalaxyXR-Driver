@@ -1,0 +1,24 @@
+PASS Navigation: checking, no verified version
+PASS Navigation: not-installed, no verified version
+PASS Navigation: unknown, 1.2.3
+PASS Navigation: installed, no verified version
+PASS Navigation: installed, 1.2.3
+PASS Navigation: checking, 1.2.3
+PASS Deep links are recognized but cannot bypass the installation gate
+PASS Baseline reset is immutable and preserves unrelated and unknown settings
+PASS Baseline cannot be enabled while Image Enhancements is on
+PASS Image Enhancements cannot be enabled while baseline is on
+PASS Explicit transitions require the previous mode to be switched off
+PASS Turning the baseline off does not restore reset picture adjustments
+PASS Legacy overlapping flags show baseline priority without a write on inspection
+PASS Failed baseline save restores confirmed values and reports the error
+PASS Unknown settings cannot be changed or replaced with defaults
+PASS Concurrent mode changes cannot save both modes enabled
+PASS Mode changes wait for pending edits before choosing a snapshot
+PASS Saved defaults may be omitted; effective readback still reports the correct modes
+PASS Removed Supports 10-bit control does not erase old compatibility values
+PASS Disk inspection restores state after external mode edits
+PASS Driver removal retains About and App Settings only
+PASS Installed but SteamVR-disabled driver retains all tabs
+
+Companion modes/navigation: 22/22 passed.

@@ -9,12 +9,12 @@
   "date": "2026-09-16",
   "change": "Headset section renamed Stream Quality and made permanently expanded, using the same static heading style as Image Processing",
   "sourceHash": "C7FCE9B5A455BDD8D81F3A835FD61C5E9A3AC1ED8D5DEDE67BBF9F9CA409A1FB",
-  "source": "CustomHeadsetGUI/src/app/pages/stream-frame/stream-frame.component.html",
+  "source": "GalaxyXRDriverGUI/src/app/pages/stream-frame/stream-frame.component.html",
   "build": "Angular production and Tauri release passed; unchanged verified native DLL reused",
   "binaries": [
     {
       "sha256": "7FF49D52AD6B9FBC7B57FBB25608BCCB5DC210C49630DD3A2410D612B88E4461",
-      "path": "CustomHeadsetGUI/custom-headset-gui.exe"
+      "path": "GalaxyXRDriverGUI/galaxyxrdriver-gui.exe"
     },
     {
       "sha256": "D111458084FC76684786158282B6BFEB1360CEFA9F78C1FC73C6B76D0EE03EB0",
