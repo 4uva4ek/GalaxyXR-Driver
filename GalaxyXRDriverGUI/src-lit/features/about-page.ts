@@ -81,7 +81,7 @@ export class AboutPage extends BasePage {
         : t('Install from this page to make the driver settings tabs available. You can use Clean Settings below before installing.')}</p>
       ${!installed ? html`<div class="setup-actions"><button class="btn primary" type="button" ?disabled=${busy}
         @click=${() => this.installDriver()}>${t('Install Driver')}</button>
-        <button class="btn" type="button" ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check installation and settings')}</button></div>` : nothing}
+        <button class="btn" type="button" ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check installation')}</button></div>` : nothing}
       <h3 class=${initialized ? 'complete' : 'required'}>${initialized ? '✓' : '2.'} ${t('Start SteamVR and verify the driver')}</h3>
       <p>${t('Starting SteamVR initializes the driver and its runtime settings. Connect your Galaxy XR through Steam Link, then wait here for initialization to be confirmed. Having the driver files installed is not enough.')}</p>
       <div role="status" aria-live="polite" class=${initialized ? 'complete' : 'required'}>
@@ -108,7 +108,7 @@ export class AboutPage extends BasePage {
     return html`
       ${fieldRow(t('Installation and settings check'), html`
         <button class="btn primary" type="button" ?disabled=${busy} @click=${() => this.checkSettings()}>
-          ${this.ctx.checks.checking() ? t('Checking…') : t('Check installation and settings')}
+          ${this.ctx.checks.checking() ? t('Checking…') : t('Check installation')}
         </button>`)}
       <div class="field"><div class="note">${t('Reads the configuration files again and synchronizes every setting toggle, including hidden advanced controls. It does not reset settings or restart SteamVR. Missing keys use their defaults; unreadable files are reported as unknown.')}</div></div>
       ${report ? html`

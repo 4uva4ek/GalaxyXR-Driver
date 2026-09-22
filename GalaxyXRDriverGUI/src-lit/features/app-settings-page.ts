@@ -68,6 +68,6 @@ export class AppSettingsPage extends BasePage {
         ]} @change=${(e: CustomEvent) => save({ updateMode: e.detail as AppSetting['updateMode'] })}></app-select>
       `));
     }
-    return html`${appSetting.readFileError() ? noteRow(t('App preferences could not be verified. Correct the file or its permissions, then use Check installation and settings on About.')) : html``}${sectionCards(body)}`;
+    return html`${appSetting.readFileError() ? noteRow(t('App preferences could not be verified. Correct the file or its permissions, then use Check installation on About.')) : html``}${sectionCards(body)}`;
   }
 }

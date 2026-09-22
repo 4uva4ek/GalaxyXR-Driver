@@ -1,6 +1,7 @@
 param(
     [switch]$DriverOnly, [switch]$GuiOnly, [string]$OutputDirectory,
-    [switch]$NoDownload, [switch]$AcceptToolchainLicense, [switch]$SetupOnly
+    [switch]$NoDownload, [switch]$AcceptToolchainLicense, [switch]$SetupOnly,
+    [switch]$InstallMicrosoftBuildTools
 )
 # Local fallback when the full MSBuild solution is unavailable. Requires the
 # MSVC C++ build tools and Windows SDK, prepared automatically when missing. Builds the x64
@@ -26,6 +27,7 @@ function Invoke-NativeLogged {
     try { & $Command } finally { $ErrorActionPreference = $prevEap }
 }
 if ($DriverOnly -and $GuiOnly) { throw 'Choose at most 1 partial-build switch.' }
+if ($InstallMicrosoftBuildTools -and $NoDownload) { throw '-InstallMicrosoftBuildTools cannot be combined with -NoDownload.' }
 $repo = Split-Path $PSScriptRoot -Parent
 $buildRoot = Join-Path $repo 'build'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repo ('output/GalaxyXRDriver-Test-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
@@ -44,6 +46,10 @@ foreach ($name in @('PATH','INCLUDE','LIB','VCToolsInstallDir','VCToolsVersion',
 try {
 # Validate the destination before setup performs network or filesystem work.
 # $PSScriptRoot makes this work from the repository root OR the tools directory.
+# Explicit opt-in only: this installs system C++ prerequisites, not a driver.
+if ($InstallMicrosoftBuildTools) {
+    & (Join-Path $PSScriptRoot 'Install-MicrosoftBuildTools.ps1') -AcceptLicense:$AcceptToolchainLicense -AutoElevate
+}
 . (Join-Path $PSScriptRoot 'Enter-PortableBuildEnvironment.ps1') `
     -DriverOnly:$DriverOnly -GuiOnly:$GuiOnly -NoDownload:$NoDownload `
     -AcceptToolchainLicense:$AcceptToolchainLicense -PrepareDependencies

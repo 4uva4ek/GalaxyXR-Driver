@@ -21,7 +21,7 @@ The build now prepares missing dependencies before compilation. It does not assu
 ## What setup does
 
 1. Reuse a supported x64 Node.js installation with npm, or download a portable Node 22 ZIP from `nodejs.org`. The first bootstrap does not require Python or Git.
-2. Reuse a complete project-local MSVC/Windows SDK cache. Otherwise discover installed Visual Studio C++ Build Tools through the existing developer environment or `vswhere.exe`. If neither is usable, download the MSVC 14.44 family and SDK 26100 family from Microsoft's VS 2022 release catalog. Servicing versions and actual extracted directory names are detected, not hard-coded.
+2. Reuse a complete project-local MSVC/Windows SDK cache. Otherwise discover installed Visual Studio C++ Build Tools through the existing developer environment or `vswhere.exe`. If neither is usable, first attempt Microsoft's signed C++ Build Tools installer (one license confirmation and, when required, a UAC approval); if that attempt is declined or fails, fall back to the verified portable download of the MSVC 14.44 family and SDK 26100 family from Microsoft's VS 2022 release catalog. Servicing versions and actual extracted directory names are detected, not hard-coded. The installer attempt is best-effort and never blocks the build: sessions without administrator approval continue to the portable fallback, which needs no elevation (2026-09-21).
 3. Check compiler, linker, resource tools, headers, and x64 libraries. Compile and link a small Windows/C++ probe before using a freshly downloaded toolchain. An incomplete or failed extraction cannot replace an existing cache or create a successful environment receipt.
 4. For a native build, initialize missing **pinned Git submodules** when the complete checkout contains their gitlinks and Git is available. Existing complete source dependencies are not updated. Source-only ZIPs with no recorded revisions must retain their existing `ThirdParty` directory; no arbitrary upstream branch is selected.
 5. For GUI/full builds, reuse working x64 MSVC Rust/Cargo (minimum 1.85 for this build bootstrap), including its existing homes. Otherwise run the official hash-verified `rustup-init.exe` to prepare a project-local stable/minimal toolchain, with `--no-modify-path`. Existing user Rust settings are not rewritten.
@@ -42,6 +42,8 @@ The acceptance receipt is local to `build/toolchains/microsoft-license.json`. Ex
 
 Tool downloads use HTTPS on an explicit publisher host allowlist, including validated redirect destinations. Executable/archive payloads must match SHA-256 checksums in Microsoft's catalog or the Node/Rust publisher checksum files. TLS certificate validation is not disabled. Interrupted downloads are retried up to three times and corrupt `.part` files are discarded; verified cache entries can be reused on retry. No remote PowerShell/Python script is fetched or executed.
 
+As of 2026-09-21 the publisher's release channel has been observed serving a catalog whose digest no longer matches its own channel entry, and VSIX payloads whose declared sizes are stale while their SHA-256 values are correct. The verification rules are therefore: **SHA-256 is the hard gate; the declared size is advisory** (a mismatch is reported as a WARNING, not an error). If the served channel manifest still fails the catalog digest check after one refresh of the channel/catalog pair, it may be used only if it is structurally a genuine VS installer manifest for the same product version with a non-empty package list, and setup prints a loud WARNING naming both digests; any other mismatch stops setup. The channel and its catalog are always consumed as one verified pair; two different channel snapshots are never mixed.
+
 SDK MSI packages are extracted using Windows Installer's administrative-image operation (`msiexec /a`), not a full Visual Studio installation. A Windows policy, security product, or another active installer can still prevent extraction. Such failures stop the build and point to the MSI log; the script does not request elevation or bypass security policy.
 
 ## Storage and repeat builds
@@ -52,6 +54,7 @@ Build-only dependencies, download receipts, and setup logs live under the ignore
 build/toolchains/
 ├── node/               # Only if a local Node runtime was needed
 ├── msvc/               # Portable compiler/SDK, if no installed tools were usable
+├── .msvc-new/          # Interrupted staging copy; may linger if antivirus holds a rename lock
 ├── cargo/              # Only if project-local Rust was needed
 ├── rustup/             # Only if project-local Rust was needed
 ├── downloads/          # Publisher metadata and checksum-verified payloads
@@ -112,7 +115,9 @@ This local helper produces a portable folder; it does not deploy, register, laun
 - **Partial update:** apply all patch files, including `tools/lib/portable-toolchain.cjs` and both new PowerShell helpers. Do not replace only `Build-Portable.ps1`. Keep the root `.gitignore` exceptions for `tools/lib` when committing.
 - **Download/certificate failure:** read the reported URL and error; check proxy/certificate trust or retry. The downloader uses the Windows system proxy. No certificate bypass is offered.
 - **Another setup is running:** wait for it to finish. The PowerShell bootstrap uses an OS file lock. A `.setup.lock` left by a forcibly killed Node process may be removed only after verifying no build/setup is active; rerun setup afterward.
-- **Interrupted extraction:** retry the same command. Only the fixed incomplete `.msvc-new` staging folder is recreated, and valid downloads are reused. An old/incomplete replaced toolchain is retained as `msvc.previous`; review this backup rather than deleting it blindly if it blocks a later repair.
+- **Interrupted extraction:** retry the same command. A complete `.msvc-new` staging tree from an interrupted run is reused instead of re-downloading, and valid downloads are reused. An old/incomplete replaced toolchain is retained as `msvc.previous`; review this backup rather than deleting it blindly if it blocks a later repair.
+- **Leftover `.msvc-new`:** Windows SmartScreen or Defender can hold persistent locks on a freshly written tool tree, so the staging-to-`msvc` rename may fail. Setup then retries the rename, copies the tree into place instead, and may leave the now-redundant `.msvc-new` folder behind. Once `msvc/` is complete and a build succeeded, the leftover staging folder can be deleted manually; repeat builds do not use it.
+- **Stale declared size from the catalog:** reported as a WARNING (recorded as `sizeMismatch` in the download receipt). This is expected with Microsoft's current release-channel metadata; the SHA-256 check is what enforces payload integrity.
 - **MSI extraction failure:** read `build/toolchains/logs/<SDK installer>.log`. Close other installers and check enterprise Windows Installer policy. Keep the log when reporting a failure.
 - **Compiler/SDK validation failure:** inspect `build/toolchains/logs/compiler-probe.log`. A `cl.exe` file by itself is not a complete compiler/SDK installation.
 - **Missing Git or submodule revisions:** use the complete project checkout with its recorded submodules. The script intentionally does not replace partial/unknown source with an arbitrary upstream release. Git itself is not automatically installed.

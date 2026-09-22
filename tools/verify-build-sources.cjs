@@ -15,6 +15,8 @@ const REQUIRED_BUILD_SOURCES = Object.freeze([
   'tools/Enter-PortableBuildEnvironment.ps1',
   'tools/Setup-PortableBuildTools.ps1',
   'tools/PortableToolchainIO.ps1',
+  'tools/Install-MicrosoftBuildTools.ps1',
+  'tools/tests/toolchain-download.test.cjs',
   'tools/lib/portable-toolchain.cjs',
   'tools/prepare-native-dependencies.cjs',
   'tools/native-dependencies.lock.json',

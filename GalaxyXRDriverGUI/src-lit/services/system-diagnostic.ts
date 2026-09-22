@@ -62,7 +62,12 @@ export class SystemDiagnosticService {
     return this._initTask;
   }
   public readonly pullingSteamVRinstall = new PullingService(() => this.checkSteamVrInstalled(), 'pullingSteamVRinstallk');
-  public readonly PullingDriverinstall = new PullingService(() => this.checkDriverInstalled(), 'PullingDriverinstall');
+  // (2026-09-22) The per-second driver-install polling loop was removed: every
+  // tick reset driverState to 'checking', flipping the About "Not installed"
+  // label to "Checking…" and back — the unreadable one-frame flicker. The
+  // driver install check now runs only on demand: app start (initTask below),
+  // the "Check installation" button (settings-check.ts), and the install /
+  // clean-settings / uninstall flows in this file.
   constructor(public dss: DriverSettingService, public dis: DriverInfoService, private dialog: DialogService, private paths: PathsService) {
     this._initTask = (async () => {
       await Promise.all([dss.initTask, dis.initTask]);
@@ -114,7 +119,6 @@ export class SystemDiagnosticService {
   }
   dispose(): void {
     this.pullingSteamVRinstall.stop();
-    this.PullingDriverinstall.stop();
     this.unwatchSteamVRConfig?.();
   }
 
@@ -187,7 +191,6 @@ export class SystemDiagnosticService {
         if (!current()) return false;
         this.neutralDriverInstalled.set(!!neutral);
         this._driverInstalled.set(version);
-        this.PullingDriverinstall.stop();
         return true;
       }
     }
@@ -425,7 +428,7 @@ export class SystemDiagnosticService {
       const appLoaded = await app.reloadAfterReset();
       const driverLoaded = await this.dss.reloadAfterReset();
       await Promise.all([app.refreshWatch(), this.dss.refreshWatch(), this.dis.refreshWatch()]);
-      if (!appLoaded || !driverLoaded) report.warnings.push('The reset completed, but a settings file could not be reloaded. Use Check installation and settings after resolving its permissions.');
+      if (!appLoaded || !driverLoaded) report.warnings.push('The reset completed, but a settings file could not be reloaded. Use Check installation after resolving its permissions.');
       if (this.steamVRinstalled()) await this.watchSteamVRSettings();
       // Keep installation detection separate from the fact that defaults exist.
       await this.checkDriverInstalled(true, true);
@@ -433,7 +436,7 @@ export class SystemDiagnosticService {
       return report;
     } catch (error) {
       if (completed) {
-        completed.warnings.push(`The reset completed, but automatic UI refresh failed: ${String(error)}. Use Check installation and settings, or reopen the application.`);
+        completed.warnings.push(`The reset completed, but automatic UI refresh failed: ${String(error)}. Use Check installation, or reopen the application.`);
         return completed;
       }
       if (suspended) {

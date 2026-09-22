@@ -932,7 +932,7 @@
         <source>Center Tuner (in-headset)</source>
       </trans-unit>
       <trans-unit id="fluent-fix-b402af5aedef62d7" datatype="html">
-        <source>Check installation and settings</source>
+        <source>Check installation</source>
       </trans-unit>
       <trans-unit id="fluent-fix-f009b62ccccb6ea9" datatype="html">
         <source>Checking installation and saved settings…</source>

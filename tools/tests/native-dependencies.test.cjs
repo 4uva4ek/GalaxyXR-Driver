@@ -129,6 +129,11 @@ test('Windows CRLF sources compare correctly and retain their original bytes', t
 test('Binary libraries are never text-normalized during compatibility checks', () => {
   assert.equal(native.sameSource('x.lib', Buffer.from('one\r\n'), Buffer.from('one\n')), false);
 });
+test('Vendored dependency directories never borrow parent repository objects', t => {
+  const root = fixture(t, true), dep = lock.dependencies.find(d => d.name === 'zlib');
+  assert.equal(fs.existsSync(path.join(root, dep.directory, '.git')), false);
+  assert.equal(native.existingObjectDirectory(root, dep, runGit(root, ['rev-parse', 'HEAD'])), null);
+});
 test('A real gitlink overrides the snapshot fallback without updating the Git index', t => {
   const root = fixture(t, true); const dep = lock.dependencies.find(d => d.name === 'zlib');
   runGit(root, ['rm', '-qr', '--cached', dep.directory]); runGit(root, ['update-index', '--add', '--cacheinfo', '160000', dep.revision, dep.directory]);
@@ -136,12 +141,25 @@ test('A real gitlink overrides the snapshot fallback without updating the Git in
   assert.equal(selected.revision, dep.revision); assert.match(selected.source, /current Git submodule pin/);
   erase(root, 'ThirdParty/zlib/zconf.h'); prepare(root); assert.equal(runGit(root, ['ls-files', '--stage']), before);
 });
-test('Initialized submodule objects repair deleted tracked headers without network/cache', t => {
+test('Nested dependency clone objects repair deleted tracked headers without network/cache', t => {
   const root = fixture(t, true), dep = lock.dependencies.find(d => d.name === 'zlib');
   erase(root, dep.directory); runGit(root, ['clone', '-q', transports.zlib, dep.directory]);
   runGit(root, ['rm', '-qr', '--cached', dep.directory]); runGit(root, ['update-index', '--add', '--cacheinfo', '160000', dep.revision, dep.directory]);
+  assert.equal(fs.lstatSync(path.join(root, dep.directory, '.git')).isDirectory(), true);
+  assert.ok(native.existingObjectDirectory(root, dep, dep.revision));
   erase(root, 'ThirdParty/zlib/zconf.h'); const report = prepare(root, { noDownload: true });
   assert.equal(report.filesAdded, 1); assert.equal(missing(root).length, 0);
+  assert.equal(fs.existsSync(path.join(root, 'build/native-dependencies', `${dep.name}-${dep.revision}.git`)), false);
+});
+test('Initialized submodule objects repair deleted tracked headers without network/cache', t => {
+  const root = fixture(t, true), dep = lock.dependencies.find(d => d.name === 'zlib');
+  runGit(root, ['rm', '-qr', dep.directory]);
+  runGit(root, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', transports.zlib, dep.directory]);
+  assert.equal(fs.lstatSync(path.join(root, dep.directory, '.git')).isFile(), true);
+  assert.ok(native.existingObjectDirectory(root, dep, dep.revision));
+  erase(root, 'ThirdParty/zlib/zconf.h'); const report = prepare(root, { noDownload: true });
+  assert.equal(report.filesAdded, 1); assert.equal(missing(root).length, 0);
+  assert.equal(fs.existsSync(path.join(root, 'build/native-dependencies', `${dep.name}-${dep.revision}.git`)), false);
 });
 test('Unavailable pinned revision fails without selecting latest or changing files', t => {
   const root = fixture(t); erase(root, 'ThirdParty/zlib/zconf.h'); const before = sourceHash(root); const bad = structuredClone(lock); bad.dependencies.find(d => d.name === 'zlib').revision = 'a'.repeat(40);

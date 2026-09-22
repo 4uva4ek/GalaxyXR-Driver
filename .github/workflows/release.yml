@@ -64,6 +64,8 @@ jobs:
         run: |
           node --test .\tools\tests\portable-toolchain.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Portable toolchain bootstrap regressions failed' }
+          node --test .\tools\tests\toolchain-download.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Toolchain download/installer safety regressions failed' }
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -176,5 +178,6 @@ jobs:
           path: |
             build/native-dependencies/*-fetch.log
             build/native-dependencies/restoration-report.json
+            build/toolchains/logs/**
           if-no-files-found: ignore
           retention-days: 7

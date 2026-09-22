@@ -28,12 +28,51 @@ while ($cursor) {
     $cursor = [IO.Path]::GetDirectoryName($cursor)
 }
 [IO.Directory]::CreateDirectory($toolRoot) | Out-Null
+. (Join-Path $PSScriptRoot 'PortableToolchainIO.ps1')
+. (Join-Path $PSScriptRoot 'Install-MicrosoftBuildTools.ps1')
+
+function Test-PortableNativeToolCache {
+    $vcRoot = Join-Path $toolRoot 'msvc/VC/Tools/MSVC'
+    $sdkRoot = Join-Path $toolRoot 'msvc/Windows Kits/10'
+    if (-not (Test-Path -LiteralPath $vcRoot -PathType Container) -or
+        -not (Test-Path -LiteralPath (Join-Path $sdkRoot 'Include') -PathType Container)) { return $false }
+    $vcVersions = @(Get-ChildItem -LiteralPath $vcRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d+(\.\d+)+$' } | Sort-Object { [version]$_.Name } -Descending)
+    $sdkVersions = @(Get-ChildItem -LiteralPath (Join-Path $sdkRoot 'Include') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d+(\.\d+)+$' } | Sort-Object { [version]$_.Name } -Descending)
+    foreach ($vc in $vcVersions) {
+        if ([version]$vc.Name -lt [version]'14.40') { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $vc.FullName 'bin/Hostx64/x64/cl.exe') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath (Join-Path $vc.FullName 'bin/Hostx64/x64/link.exe') -PathType Leaf)) { continue }
+        foreach ($sdk in $sdkVersions) {
+            if ([version]$sdk.Name -lt [version]'10.0.19041.0') { continue }
+            if ((Test-Path -LiteralPath (Join-Path $sdkRoot ("Include/$($sdk.Name)/um/Windows.h")) -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $sdkRoot ("Lib/$($sdk.Name)/um/x64/kernel32.lib")) -PathType Leaf)) { return $true }
+        }
+    }
+    return $false
+}
+
+# The final application package is portable; the compiler does not need to be.
+# Prefer an existing verified cache/installation. When neither exists, try the
+# official C++ Build Tools installer first (one normal license confirmation and
+# UAC approval). Sessions without administrator approval cannot complete that
+# step; portable-toolchain.cjs then falls back to the verified portable
+# toolchain download, which needs no elevation. (2026-09-21)
+if (-not $NoDownload -and -not (Test-PortableNativeToolCache) -and -not (Find-InstalledNativeBuildTools)) {
+    Write-Host '[tools] No compatible MSVC/Windows SDK installation was found. Trying Microsoft C++ Build Tools automatically.'
+    try {
+        Install-MicrosoftBuildTools -AcceptLicense:$AcceptToolchainLicense -AutoElevate
+    } catch {
+        Write-Warning "[tools] Automatic system Build Tools setup did not complete: $($_.Exception.Message). Continuing; the verified portable toolchain download will be used if the tools are still missing."
+    }
+}
+
 try {
     $bootstrapLock = [IO.File]::Open((Join-Path $toolRoot '.bootstrap.lock'),
         [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
 } catch { throw 'Another portable dependency setup is already using this checkout. Wait for it to finish.' }
 try {
-. (Join-Path $PSScriptRoot 'PortableToolchainIO.ps1')
 
 function Test-SupportedBuildNode {
     param([string]$Executable)

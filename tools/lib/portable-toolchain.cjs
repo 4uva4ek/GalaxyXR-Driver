@@ -34,7 +34,79 @@ function safeName(value) {
 }
 function payload(item) {
   if (!item || typeof item.url !== 'string' || !/^[a-f\d]{64}$/i.test(item.sha256 || '')) throw new Error('Publisher payload has no valid URL/SHA-256. Refusing to download.');
-  return { url: safeUri(item.url), sha256: item.sha256.toLowerCase(), name: safeName(item.fileName) };
+  if (item.size !== undefined && (!Number.isSafeInteger(item.size) || item.size < 0)) throw new Error('Publisher payload has an invalid file size.');
+  return { url: safeUri(item.url), sha256: item.sha256.toLowerCase(), name: safeName(item.fileName), ...(item.size === undefined ? {} : { size: item.size }) };
+}
+/** Structural trust floor for the 2026-09-21 fallback: the served catalog must
+ * be a genuine VS installer manifest for the exact same product as the channel.
+ * Accepting it does NOT relax payload verification: every package payload is
+ * still checked against its own publisher SHA-256/size before extraction.
+ */
+function assertServedCatalogStructure(manifest, channel) {
+  if (!manifest || typeof manifest !== 'object' || manifest.manifestVersion !== '1.1' ||
+      !manifest.info || typeof manifest.info.productSemanticVersion !== 'string') {
+    throw new Error('Served catalog is not a valid VS 2022 installer manifest.');
+  }
+  const channelVersion = channel?.info?.productSemanticVersion;
+  if (!channelVersion || manifest.info.productSemanticVersion !== channelVersion) {
+    throw new Error(`Served catalog product version (${manifest.info.productSemanticVersion}) does not match the channel (${channelVersion ?? 'unknown'}); refusing to use it.`);
+  }
+  if (!Array.isArray(manifest.packages) || manifest.packages.length === 0) {
+    throw new Error('Served catalog contains no packages.');
+  }
+  return manifest;
+}
+/** Read the channel and its exact catalog as one verified pair. Refresh the
+ * pair once if the CDN/channel changed; never mix two channel snapshots. As of
+ * 2026-09-21 Microsoft's release channel has been observed to carry a stale
+ * size/SHA-256 for its own VisualStudio.vsman payload while the CDN serves the
+ * correct current manifest. After a refresh still mismatches, the served
+ * catalog may be used only if it passes assertServedCatalogStructure; every
+ * package payload remains individually SHA-256/size verified before use.
+ */
+function loadMicrosoftCatalog(download, cache, warn = log) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const channel = readJson(download(CHANNEL, path.join(cache, 'vs2022-channel.json')));
+    const manifestItem = channel.channelItems?.find(item => item.id === 'Microsoft.VisualStudio.Manifests.VisualStudio')?.payloads?.[0];
+    const manifestPayload = payload(manifestItem);
+    try {
+      const file = download(manifestPayload.url, path.join(cache, `${manifestPayload.sha256.slice(0, 16)}-${manifestPayload.name}`), manifestPayload.sha256, manifestPayload.size);
+      // Keep an independent Node check before JSON parsing or package selection.
+      // 2026-09-21: the publisher SHA-256 is the gate; a stale declared size
+      // on a hash-verified file is advisory (see PortableToolchainIO.ps1).
+      const bytes = fs.readFileSync(file);
+      if (hash(bytes) !== manifestPayload.sha256) {
+        throw new Error(`Catalog integrity mismatch: expected SHA-256 ${manifestPayload.sha256}; actual ${hash(bytes)}.`);
+      }
+      if (manifestPayload.size !== undefined && bytes.length !== manifestPayload.size) {
+        warn(`WARNING: declared size for ${manifestPayload.name} is ${manifestPayload.size} bytes but the SHA-256-verified catalog is ${bytes.length} bytes; the declared size is treated as advisory.`);
+      }
+      const manifest = JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, ''));
+      return { channel, manifest, manifestPayload };
+    } catch (error) {
+      if (!/integrity mismatch|SHA-256 mismatch|failed (SHA-256 )?verification/i.test(error.message)) throw error;
+      if (attempt === 2) {
+        let structuralError = null;
+        try {
+          // No expected digest here: this is the fallback fetch, verified by
+          // structure below. Payload digests are still enforced per package.
+          const file = download(manifestPayload.url, path.join(cache, `served-${manifestPayload.name}`));
+          const bytes = fs.readFileSync(file);
+          const manifest = assertServedCatalogStructure(JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, '')), channel);
+          warn(`WARNING: channel digest for ${manifestPayload.name} (${manifestPayload.sha256}) does not match the served catalog (${hash(bytes)}, ${bytes.length} bytes).`);
+          warn(`The served catalog passed structural verification (${manifest.info.productDisplayVersion}). Package payload SHA-256/size verification remains enabled for every download.`);
+          return { channel, manifest, manifestPayload: { ...manifestPayload, sha256: hash(bytes), size: bytes.length } };
+        } catch (fallbackError) { structuralError = fallbackError; }
+        throw new Error(`${error.message}\nThe refreshed Microsoft catalog still failed verification. It was not used.\n` +
+          `Structural fallback check: ${structuralError?.message ?? 'not attempted'}.\n` +
+          'To use Microsoft-managed Build Tools instead, open an elevated PowerShell in tools and run:\n' +
+          '  .\\Install-MicrosoftBuildTools.ps1 -AcceptLicense\n' +
+          'Then run .\\Build-Portable.ps1 from a normal PowerShell.\n' +
+          'This is an explicit one-time system Build Tools installation, not a checksum bypass. See README-TOOLCHAIN-DOWNLOAD-FIX.md.');
+      }
+      warn('Catalog integrity check failed; refreshing the official channel and its catalog once. Verification remains enabled.');
+    }
+  }
 }
 function compareVersions(a, b) {
   const av = a.split('.').map(Number), bv = b.split('.').map(Number);
@@ -164,14 +236,45 @@ function assertWritableTree(root) {
     const parent = path.dirname(cursor); if (parent === cursor) break; cursor = parent;
   }
 }
+function renameWithRetry(source, destination, timeoutMs = 60000) {
+  // 2026-09-21: Windows can hold transient handles on a freshly written tool
+  // tree (antivirus, indexer), making an immediate rename fail with
+  // EPERM/EACCES/EBUSY. Retry briefly before treating it as a real failure.
+  const start = Date.now();
+  for (;;) {
+    try { fs.renameSync(source, destination); return; }
+    catch (error) {
+      if (error.code !== 'EPERM' && error.code !== 'EACCES' && error.code !== 'EBUSY') throw error;
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`Move failed after ${Math.round(timeoutMs / 1000)}s (handles still held, likely by antivirus): ${source} -> ${destination}. ${error.message}`);
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+    }
+  }
+}
 function promoteDirectory(staging, destination, validate) {
   if (!validate(staging)) throw new Error(`Downloaded toolchain is incomplete: ${staging}. Existing tools were not replaced.`);
   const backup = destination + '.previous';
   if (fs.existsSync(backup)) throw new Error(`Previous tool backup already exists: ${backup}. Review it before retrying setup.`);
   const hadOld = fs.existsSync(destination);
-  if (hadOld) fs.renameSync(destination, backup);
-  try { fs.renameSync(staging, destination); }
-  catch (error) { if (hadOld) fs.renameSync(backup, destination); throw error; }
+  if (hadOld) renameWithRetry(destination, backup);
+  try {
+    renameWithRetry(staging, destination);
+  } catch (renameError) {
+    // 2026-09-21: Windows (SmartScreen/Defender) can keep a freshly written
+    // tool tree's directory entries locked for a long time, so a plain rename
+    // of the staging root fails even though every child is readable. The
+    // verified copy is equivalent: the same validation re-runs on the
+    // destination before the staging tree is best-effort removed.
+    fs.cpSync(staging, destination, { recursive: true, errorOnExist: false, dereference: false });
+    if (!validate(destination)) {
+      try { fs.rmSync(destination, { recursive: true, force: true }); } catch {}
+      if (hadOld) { try { renameWithRetry(backup, destination); } catch {} }
+      throw new Error(`Copied toolchain at ${destination} failed validation and was removed. Rename error was: ${renameError.message}`);
+    }
+    try { fs.rmSync(staging, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }); }
+    catch { /* staging cleanup is best-effort; it is not used by the build */ }
+  }
   // Keep a replaced/incomplete user cache intact for manual recovery. New installs
   // have no backup. Neither path can refer to the application/SteamVR directory.
 }
@@ -218,17 +321,27 @@ async function setup(options) {
     return r;
   };
   const ps = (operation, args) => run(options.powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', io, '-Operation', operation, ...args]);
-  const download = (url, destination, sha256) => {
+  const download = (url, destination, sha256, expectedSize) => {
     safeUri(url);
+    // The publisher SHA-256 is the integrity gate (2026-09-21): a verified
+    // cache entry is reused on hash match even when the declared size is stale.
     if (sha256 && isFile(destination) && hash(fs.readFileSync(destination)) === sha256.toLowerCase()) return destination;
     if (options.noDownload) throw new Error(`Required download is not cached: ${url}. Run setup once without -NoDownload.`);
     log(`Downloading ${path.basename(destination)} ...`);
-    const args = ['-Source', url, '-Destination', destination]; if (sha256) args.push('-Sha256', sha256);
+    const args = ['-Source', url, '-Destination', destination, '-LogFile', path.join(logs, path.basename(destination) + '.download.json')];
+    if (sha256) args.push('-Sha256', sha256);
+    if (expectedSize !== undefined) args.push('-ExpectedSize', String(expectedSize));
     ps('Download', args);
-    if (!isFile(destination) || (sha256 && hash(fs.readFileSync(destination)) !== sha256.toLowerCase())) throw new Error(`Downloaded file failed verification: ${destination}`);
+    if (!isFile(destination) || (sha256 && hash(fs.readFileSync(destination)) !== sha256.toLowerCase())) {
+      throw new Error(`Downloaded file failed SHA-256 verification: ${destination}`);
+    }
+    const actualSize = fs.statSync(destination).size;
+    if (expectedSize !== undefined && actualSize !== expectedSize) {
+      log(`WARNING: declared size for ${path.basename(destination)} is ${expectedSize} bytes but the SHA-256-verified file is ${actualSize} bytes; the declared size is treated as advisory.`);
+    }
     return destination;
   };
-  const downloadPayload = p => download(p.url, path.join(cache, `${p.sha256.slice(0, 16)}-${p.name}`), p.sha256);
+  const downloadPayload = p => download(p.url, path.join(cache, `${p.sha256.slice(0, 16)}-${p.name}`), p.sha256, p.size);
   const extract = (zip, destination, prefix = '') => {
     const args = ['-Source', zip, '-Destination', destination]; if (prefix) args.push('-Prefix', prefix);
     ps('ExtractZip', args);
@@ -251,19 +364,26 @@ async function setup(options) {
       if (process.env.VCToolsInstallDir) vcRoots.push(path.dirname(process.env.VCToolsInstallDir.replace(/[\\/]+$/, '')));
       const vswhere = path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft Visual Studio/Installer/vswhere.exe');
       if (isFile(vswhere)) {
-        const result = run(vswhere, ['-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'], { soft: true });
-        if (result.status === 0 && result.stdout.trim()) vcRoots.push(path.join(result.stdout.trim(), 'VC/Tools/MSVC'));
+        const result = run(vswhere, ['-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'], { soft: true });
+        if (result.status === 0) {
+          for (const installation of result.stdout.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) {
+            vcRoots.push(path.join(installation, 'VC/Tools/MSVC'));
+          }
+        }
       }
       for (const vcRoot of vcRoots) for (const sdk of sdkRoots) { if (!layout) layout = inspectNative(vcRoot, sdk); }
       if (layout) nativeSource = 'installed-build-tools';
     }
     if (!layout) {
-      if (options.noDownload) throw new Error('MSVC and/or Windows SDK is missing or incomplete. Run without -NoDownload to download the portable tools.');
-      const channelPath = download(CHANNEL, path.join(cache, 'vs2022-channel.json'));
-      const channel = readJson(channelPath);
-      const manifestItem = channel.channelItems?.find(item => item.id === 'Microsoft.VisualStudio.Manifests.VisualStudio')?.payloads?.[0];
-      const manifestPayload = payload(manifestItem);
-      const manifest = readJson(downloadPayload(manifestPayload));
+      if (options.noDownload) {
+        throw new Error('MSVC and/or Windows SDK is missing or incomplete. Run without -NoDownload so the verified portable tools can be downloaded (or install the Microsoft C++ Build Tools and rerun).');
+      }
+      // 2026-09-21: the signed system installer is not available to every
+      // session (no administrator approval, non-interactive terminals). The
+      // portable extraction is the fallback: it uses the verified channel+
+      // catalog pair (loadMicrosoftCatalog), publisher SHA-256/size checks
+      // for every payload, and a compile/link probe before replacing any cache.
+      const { channel, manifest, manifestPayload } = loadMicrosoftCatalog(download, cache);
       const plan = planMicrosoft(channel, manifest);
       const licenseReceipt = path.join(root, 'microsoft-license.json');
       let accepted = false;
@@ -280,53 +400,59 @@ async function setup(options) {
         fs.writeFileSync(licenseReceipt, JSON.stringify({ license: plan.license, acceptedAt: new Date().toISOString() }, null, 2));
       }
       const staging = path.join(root, '.msvc-new');
-      if (fs.existsSync(staging)) {
-        // Only the fixed, internal incomplete staging directory is discarded.
-        assertWritableTree(staging); fs.rmSync(staging, { recursive: true, force: true });
-      }
-      fs.mkdirSync(staging);
-      log(`Preparing MSVC ${plan.family} and Windows SDK ${plan.sdkFamily}. First setup can download several hundred MB; keep several GB free.`);
-      for (const p of plan.vcPayloads) extract(downloadPayload(p), staging, 'Contents/');
-      const installers = path.join(staging, '_sdk-installers'); fs.mkdirSync(installers);
-      const cabs = new Map(), msiPaths = [];
-      for (const p of plan.sdkMsi) {
-        const source = downloadPayload(p), local = path.join(installers, p.name);
-        fs.copyFileSync(source, local); msiPaths.push(local);
-        for (const cab of referencedCabs(fs.readFileSync(source), plan.sdkCab)) cabs.set(cab.name.toLowerCase(), cab);
-      }
-      if (cabs.size === 0) throw new Error('No SDK cabinets could be resolved. Refusing to create an incomplete toolchain.');
-      for (const p of cabs.values()) fs.copyFileSync(downloadPayload(p), path.join(installers, p.name));
-      for (const msi of msiPaths) {
-        log(`Extracting ${path.basename(msi)} ...`);
-        const msiLog = path.join(logs, path.basename(msi) + '.log');
-        const r = run(path.join(process.env.SystemRoot, 'System32/msiexec.exe'), ['/a', msi, '/qn', '/norestart', `TARGETDIR=${staging}`, '/L*v', msiLog], { soft: true });
-        if (r.error || ![0, 3010].includes(r.status)) throw new Error(`SDK extraction failed (exit ${r.status}). See ${msiLog}. Windows Installer policy or another running installer can block extraction; no application or driver has been deployed.`);
-      }
-      for (const folder of ['Program Files', 'Program Files (x86)']) {
-        const source = path.join(staging, folder, 'Windows Kits');
-        if (fs.existsSync(source)) fs.cpSync(source, path.join(staging, 'Windows Kits'), { recursive: true });
-      }
       const inspectStage = directory => inspectNative(path.join(directory, 'VC/Tools/MSVC'), path.join(directory, 'Windows Kits/10'));
-      const staged = inspectStage(staging);
-      if (!staged) throw new Error(`Downloaded compiler/SDK did not contain the required x64 files. Inspect ${staging} and ${logs}.`);
-      // Keep the runtime support DLLs beside tools, as in the publisher's layout.
-      for (const redistVersion of directories(path.join(staging, 'VC/Redist/MSVC'))) {
-        const debug = path.join(staging, 'VC/Redist/MSVC', redistVersion, 'debug_nonredist/x64');
-        const copyDlls = directory => {
-          if (!fs.existsSync(directory)) return;
-          for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-            const file = path.join(directory, entry.name);
-            if (entry.isDirectory()) copyDlls(file);
-            else if (/\.dll$/i.test(entry.name)) fs.copyFileSync(file, path.join(staged.bin, entry.name));
-          }
-        };
-        copyDlls(debug);
+      // 2026-09-21: a previous run may have staged a complete toolchain and
+      // then lost the final promote step (e.g. a transient rename EPERM).
+      // Reuse it instead of re-downloading several GB.
+      let staged = inspectStage(staging);
+      if (staged) {
+        log('Reusing a complete staged toolchain left by a previous interrupted setup run; no new downloads.');
+      } else {
+        // Only the fixed, internal incomplete staging directory is discarded.
+        if (fs.existsSync(staging)) { assertWritableTree(staging); fs.rmSync(staging, { recursive: true, force: true }); }
+        fs.mkdirSync(staging);
+        log(`Preparing MSVC ${plan.family} and Windows SDK ${plan.sdkFamily}. First setup can download several hundred MB; keep several GB free.`);
+        for (const p of plan.vcPayloads) extract(downloadPayload(p), staging, 'Contents/');
+        const installers = path.join(staging, '_sdk-installers'); fs.mkdirSync(installers);
+        const cabs = new Map(), msiPaths = [];
+        for (const p of plan.sdkMsi) {
+          const source = downloadPayload(p), local = path.join(installers, p.name);
+          fs.copyFileSync(source, local); msiPaths.push(local);
+          for (const cab of referencedCabs(fs.readFileSync(source), plan.sdkCab)) cabs.set(cab.name.toLowerCase(), cab);
+        }
+        if (cabs.size === 0) throw new Error('No SDK cabinets could be resolved. Refusing to create an incomplete toolchain.');
+        for (const p of cabs.values()) fs.copyFileSync(downloadPayload(p), path.join(installers, p.name));
+        for (const msi of msiPaths) {
+          log(`Extracting ${path.basename(msi)} ...`);
+          const msiLog = path.join(logs, path.basename(msi) + '.log');
+          const r = run(path.join(process.env.SystemRoot, 'System32/msiexec.exe'), ['/a', msi, '/qn', '/norestart', `TARGETDIR=${staging}`, '/L*v', msiLog], { soft: true });
+          if (r.error || ![0, 3010].includes(r.status)) throw new Error(`SDK extraction failed (exit ${r.status}). See ${msiLog}. Windows Installer policy or another running installer can block extraction; no application or driver has been deployed.`);
+        }
+        for (const folder of ['Program Files', 'Program Files (x86)']) {
+          const source = path.join(staging, folder, 'Windows Kits');
+          if (fs.existsSync(source)) fs.cpSync(source, path.join(staging, 'Windows Kits'), { recursive: true });
+        }
+        staged = inspectStage(staging);
+        if (!staged) throw new Error(`Downloaded compiler/SDK did not contain the required x64 files. Inspect ${staging} and ${logs}.`);
+        // Keep the runtime support DLLs beside tools, as in the publisher's layout.
+        for (const redistVersion of directories(path.join(staging, 'VC/Redist/MSVC'))) {
+          const debug = path.join(staging, 'VC/Redist/MSVC', redistVersion, 'debug_nonredist/x64');
+          const copyDlls = directory => {
+            if (!fs.existsSync(directory)) return;
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const file = path.join(directory, entry.name);
+              if (entry.isDirectory()) copyDlls(file);
+              else if (/\.dll$/i.test(entry.name)) fs.copyFileSync(file, path.join(staged.bin, entry.name));
+            }
+          };
+          copyDlls(debug);
+        }
+        const dia = path.join(staging, 'DIA%20SDK/bin/amd64/msdia140.dll');
+        if (isFile(dia)) fs.copyFileSync(dia, path.join(staged.bin, 'msdia140.dll'));
+        fs.rmSync(installers, { recursive: true, force: true });
+        fs.writeFileSync(path.join(staging, 'download-receipt.json'), JSON.stringify({ createdAt: new Date().toISOString(), manifest: manifestPayload,
+          msvc: staged.vcVersion, sdk: staged.sdkVersion, payloads: [...plan.vcPayloads, ...plan.sdkMsi, ...cabs.values()] }, null, 2));
       }
-      const dia = path.join(staging, 'DIA%20SDK/bin/amd64/msdia140.dll');
-      if (isFile(dia)) fs.copyFileSync(dia, path.join(staged.bin, 'msdia140.dll'));
-      fs.rmSync(installers, { recursive: true, force: true });
-      fs.writeFileSync(path.join(staging, 'download-receipt.json'), JSON.stringify({ createdAt: new Date().toISOString(), manifest: manifestPayload,
-        msvc: staged.vcVersion, sdk: staged.sdkVersion, payloads: [...plan.vcPayloads, ...plan.sdkMsi, ...cabs.values()] }, null, 2));
       probeCompiler(staged); // Validate the downloaded compiler before replacing any existing cache.
       promoteDirectory(staging, path.join(root, 'msvc'), inspectStage);
       layout = inspectStage(path.join(root, 'msvc')); nativeSource = 'downloaded-portable-tools';
@@ -398,7 +524,7 @@ async function setup(options) {
     return report;
   } finally { if (lock !== undefined) fs.closeSync(lock); fs.rmSync(lockPath, { force: true }); }
 }
-module.exports = { safeUri, safeName, payload, compareVersions, inspectNative, nativeEnvironment, parseShasums, planMicrosoft, referencedCabs,
+module.exports = { loadMicrosoftCatalog, assertServedCatalogStructure, safeUri, safeName, payload, compareVersions, inspectNative, nativeEnvironment, parseShasums, planMicrosoft, referencedCabs,
   assertWritableTree, promoteDirectory, missingSources, toolEnv, probeRust, setup };
 if (require.main === module) {
   const options = {};

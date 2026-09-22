@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-/** Restore missing native build inputs without changing dependency versions.
- * Works with pinned submodules, vendored folders, and ZIP-only source snapshots.
- * Only absent files are written. Existing files must match the selected revision
- * (text line endings may differ); conflicts stop before any ThirdParty writes.
- * Git is used for authenticated-by-object-ID transport, not shell scripts from
- * the downloaded repositories. No submodule reset/checkout or git add is run.
- */
+
+/* Restore exact pinned native dependency inputs without overwriting local edits. */
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -47,8 +42,6 @@ function loadLock(filename = DEFAULT_LOCK) {
   if (names.size !== Object.keys(OFFICIAL_REPOSITORIES).length) throw new Error('The native dependency lock must contain all five libraries.');
   return lock;
 }
-
-// Do not let a restored input or cache escape through a junction/symlink.
 function safeTarget(root, relative) {
   relativeName(slash(relative));
   const base = path.resolve(root);
@@ -61,11 +54,8 @@ function safeTarget(root, relative) {
   }
   return target;
 }
-
 function requiredFiles(dep, read) {
   const wanted = new Set(dep.required);
-  // The multi-header JSON distribution needs its complete transitive tree. A
-  // json.hpp sentinel alone cannot detect an ignored detail/output directory.
   if (dep.name === 'json') {
     const queue = [...wanted];
     for (let i = 0; i < queue.length; i++) {
@@ -94,7 +84,6 @@ function inspectNativeDependencies(repo, { lock = loadLock() } = {}) {
 function missingSummary(entries) {
   return entries.filter(dep => dep.missing.length).map(dep => `- ${dep.directory}: ${dep.missing.join(', ')}`).join('\n');
 }
-
 function gitRun(args, { cwd, input, logFile, soft = false, git = 'git', timeout = 300000 } = {}) {
   const result = spawnSync(git, args, { cwd, input, windowsHide: true, timeout, maxBuffer: 128 * 1024 * 1024,
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'Never', LC_ALL: 'C', LANG: 'C' } });
@@ -108,8 +97,6 @@ function gitRun(args, { cwd, input, logFile, soft = false, git = 'git', timeout 
   return result;
 }
 function selectedRevision(repo, dep, git = 'git') {
-  // A real current gitlink wins over the ZIP's recorded fallback. No --remote,
-  // branch checkout, reset, or submodule pointer update is used here.
   const result = gitRun(['-C', repo, 'ls-files', '--stage', '--', dep.directory], { git, soft: true, timeout: 15000 });
   if (result.status !== 0) {
     if (/not a git repository/i.test(result.stderr?.toString('utf8') || '')) return { revision: dep.revision, source: 'source-snapshot lock' };
@@ -147,24 +134,47 @@ function parseBatch(buffer, entries) {
   if (offset !== buffer.length) throw new Error('Unexpected trailing Git blob data.');
   return files;
 }
-function existingObjectDirectory(repo, dep, revision, git) {
+
+/**
+ * Return the Git object directory only when `directory` has its own Git
+ * metadata. An initialized submodule has a `.git` file and a standalone clone
+ * has a `.git` directory. A vendored dependency inside the parent repository
+ * has neither, so Git is never allowed to walk upward and borrow parent
+ * objects.
+ *
+ * Prefer the filesystem marker over `rev-parse --show-prefix`/toplevel path
+ * comparisons. Git for Windows can report the same worktree using a different
+ * slash, case, or canonical path spelling, while the `.git` marker has stable
+ * semantics on every supported platform.
+ */
+function existingObjectDirectory(repo, dep, revision, git = 'git') {
   const directory = safeTarget(repo, dep.directory);
-  // Parent repository objects are not dependency objects. Require a distinct
-  // initialized submodule/embedded checkout before trying this offline source.
-  if (!fs.existsSync(path.join(directory, '.git'))) return null;
-  const top = gitRun(['-C', directory, 'rev-parse', '--show-toplevel'], { git });
-  if (path.resolve(top.stdout.toString('utf8').trim()).toLowerCase() !== directory.toLowerCase()) return null;
-  const found = gitRun(['-C', directory, 'cat-file', '-e', `${revision}^{commit}`], { git, soft: true });
+  if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) return null;
+
+  const marker = path.join(directory, '.git');
+  let markerStat;
+  try { markerStat = fs.lstatSync(marker); }
+  catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  if (markerStat.isSymbolicLink() || (!markerStat.isFile() && !markerStat.isDirectory())) return null;
+
+  const found = gitRun(['-C', directory, 'cat-file', '-e', `${revision}^{commit}`], { git, soft: true, timeout: 15000 });
   if (found.status !== 0) return null;
-  return gitRun(['-C', directory, 'rev-parse', '--absolute-git-dir'], { git }).stdout.toString('utf8').trim();
+
+  const gitDir = gitRun(['-C', directory, 'rev-parse', '--absolute-git-dir'], { git, soft: true, timeout: 15000 });
+  if (gitDir.status !== 0) return null;
+  const value = gitDir.stdout.toString('utf8').trim();
+  if (!value) return null;
+  // Feed Git's own absolute spelling back to Git; do not reinterpret it with Node.
+  return value;
 }
+
 function readSnapshot(dep, revision, cache, { noDownload, git = 'git', logFile, transport, existingObjects } = {}) {
-  // `transport` is an explicit API-only fixture seam used by the offline tests.
-  // CLI downloads always use the allowlisted official repository from the lock.
   const objectDir = existingObjects || safeTarget(cache, `${dep.name}-${revision}.git`);
   const run = args => gitRun(['--git-dir', objectDir, ...args], { git, logFile });
   let available = false;
-  if (fs.existsSync(objectDir)) {
+  // Existing submodule paths come from Git itself; let Git validate them even
+  // when Node and Git for Windows use different canonical path spellings.
+  if (existingObjects || fs.existsSync(objectDir)) {
     const check = gitRun(['--git-dir', objectDir, 'cat-file', '-e', `${revision}^{commit}`], { git, soft: true, logFile });
     available = check.status === 0;
   }
@@ -198,7 +208,6 @@ function readSnapshot(dep, revision, cache, { noDownload, git = 'git', logFile, 
 }
 function sameSource(file, actual, expected) {
   if (actual.equals(expected)) return true;
-  // Git's Windows checkout can change LF to CRLF. Do not normalize .lib files.
   if (/\.(?:c|h|cpp|hpp|in|vcxproj|filters|props|targets|txt|md)$/i.test(file) || /(?:^|\/)(?:LICENSE(?:\.MIT)?|COPYING|README)$/.test(file)) {
     return actual.toString('utf8').replace(/\r\n/g, '\n') === expected.toString('utf8').replace(/\r\n/g, '\n');
   }
@@ -221,8 +230,6 @@ function applyPlan(repo, plans) {
     for (const { relative, data } of plans) {
       const target = safeTarget(repo, relative);
       fs.mkdirSync(path.dirname(target), { recursive: true });
-      // O_EXCL avoids replacing an existing file even if another process wrote
-      // it since the validation pass. Roll back only files created by this run.
       const fd = fs.openSync(target, 'wx'); created.push(target);
       try { fs.writeFileSync(fd, data); } finally { fs.closeSync(fd); }
     }
@@ -260,7 +267,6 @@ function prepareNativeDependencies(repo, { noDownload = false, check = false, lo
         repository: dep.repository, added: plan.map(item => item.relative) });
       plans.push(...plan);
     }
-    // All fetched libraries must be compatible before any source is changed.
     const filesAdded = applyPlan(repo, plans);
     const remaining = inspectNativeDependencies(repo, { lock }).filter(dep => dep.missing.length);
     if (remaining.length) throw new Error(`Dependency restoration is incomplete:\n${missingSummary(remaining)}`);
@@ -272,7 +278,7 @@ function prepareNativeDependencies(repo, { noDownload = false, check = false, lo
 }
 
 module.exports = { loadLock, inspectNativeDependencies, requiredFiles, selectedRevision, parseBatch,
-  readSnapshot, repairPlan, applyPlan, safeTarget, sameSource, prepareNativeDependencies };
+  existingObjectDirectory, readSnapshot, repairPlan, applyPlan, safeTarget, sameSource, prepareNativeDependencies };
 if (require.main === module) {
   try {
     const options = {}; let repo = path.resolve(__dirname, '..');
