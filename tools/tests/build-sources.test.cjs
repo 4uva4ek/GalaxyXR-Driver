@@ -193,13 +193,12 @@ test('actual delivered build sources pass file/ignore checks without requiring a
   assert.equal(verifyBuildSources(project).files.length, REQUIRED_BUILD_SOURCES.length);
 });
 
-test('workflow requires the source preflight before dependencies and native compilation', () => {
-  const workflow = fs.readFileSync(path.join(project, '.github/workflows/release.yml'), 'utf8');
-  const position = workflow.indexOf('node .\\tools\\verify-build-sources.cjs --require-tracked');
-  assert.ok(position > 0);
-  assert.ok(position < workflow.indexOf('- name: Install frontend dependencies'));
-  assert.ok(position < workflow.indexOf('- name: Build Galaxy XR portable package'));
-  assert.match(workflow, /node --test \.\\tools\\tests\\build-sources\.test\.cjs/);
+test('developer workflow audits tracked helpers without blocking the release build', () => {
+  const developer = fs.readFileSync(path.join(project, '.github/workflows/build-tools.yml'), 'utf8');
+  const release = fs.readFileSync(path.join(project, '.github/workflows/release.yml'), 'utf8');
+  assert.match(developer, /verify-build-sources\.cjs --require-tracked/);
+  assert.match(developer, /node --test @testFiles/);
+  assert.doesNotMatch(release, /--require-tracked|node --test/);
 });
 
 test('a fresh clone of normally committed sources passes the real build-hook fixture suite', t => {

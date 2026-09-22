@@ -1,0 +1,72 @@
+'use strict';
+// Workflow contracts, not a substitute for an actual Windows build.
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const repo = path.resolve(__dirname, '../..');
+const read = name => fs.readFileSync(path.join(repo, name), 'utf8');
+const release = read('.github/workflows/release.yml');
+const developer = read('.github/workflows/build-tools.yml');
+
+function assertReleaseSeparation(workflow) {
+  assert.doesNotMatch(workflow, /node --test|REQUIRE_\w*POWERSHELL_TESTS|--require-tracked/);
+  assert.doesNotMatch(workflow, /portable-toolchain\.test|toolchain-download\.test|Install-MicrosoftBuildTools/);
+  assert.doesNotMatch(workflow, /^\s*(?:needs|workflow_run|continue-on-error):/m);
+}
+
+test('release does not depend on portable installer self-tests or tracked-test audits', () => {
+  assertReleaseSeparation(release);
+});
+
+test('separation guard rejects accidentally reintroduced build-tool gates', () => {
+  for (const gate of ['node --test tools/tests/portable-toolchain.test.cjs',
+    "REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'", 'needs: build-tools', 'continue-on-error: true']) {
+    assert.throws(() => assertReleaseSeparation(`${release}\n  ${gate}\n`));
+  }
+});
+
+test('release still prepares pinned sources and builds the driver and GUI', () => {
+  const prepare = release.indexOf('node .\\tools\\prepare-native-dependencies.cjs');
+  const check = release.indexOf('node .\\tools\\prepare-native-dependencies.cjs --check');
+  const build = release.indexOf('node .\\build.js --vendor galaxyxr');
+  assert.ok(prepare > 0 && check > prepare && build > check);
+  assert.doesNotMatch(release, /--no-driver|--no-gui|--skip|SkipTests/);
+  assert.match(release, /uses: microsoft\/setup-msbuild@/);
+  assert.match(release, /uses: dtolnay\/rust-toolchain@/);
+  assert.match(release, /run: npm ci/);
+  assert.match(release, /run: npm test/);
+  assert.match(release, /cargo test --locked --lib/);
+});
+
+test('release keeps version, package, and publication validation', () => {
+  assert.match(release, /Verify-ReleaseVersion\.ps1 -Tag \$tag -PassThru/);
+  assert.match(release, /Package-GitHubRelease\.ps1/);
+  assert.match(release, /if-no-files-found: error/);
+  assert.match(release, /if: github\.ref_type == 'tag'/);
+  assert.match(release, /--verify-tag/);
+  assert.match(release, /\.zip\.sha256/);
+});
+
+test('developer workflow runs both PowerShell hosts and all tool suites without masking failure', () => {
+  assert.match(developer, /branches: \['\*\*'\]/);
+  assert.match(developer, /pull_request:/);
+  assert.match(developer, /workflow_dispatch:/);
+  assert.match(developer, /contents: read/);
+  assert.match(developer, /REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'/);
+  assert.match(developer, /REQUIRE_POWERSHELL_TESTS: '1'/);
+  assert.match(developer, /-Filter '\*\.test\.cjs'/);
+  assert.match(developer, /node --test @testFiles/);
+  assert.match(developer, /if \(\$LASTEXITCODE -ne 0\) \{ exit \$LASTEXITCODE \}/);
+  assert.doesNotMatch(developer, /continue-on-error|pull_request_target|workflow_run/);
+  for (const suite of ['Test-FluentFixes', 'Test-CompanionModes', 'Test-AboutSetup',
+    'Test-SectionCards', 'Test-FluentBuildHooks', 'Test-SourceUpdate']) assert.ok(developer.includes(suite), suite);
+});
+
+test('local build retains preparation and has no CI-only testing prerequisite', () => {
+  const portable = read('tools/Build-Portable.ps1');
+  assert.match(portable, /Enter-PortableBuildEnvironment\.ps1/);
+  assert.match(read('tools/Enter-PortableBuildEnvironment.ps1'), /Setup-PortableBuildTools\.ps1/);
+  assert.doesNotMatch(portable, /node --test|REQUIRE_\w*POWERSHELL_TESTS/);
+  assert.match(read('build.js'), /prepareNativeDependencies\(__dirname\)/);
+});

@@ -1,0 +1,68 @@
+name: Build tool compatibility
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: galaxy-xr-build-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+# Deliberately independent of release.yml: installer compatibility is not a
+# prerequisite for compiling with the hosted runner's already installed tools.
+jobs:
+  build-tools:
+    name: Windows build tool tests (PowerShell 5.1 and 7)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'
+      REQUIRE_POWERSHELL_TESTS: '1'
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Verify build sources are tracked
+        run: |
+          node .\tools\verify-build-sources.cjs --require-tracked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # One invocation runs every test file, so a failed suite does not hide
+      # the results of later suites. No npm install or compiler is needed here.
+      - name: Run build tool tests
+        run: |
+          $testFiles = @(Get-ChildItem -LiteralPath .\tools\tests -Filter '*.test.cjs' |
+            Sort-Object Name | ForEach-Object FullName)
+          if ($testFiles.Count -eq 0) { throw 'No build tool test files found' }
+          node --test @testFiles
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run service and packaging regressions
+        if: ${{ !cancelled() }}
+        run: |
+          $tests = @('Test-FluentFixes', 'Test-CompanionModes', 'Test-AboutSetup',
+            'Test-SectionCards', 'Test-FluentBuildHooks', 'Test-SourceUpdate')
+          $failed = @()
+          foreach ($test in $tests) {
+            node ".\tools\$test.cjs"
+            if ($LASTEXITCODE -ne 0) { $failed += $test }
+          }
+          if ($failed.Count) { throw "Failed suites: $($failed -join ', ')" }

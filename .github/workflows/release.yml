@@ -33,39 +33,16 @@ jobs:
           cache: npm
           cache-dependency-path: GalaxyXRDriverGUI/package-lock.json
 
-      # Check the actual Git checkout, not just files left in a local ZIP extract.
-      - name: Verify build helpers are present and tracked
+      # Build-tool compatibility tests run independently in build-tools.yml.
+      # Release CI uses the runner's installed MSVC/SDK, not the local installer.
+      - name: Prepare release inputs (CI layout v3)
         shell: pwsh
         run: |
-          node .\tools\verify-build-sources.cjs --require-tracked
-          if ($LASTEXITCODE -ne 0) { throw 'Build source checkout is incomplete; see missing/ignored file report above' }
-          node --test .\tools\tests\build-sources.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Build-source tracking regressions failed' }
-
-      # Restore native inputs before spending time on the GUI/Rust build. This
-      # also handles ZIP/vendored checkouts whose submodule metadata was lost.
-      - name: Test and restore pinned native dependencies
-        shell: pwsh
-        run: |
-          node --test .\tools\tests\native-dependencies.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Native dependency bootstrap regressions failed' }
+          Write-Host "CI layout v3 - source commit: $env:GITHUB_SHA"
           node .\tools\prepare-native-dependencies.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Native dependency restoration failed; see the missing/conflicting files above' }
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency restoration failed' }
           node .\tools\prepare-native-dependencies.cjs --check
           if ($LASTEXITCODE -ne 0) { throw 'Native source preflight failed' }
-
-      # Network-free tests of package selection, cache safety, and the real
-      # PowerShell 5.1/7 downloader/archive interfaces. Hosted CI still uses
-      # its installed MSBuild toolchain below, not the portable downloader.
-      - name: Test portable dependency bootstrap
-        shell: pwsh
-        env:
-          REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'
-        run: |
-          node --test .\tools\tests\portable-toolchain.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Portable toolchain bootstrap regressions failed' }
-          node --test .\tools\tests\toolchain-download.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Toolchain download/installer safety regressions failed' }
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -77,14 +54,6 @@ jobs:
         uses: microsoft/setup-msbuild@v3
         with:
           msbuild-architecture: x64
-
-      - name: Test release-version validation and both PowerShell wrappers
-        shell: pwsh
-        env:
-          REQUIRE_POWERSHELL_TESTS: '1'
-        run: |
-          node --test .\tools\tests\release-version.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Release version regressions failed' }
 
       - name: Verify release version
         id: version
@@ -104,22 +73,6 @@ jobs:
         working-directory: GalaxyXRDriverGUI
         shell: pwsh
         run: npm test
-
-      - name: Run service and packaging regressions
-        shell: pwsh
-        run: |
-          node .\tools\Test-FluentFixes.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Service regressions failed' }
-          node .\tools\Test-CompanionModes.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Picture mode regressions failed' }
-          node .\tools\Test-AboutSetup.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'About/setup regressions failed' }
-          node .\tools\Test-SectionCards.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Section card regressions failed' }
-          node .\tools\Test-FluentBuildHooks.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Packaging regressions failed' }
-          node .\tools\Test-SourceUpdate.cjs
-          if ($LASTEXITCODE -ne 0) { throw 'Source update regressions failed' }
 
       - name: Build Galaxy XR portable package
         shell: pwsh

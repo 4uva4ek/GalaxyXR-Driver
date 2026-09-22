@@ -131,8 +131,21 @@ test('changed downloader retains hash checks, logs identities, and bypasses HTTP
   const s = fs.readFileSync(path.join(repo, 'tools/PortableToolchainIO.ps1'), 'utf8');
   assert.match(s, /AutomaticDecompression = \[Net.DecompressionMethods\]::GZip -bor \[Net.DecompressionMethods\]::Deflate/);
   assert.match(s, /NoCacheNoStore/); assert.match(s, /Assert-ToolDownloadedFile -Path \$partial/);
+  assert.match(s, /function Get-ToolFileIdentity/);
+  assert.match(s, /\[IO\.File\]::Exists/); assert.match(s, /\[Security\.Cryptography\.SHA256\]::Create\(\)/);
+  assert.doesNotMatch(s, /Get-FileHash/); // Hash the byte stream, not a provider-expanded path.
   assert.match(s, /expectedSha256/); assert.match(s, /actualSha256/);
   assert.doesNotMatch(s, /ServerCertificateValidationCallback|SkipCertificateCheck|Invoke-Expression/);
+});
+test('cache verification catches only invalid data and enforces offline mode before setup', () => {
+  const s = fs.readFileSync(path.join(repo, 'tools/PortableToolchainIO.ps1'), 'utf8');
+  const download = s.slice(s.indexOf('function Invoke-ToolDownload'), s.indexOf('function Expand-ToolZip'));
+  const offline = download.indexOf('if ($NoDownload)');
+  assert.ok(offline > 0);
+  assert.ok(offline < download.indexOf('[IO.Directory]::CreateDirectory'));
+  assert.ok(offline < download.indexOf('New-ToolDownloadRequest $uri'));
+  assert.match(download, /catch \[IO\.InvalidDataException\]/);
+  assert.match(s, /-NoDownload:\$CacheOnly/);
 });
 test('local setup automatically provisions signed Microsoft Build Tools instead of scraping vsman', () => {
   const setup = fs.readFileSync(path.join(repo, 'tools/Setup-PortableBuildTools.ps1'), 'utf8');
@@ -187,13 +200,13 @@ try {
   test(`${host}: strict file verifier accepts exact UTF8 bytes and size`, { skip }, t => success(run(t, `
 $file=Join-Path $Work 'catalog.json'
 [IO.File]::WriteAllBytes($file,[byte[]](123,125))
-$sha=(Get-FileHash -LiteralPath $file).Hash
+$sha='${digest(Buffer.from([123, 125]))}'
 $ok=Assert-ToolDownloadedFile $file -Sha256 $sha -ExpectedSize 2
 if($ok.bytes -ne 2 -or $ok.sha256 -ne $sha){throw 'Wrong byte identity'}`)));
   test(`${host}: verifier rejects wrong SHA and empty bodies; a stale declared size is advisory (2026-09-21)`, { skip }, t => success(run(t, `
 $file=Join-Path $Work 'payload'
 [IO.File]::WriteAllBytes($file,[byte[]](1,2,3))
-$sha=(Get-FileHash -LiteralPath $file).Hash
+$sha='${digest(Buffer.from([1, 2, 3]))}'
 $rejected=$false
 try{Assert-ToolDownloadedFile $file -Sha256 ('a'*64) -ExpectedSize 3|Out-Null}catch{$rejected=$true;if($_.Exception.Message -notmatch 'Actual SHA-256'){throw}}
 if(-not $rejected){throw 'Corrupt download accepted'}
@@ -214,9 +227,23 @@ if(@(Get-ChildItem -LiteralPath $Work -Filter '*.part').Count){throw 'Partial fi
 if(-not (Test-Path -LiteralPath ($file+'.download.json'))){throw 'No diagnostic report'}`)));
   test(`${host}: verified cache can be reused without network`, { skip }, t => success(run(t, `
 $file=Join-Path $Work 'cache';[IO.File]::WriteAllText($file,'verified bytes')
-$sha=(Get-FileHash -LiteralPath $file).Hash
+$sha='${digest('verified bytes')}'
 function New-ToolDownloadRequest { throw 'Network should not be used' }
-Invoke-ToolDownload -Source 'https://download.visualstudio.microsoft.com/fixture' -Destination $file -Sha256 $sha -ExpectedSize (Get-Item -LiteralPath $file).Length`)));
+Invoke-ToolDownload -Source 'https://download.visualstudio.microsoft.com/fixture' -Destination $file -Sha256 $sha -ExpectedSize 14 -NoDownload`)));
+  test(`${host}: dot-sourcing the I/O bridge preserves the caller's offline flag`, { skip }, t => success(run(t, `
+$NoDownload=$true
+. (Join-Path $Root 'tools/PortableToolchainIO.ps1')
+if(-not $NoDownload){throw 'Dot-sourcing reset the caller offline flag'}`)));
+  test(`${host}: cache I/O errors retain the original cause instead of triggering a download`, { skip }, t => success(run(t, `
+$file=Join-Path $Work 'cache';[IO.File]::WriteAllText($file,'verified bytes')
+function Get-ToolFileIdentity { throw 'CACHE_IO_FAILURE: cannot read fixture' }
+function New-ToolDownloadRequest { throw 'NETWORK_REACHED: must not happen' }
+$rejected=$false
+try { Invoke-ToolDownload -Source 'https://nodejs.org/dist/does-not-exist.fixture' -Destination $file -Sha256 ('a'*64) }
+catch {$rejected=$true;if($_.Exception.Message -notmatch 'CACHE_IO_FAILURE'){throw}}
+if(-not $rejected){throw 'Cache read error was suppressed'}
+if(Test-Path -LiteralPath ($file+'.download.json')){throw 'Unexpected network report'}
+if([IO.File]::ReadAllText($file) -ne 'verified bytes'){throw 'Cache bytes changed'}`)));
   test(`${host}: official VS2022 Build Tools bootstrapper URL is allowed but unrelated aka.ms URLs are rejected`, { skip }, t => success(run(t, `
 $ok=Assert-ToolDownloadUri 'https://aka.ms/vs/17/release/vs_buildtools.exe'
 if($ok.AbsolutePath -ne '/vs/17/release/vs_buildtools.exe'){throw 'Bootstrapper URL rejected'}

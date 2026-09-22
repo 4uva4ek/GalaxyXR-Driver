@@ -10,6 +10,8 @@ const { spawnSync } = require('node:child_process');
 const REQUIRED_BUILD_SOURCES = Object.freeze([
   '.gitignore',
   '.github/workflows/release.yml',
+  '.github/workflows/build-tools.yml',
+  'tools/tests/workflows.test.cjs',
   'build.js',
   'tools/Build-Portable.ps1',
   'tools/Enter-PortableBuildEnvironment.ps1',

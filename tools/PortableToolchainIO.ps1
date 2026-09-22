@@ -1,9 +1,10 @@
 # Windows PowerShell 5.1 / PowerShell 7 bridge. No remote script execution.
 # Dot-source for the Node bootstrap; otherwise use the small operation interface.
+# CacheOnly is deliberately distinct from the caller's local-build NoDownload flag.
 param(
     [ValidateSet('Download','ExtractZip')][string]$Operation,
     [string]$Source, [string]$Destination, [string]$Sha256, [string]$Prefix = '',
-    [long]$ExpectedSize = -1, [string]$LogFile
+    [long]$ExpectedSize = -1, [string]$LogFile, [switch]$CacheOnly
 )
 
 function Assert-ToolDownloadUri {
@@ -40,6 +41,25 @@ function New-ToolDownloadRequest {
     return $request
 }
 
+# Stream raw bytes through .NET; paths are literal, including spaces and brackets.
+# The Node tests supply independently calculated digests instead of using this
+# implementation to calculate both the expected and the actual value.
+function Get-ToolFileIdentity {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if (-not [IO.File]::Exists($fullPath)) { throw "File not found: $Path" }
+    $stream = [IO.File]::Open($fullPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $hasher = [Security.Cryptography.SHA256]::Create()
+        try {
+            $bytes = [long]$stream.Length
+            $digestBytes = $hasher.ComputeHash($stream)
+        } finally { $hasher.Dispose() }
+    } finally { $stream.Dispose() }
+    $digest = [BitConverter]::ToString($digestBytes).Replace('-', '').ToLowerInvariant()
+    return @{ sha256 = $digest; bytes = $bytes }
+}
+
 # 2026-09-21: the publisher SHA-256 is the integrity gate; a SHA-256 match
 # proves the exact bytes the publisher attested, so the declared size field is
 # advisory. Microsoft's current catalog has been observed with correct hashes
@@ -49,10 +69,11 @@ function Assert-ToolDownloadedFile {
           [long]$ExpectedSize = -1, [string]$Source = 'download')
     if ($Sha256 -and $Sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid SHA-256 value.' }
     if ($ExpectedSize -lt -1) { throw 'Invalid expected file size.' }
-    $size = (Get-Item -LiteralPath $Path).Length
-    $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $identity = Get-ToolFileIdentity -Path $Path
+    $size = [long]$identity.bytes
+    $actual = [string]$identity.sha256
     if ($size -eq 0 -or ($Sha256 -and $actual -ne $Sha256)) {
-        throw ("Download integrity mismatch (SHA-256): $Source`n" +
+        throw [IO.InvalidDataException]::new("Download integrity mismatch (SHA-256): $Source`n" +
             "Expected SHA-256: $Sha256`nActual SHA-256:   $actual`n" +
             "Declared bytes: $ExpectedSize; received file bytes: $size.`n" +
             'No files from this download were executed or extracted.')
@@ -67,18 +88,26 @@ function Assert-ToolDownloadedFile {
 function Invoke-ToolDownload {
     param([Parameter(Mandatory=$true)][string]$Source,
           [Parameter(Mandatory=$true)][string]$Destination, [string]$Sha256,
-          [long]$ExpectedSize = -1, [string]$LogFile)
+          [long]$ExpectedSize = -1, [string]$LogFile, [switch]$NoDownload)
     $initialUri = Assert-ToolDownloadUri $Source
     if ($Sha256 -and $Sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid SHA-256 value.' }
     if ($ExpectedSize -lt -1) { throw 'Invalid expected file size.' }
-    if ($Sha256 -and (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+    $cacheVerified = $false
+    $cacheFailure = 'No cached file with a supplied SHA-256 is available.'
+    if ($Sha256 -and [IO.File]::Exists([IO.Path]::GetFullPath($Destination))) {
         try {
             $null = Assert-ToolDownloadedFile -Path $Destination -Sha256 $Sha256 -ExpectedSize $ExpectedSize -Source $Source
-            return
-        } catch {
-            # An incomplete/older cache entry is replaced only after a new,
-            # independently verified download succeeds. It is not trusted.
+            $cacheVerified = $true
+        } catch [IO.InvalidDataException] {
+            # Only invalid content is a cache miss. Permission, path, and runtime
+            # errors must surface as themselves, not turn into an unrelated HTTP 404.
+            $cacheFailure = $_.Exception.Message
         }
+    }
+    if ($cacheVerified) { return }
+    if ($NoDownload) { throw "Offline cache unavailable: $Destination`n$cacheFailure" }
+    if ($cacheFailure -ne 'No cached file with a supplied SHA-256 is available.') {
+        Write-Warning "Replacing invalid cache after a verified download: $Destination`n$cacheFailure"
     }
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Destination))) | Out-Null
     $partial = $Destination + '.' + [Guid]::NewGuid().ToString('N') + '.part'
@@ -124,8 +153,9 @@ function Invoke-ToolDownload {
                             try { $inputStream.CopyTo($outputStream) }
                             finally { $outputStream.Dispose() }
                         } finally { $inputStream.Dispose() }
-                        $record.actualFileBytes = (Get-Item -LiteralPath $partial).Length
-                        $record.actualSha256 = (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant()
+                        $downloadIdentity = Get-ToolFileIdentity -Path $partial
+                        $record.actualFileBytes = [long]$downloadIdentity.bytes
+                        $record.actualSha256 = [string]$downloadIdentity.sha256
                         # HTTP Content-Length describes the wire representation;
                         # after decompression it need not equal the file's size.
                         # The publisher SHA-256 is the integrity gate; the
@@ -141,7 +171,7 @@ function Invoke-ToolDownload {
                 return
             } catch {
                 $record.error = $_.Exception.Message
-                if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+                if ([IO.File]::Exists($partial)) { [IO.File]::Delete($partial) }
                 if ($attempt -eq 3) {
                     throw "Download failed after $attempt attempts: $Source`n$($_.Exception.Message)`nDownload report: $LogFile"
                 }
@@ -154,7 +184,7 @@ function Invoke-ToolDownload {
             }
         }
     } finally {
-        if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+        if ([IO.File]::Exists($partial)) { [IO.File]::Delete($partial) }
         [Net.ServicePointManager]::SecurityProtocol = $previousProtocol
     }
 }
@@ -209,9 +239,13 @@ if ($MyInvocation.InvocationName -ne '.') {
     $ErrorActionPreference = 'Stop'
     try {
         switch ($Operation) {
-            'Download' { Invoke-ToolDownload -Source $Source -Destination $Destination -Sha256 $Sha256 -ExpectedSize $ExpectedSize -LogFile $LogFile }
+            'Download' { Invoke-ToolDownload -Source $Source -Destination $Destination -Sha256 $Sha256 -ExpectedSize $ExpectedSize -LogFile $LogFile -NoDownload:$CacheOnly }
             'ExtractZip' { Expand-ToolZip -Source $Source -Destination $Destination -Prefix $Prefix }
             default { throw 'Specify -Operation Download or ExtractZip.' }
         }
-    } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+    } catch {
+        [Console]::Error.WriteLine($_.Exception.Message)
+        [Console]::Error.WriteLine($_.ScriptStackTrace)
+        exit 1
+    }
 }

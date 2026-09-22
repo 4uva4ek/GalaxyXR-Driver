@@ -213,7 +213,7 @@ test('Simulated npm failure cannot create a success stamp or environment receipt
 });
 
 // The following are actual Windows PowerShell / PowerShell 7 tests, not a parser
-// emulation. Missing hosts are skips locally and failures in the release workflow.
+// emulation. Missing hosts are skips locally and failures in the build-tool workflow.
 const knownHosts = process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'] : ['powershell', 'pwsh'];
 for (const host of knownHosts) {
   const probe = spawnSync(host, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'], { encoding: 'utf8' });
@@ -228,9 +228,45 @@ for (const host of knownHosts) {
   test(`${host}: downloader reuses a checksum-verified cache without network`, { skip }, t => {
     const dir = temp(t), cached = file(dir, 'cached.bin', 'unchanged fixture');
     const digest = crypto.createHash('sha256').update('unchanged fixture').digest('hex');
-    const r = runPs(path.join(repo, 'tools/PortableToolchainIO.ps1'), ['-Operation', 'Download', '-Source', 'https://nodejs.org/dist/does-not-exist.fixture', '-Destination', cached, '-Sha256', digest]);
-    assert.equal(r.status, 0, r.stdout + r.stderr); assert.equal(fs.readFileSync(cached, 'utf8'), 'unchanged fixture');
+    const r = runPs(path.join(repo, 'tools/PortableToolchainIO.ps1'), ['-Operation', 'Download', '-Source', 'https://nodejs.org/dist/does-not-exist.fixture', '-Destination', cached, '-Sha256', digest, '-CacheOnly']);
+    assert.ifError(r.error); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(fs.readFileSync(cached, 'utf8'), 'unchanged fixture');
+    assert.deepEqual(fs.readdirSync(dir), ['cached.bin'], 'Cache reuse must not create download reports or partial files.');
   });
+  test(`${host}: literal-path file identity agrees with Node for arbitrary binary bytes`, { skip }, t => {
+    const dir = temp(t);
+    const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('line 1\r\nline 2\n'), Buffer.from(Array.from({ length: 256 }, (_, i) => i))]);
+    const payload = file(dir, 'literal [binary] file.bin', bytes);
+    const script = file(dir, 'identity.ps1', `param([string]$Root,[string]$File)\n$ErrorActionPreference='Stop'\n. (Join-Path $Root 'tools/PortableToolchainIO.ps1')\nGet-ToolFileIdentity -Path $File | ConvertTo-Json -Compress\n`);
+    const r = runPs(script, [repo, payload]);
+    assert.ifError(r.error); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.deepEqual(JSON.parse(r.stdout), { sha256: crypto.createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length });
+  });
+  test(`${host}: offline cache accepts a correct hash despite stale size metadata`, { skip }, t => {
+    const dir = temp(t), cached = file(dir, 'cached.bin', 'unchanged fixture');
+    const digest = crypto.createHash('sha256').update('unchanged fixture').digest('hex').toUpperCase();
+    const r = runPs(path.join(repo, 'tools/PortableToolchainIO.ps1'), ['-Operation', 'Download', '-Source', 'https://nodejs.org/dist/does-not-exist.fixture', '-Destination', cached, '-Sha256', digest, '-ExpectedSize', '999', '-CacheOnly']);
+    assert.ifError(r.error); assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /advisory/);
+    assert.deepEqual(fs.readdirSync(dir), ['cached.bin']);
+  });
+  for (const contents of [null, '', 'corrupt fixture']) {
+    test(`${host}: offline ${contents === null ? 'missing' : contents === '' ? 'empty' : 'corrupt'} cache fails without network or filesystem changes`, { skip }, t => {
+      const dir = temp(t), cached = path.join(dir, 'cache', 'cached.bin');
+      if (contents !== null) file(dir, 'cache/cached.bin', contents);
+      const digest = crypto.createHash('sha256').update('expected fixture').digest('hex');
+      const r = runPs(path.join(repo, 'tools/PortableToolchainIO.ps1'), ['-Operation', 'Download', '-Source', 'https://nodejs.org/dist/does-not-exist.fixture', '-Destination', cached, '-Sha256', digest, '-CacheOnly']);
+      assert.ifError(r.error); assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /Offline cache unavailable/);
+      assert.doesNotMatch(r.stdout + r.stderr, /Download attempt|Download failed after|404/);
+      if (contents === null) assert.deepEqual(fs.readdirSync(dir), []);
+      else {
+        assert.equal(fs.readFileSync(cached, 'utf8'), contents);
+        assert.deepEqual(fs.readdirSync(path.dirname(cached)), ['cached.bin']);
+        assert.match(r.stderr, /Expected SHA-256:[\s\S]*Actual SHA-256:/);
+      }
+    });
+  }
   test(`${host}: downloader rejects a non-official URL before writing`, { skip }, t => {
     const dir = temp(t), destination = path.join(dir, 'never-created');
     const r = runPs(path.join(repo, 'tools/PortableToolchainIO.ps1'), ['-Operation', 'Download', '-Source', 'https://untrusted.invalid/installer', '-Destination', destination]);
