@@ -5,7 +5,7 @@
 import { html, LitElement, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, fieldStyles, sectionCards } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
 import { t, tHtml } from '../locale/i18n';
 import '../ui/controls';
 import './driver-banner';
@@ -436,7 +436,7 @@ export class DriverSettingsPage extends BasePage {
       }
     }
 
-    return html`<app-system-ready .ctx=${this.ctx}>${sectionCards(body)}</app-system-ready>`;
+    return html`<app-system-ready .ctx=${this.ctx}>${this.sectionCardsFor(body)}</app-system-ready>`;
   }
 }
 

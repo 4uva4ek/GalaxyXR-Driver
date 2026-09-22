@@ -1594,6 +1594,55 @@
       <trans-unit id="fluent-fix-53f595c13ea3a4a1" datatype="html">
         <source>vrlink Headset Profile</source>
       </trans-unit>
+      <trans-unit id="setup-layout-7c8218244501762b" datatype="html">
+        <source>A standalone SteamVR vendor driver for the Samsung Galaxy XR over Steam Link. It gives the headset and its controllers their native identity, models and bindings in SteamVR, corrects controller tracking and throw velocity, and adds the ability to process the streamed image (color, sharpening, distortion correction) before it is encoded.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-d73011a1745d9f9e" datatype="html">
+        <source>Galaxy XR Companion</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-7013af4c42fe4380" datatype="html">
+        <source>Setup</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-9f1b237b5dc314ed" datatype="html">
+        <source>Cleanup</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-9fe4c68ec20dda7c" datatype="html">
+        <source>Driver</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-f26f3275e735bdf6" datatype="html">
+        <source>Check for updates</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-7c29b88ddeb4e3a4" datatype="html">
+        <source>Uninstall the driver and restore recorded SteamVR settings. Close SteamVR first.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-9ec9b64070341141" datatype="html">
+        <source>Next, use Start SteamVR on Setup and connect your headset through Steam Link. Wait for Driver initialization verified in SteamVR before considering setup complete.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-2a04296ad3dcff17" datatype="html">
+        <source>After installation, start SteamVR from Setup to initialize and verify the driver again.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-74097449791198fa" datatype="html">
+        <source>App preferences could not be verified. Correct the file or its permissions, then use Check installation on Setup.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-cf737651c72bacfe" datatype="html">
+        <source>The driver install needs a SteamVR installation. If SteamVR is already installed, launch it once (this registers its OpenVR paths) and then retry. Install SteamVR from Steam, launch it once, then return to Setup and check again.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-fa93ba241dc77c39" datatype="html">
+        <source>Close SteamVR completely first. This resets all Companion-controlled driver settings to their defaults: headset and controller tuning, color, image enhancements, encoder overrides, and active distortion/calibration choices. Unsaved edits are discarded. App preferences, such as the color scheme, are kept.
+
+Recorded SteamVR changes are restored to their previous values (or removed to use SteamVR defaults). Recognized old identity settings are cleaned. Other SteamVR settings, room setup, game bindings, installed drivers and saved profile files are kept. Driver enable/block choices are not changed.
+
+A recovery backup is created before any file is changed. You can clean before installing. After installing or cleaning, start SteamVR from Setup to initialize and verify the driver.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-cleanup-note-20260922" datatype="html">
+        <source>Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-c27e7bcd7dcbc754" datatype="html">
+        <source>Driver enablement is unknown. Run the installation and settings check on the Setup page.</source>
+      </trans-unit>
+      <trans-unit id="setup-layout-4f2efa8671d64af1" datatype="html">
+        <source>Open Setup to check installation and settings</source>
+      </trans-unit>
     </body>
   </file>
 </xliff>

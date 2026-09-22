@@ -3,7 +3,7 @@ import { get_galaxyxr_runtime_status, type DriverRuntimeStatus } from '../platfo
 import type { SystemDiagnosticService } from './system-diagnostic';
 
 /** Installation and current-session verification are different states. Polling
- * is owned by About's lifecycle, so there is no permanent hidden background job. */
+ * is owned by Setup's lifecycle, so there is no permanent hidden background job. */
 export class DriverStartupService {
   private readonly _status = signal<DriverRuntimeStatus | undefined>(undefined);
   readonly status = this._status.asReadonly();

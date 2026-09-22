@@ -26,6 +26,7 @@ import { DriverSettingsPage } from './features/driver-settings-page';
 import { DistortionProfilePage } from './features/distortion-profile-page';
 import { StreamFramePage } from './features/stream-frame-page';
 import { AppSettingsPage } from './features/app-settings-page';
+import { SetupPage } from './features/setup-page';
 import { AboutPage } from './features/about-page';
 import {
   AppSwitch,
@@ -70,6 +71,7 @@ export const appCustomElements = {
   DistortionProfilePage,
   StreamFramePage,
   AppSettingsPage,
+  SetupPage,
   AboutPage,
   // Nested helpers are used only by tag name in templates.
   DriverEnableBanner, DriverTroubleshooter, SystemReady, StreamFrameCurve,

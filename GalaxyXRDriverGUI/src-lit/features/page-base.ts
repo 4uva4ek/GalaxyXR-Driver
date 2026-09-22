@@ -176,6 +176,16 @@ export class BasePage extends LitElement {
     next[name] = !next[name];
     this.ctx.galaxy.sections.set(next as unknown as typeof current);
   }
+
+  /** Card renderer for page bodies. Heading containers resolve their
+   * open/closed state through the shared section state, so every container
+   * in the app collapses like the other section cards (2026-09-22). */
+  protected sectionCardsFor(rows: readonly TemplateResult[]): TemplateResult {
+    return sectionCards(rows, {
+      sections: this.ctx.galaxy.sections() as Record<string, boolean>,
+      onToggle: (key: string) => this.toggleSection(key),
+    });
+  }
 }
 
 export interface FieldReset {
@@ -208,12 +218,15 @@ export function noteRow(text: string | TemplateResult): TemplateResult {
 
 /** Section metadata stays with its template: no querying/transplanting DOM nodes,
  * no innerHTML, and no lifecycle changes to nested controls. */
-interface SectionSpec { title: string; depth: number; open: boolean; onToggle?: () => void; }
+interface SectionSpec { title: string; depth: number; open: boolean; onToggle?: () => void; key?: string; }
 const sectionSpecs = new WeakMap<TemplateResult, SectionSpec>();
 
+/** Top-level container heading. Collapsible like every other section card:
+ * its open/closed state lives in the shared section state under a derived
+ * key (open by default), wired in by BasePage.sectionCardsFor (2026-09-22). */
 export function sectionHeading(title: string, level = 0): TemplateResult {
   const result = html`<h2 class="section-title">${title}</h2>`;
-  sectionSpecs.set(result, { title, depth: Math.max(0, Math.min(3, level)), open: true });
+  sectionSpecs.set(result, { title, depth: Math.max(0, Math.min(3, level)), open: true, key: `heading:${title}` });
   return result;
 }
 
@@ -227,7 +240,15 @@ export function sectionRow(title: string, open: boolean, level: number, onToggle
  * to the next heading at the same or a shallower depth. Conditional controls
  * remain controlled by their original feature code. Collapsing does not save
  * settings, and reopening uses the same shared state as before. */
-export function sectionCards(rows: readonly TemplateResult[]): TemplateResult {
+export interface SectionCardsOptions {
+  /** Shared section state (GalaxySettingsBase.sections()) backing the
+   * collapsible heading containers. */
+  sections?: Record<string, boolean>;
+  /** Flip a heading's key in the shared section state. */
+  onToggle?: (key: string) => void;
+}
+
+export function sectionCards(rows: readonly TemplateResult[], opts?: SectionCardsOptions): TemplateResult {
   interface Card { spec: SectionSpec; index: number; children: Array<Card | TemplateResult>; }
   const root: Array<Card | TemplateResult> = [];
   const stack: Card[] = [];
@@ -245,15 +266,21 @@ export function sectionCards(rows: readonly TemplateResult[]): TemplateResult {
     const { spec, index } = item;
     const label = `settings-section-${index}`;
     const body = `${label}-body`;
+    // Heading containers collapse like every other card; their state comes
+    // from the shared section record (open by default).
+    const key = spec.key;
+    const toggle = opts?.onToggle;
+    const open = key ? (opts?.sections ? opts.sections[key] ?? true : true) : spec.open;
+    const onToggle = key ? (toggle ? () => toggle(key) : undefined) : spec.onToggle;
     return html`<section class="section-card level-${spec.depth}" aria-labelledby=${label}>
       <div class="card-heading" role="heading" aria-level=${String(spec.depth + 2)}>
-        ${spec.onToggle ? html`<button type="button" class="section-title collapsible" id=${label}
-          aria-expanded=${String(spec.open)} aria-controls=${body} @click=${spec.onToggle}>
-          <span class="chevron ${spec.open ? '' : 'closed'}" aria-hidden="true">▾</span>
+        ${onToggle ? html`<button type="button" class="section-title collapsible" id=${label}
+          aria-expanded=${String(open)} aria-controls=${body} @click=${onToggle}>
+          <span class="chevron ${open ? '' : 'closed'}" aria-hidden="true">▾</span>
           <span class="section-label">${spec.title}</span>
         </button>` : html`<div class="section-title" id=${label}><span class="section-label">${spec.title}</span></div>`}
       </div>
-      <div class="section-body" id=${body} ?hidden=${!spec.open}>${spec.open ? item.children.map(renderItem) : html``}</div>
+      <div class="section-body" id=${body} ?hidden=${!open}>${open ? item.children.map(renderItem) : html``}</div>
     </section>`;
   };
   return html`${root.map(renderItem)}`;

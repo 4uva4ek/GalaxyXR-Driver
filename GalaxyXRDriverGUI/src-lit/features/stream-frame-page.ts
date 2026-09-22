@@ -6,7 +6,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles, sectionCards } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import '../ui/controls';
 import './driver-banner';
@@ -67,109 +67,6 @@ if (galaxyXr.streamQuality === 'custom') {
   tip: "Set the custom streaming bandwidth budget. Higher bandwidth can improve compression quality only when the connection can sustain it.\n\nWritten to targetBandwidth and recommendedBandwidthMbit (the pacer) and used as the encoder bitrate. The streamer's own request never exceeds 350; above that the encoder is scaled up proportionally. 450 is the headset's practical limit.",
   reset: { can: galaxyXr.customBandwidthMbit != 350, on: () => { galaxyXr.customBandwidthMbit = 350; save(); } }
           }));
-}
-if (advancedMode) {
-          parts.push(sectionRow(t('Encoder'), sections['encoder'], 1, () => this.toggleSection('encoder')));
-if (sections.encoder) {
-            parts.push(fieldRow(t('NVENC Tap'), html`
-      <app-switch .checked=${!!settings.nvencTap} @change=${(e: CustomEvent) => { settings.nvencTap = e.detail; save(); }}></app-switch>
-            `, {
-  tip: "Allow this driver to adjust NVIDIA's video encoder. These controls require a supported NVIDIA encoder path and may need a new stream connection.\n\nHooks the streamer's video encoder setup and applies the settings below on every encoder init and reconfigure. Every change is tried once and, if the encoder rejects it, retried with the streamer's own values, so the worst case is stock behaviour plus a log line. Off = stock streamer (the tier then only sets tile width and bandwidth). Requires an NVIDIA GPU; turn on BEFORE launching SteamVR.",
-  reset: { can: settings.nvencTap != defaults.nvencTap, on: () => { galaxy.reset('nvencTap'); } }
-            }));
-if (settings.nvencTap) {
-              parts.push(sectionRow(t('Advanced'), sections['encoderAdv'], 2, () => this.toggleSection('encoderAdv')));
-if (sections.encoderAdv) {
-                parts.push(fieldRow(t('Bandwidth Override (Mbit/s)'), html`
-      <app-number .value=${settings.nvencBandwidthOverrideMbit} step="25" min="0" max="600" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencBandwidthOverrideMbit = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Override the normal stream bandwidth budget. 0 uses the selected stream preset instead of forcing a separate value.\n\n0 follows the tier (or custom) bandwidth. Nonzero writes both the network pacer and the encoder bitrate at once, replacing the tier value.",
-  reset: { can: settings.nvencBandwidthOverrideMbit != defaults.nvencBandwidthOverrideMbit, on: () => { galaxy.reset('nvencBandwidthOverrideMbit'); } }
-                }));
-                parts.push(fieldRow(t('VBV Frames'), html`
-      <app-number .value=${settings.nvencVbvFrames} step="1" min="0" max="30" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencVbvFrames = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Set how much video the encoder may buffer. A smaller buffer can reduce delay but makes sudden complex scenes harder to encode cleanly.\n\nVBV = average bitrate per frame times this, which bounds how large any single frame can be. 2 caps vegetation peaks and reset key frames at about two frame budgets, far below the streamer's 2 MB send limit. 0 leaves the streamer's value.",
-  reset: { can: settings.nvencVbvFrames != defaults.nvencVbvFrames, on: () => { galaxy.reset('nvencVbvFrames'); } }
-                }));
-                parts.push(fieldRow(t('Preset Override (P1-P7)'), html`
-      <app-number .value=${settings.nvencPreset} step="1" min="0" max="7" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencPreset = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Choose the NVIDIA encoding preset. Keep automatic selection unless you are testing a specific quality or latency trade-off.\n\n0 = automatic by NVENC engine count (3 engines: P7, 2: P5, 1: P4; logged as 'preset AUTO'). Higher presets spend more encoder time for better quality at the same bitrate; P7 needs the split across three engines to hold 90 fps.",
-  reset: { can: settings.nvencPreset != defaults.nvencPreset, on: () => { galaxy.reset('nvencPreset'); } }
-                }));
-                parts.push(fieldRow(t('Force CBR'), html`
-      <app-switch .checked=${!!settings.nvencForceCbr} @change=${(e: CustomEvent) => { settings.nvencForceCbr = e.detail; save(); }}></app-switch>
-                `, {
-  tip: "Force constant-bitrate encoding. This changes how the encoder spends its bandwidth budget and can alter image quality and latency.\n\nSwitches rate control to constant bitrate with low-delay key-frame scaling. Every frame gets the same budget, so complex scenes get slightly coarser instead of larger and later. Recommended on.",
-  reset: { can: settings.nvencForceCbr != defaults.nvencForceCbr, on: () => { galaxy.reset('nvencForceCbr'); } }
-                }));
-                parts.push(fieldRow(t('CBR Key Frame Budget (x frames)'), html`
-      <app-number .value=${settings.nvencLowDelayKfScale} step="1" min="1" max="4" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencLowDelayKfScale = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Limit the size of keyframes, which refresh the whole video picture. Large keyframes can create brief network or decoding spikes.\n\nWith Force CBR: how many P-frame budgets the key frame after an encoder reset may spend (1-4). 2 fits inside VBV Frames 2 and gives a sharper key frame than 1.",
-  reset: { can: settings.nvencLowDelayKfScale != defaults.nvencLowDelayKfScale, on: () => { galaxy.reset('nvencLowDelayKfScale'); } }
-                }));
-                parts.push(fieldRow(t('Split-Frame Encoding'), html`
-      <app-number .value=${settings.nvencSplitMode} step="1" min="0" max="15" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencSplitMode = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Allow multiple NVIDIA encoder engines to share the work, where supported. Availability depends on the GPU and encoding mode.\n\nSpreads each frame across the GPU's NVENC engines. The driver only does this by itself for presets P1-P4; higher presets need it forced or they drop to ~50 fps. 1 = forced, driver picks the strip count (measured best); 2-4 force that many strips; 15 disables; 0 leaves the driver's choice. Nonzero opens the encoder session as API 12.1 (look for 'SESSION UPGRADE' in the log).",
-  reset: { can: settings.nvencSplitMode != defaults.nvencSplitMode, on: () => { galaxy.reset('nvencSplitMode'); } }
-                }));
-                parts.push(fieldRow(t('Foveated QP: Fovea / Periphery Delta'), html`
-      <app-number .value=${settings.nvencQpFovea} step="1" min="-10" max="0" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencQpFovea = e.detail; } save(); }}></app-number>
-      <app-number .value=${settings.nvencQpPeriphery} step="1" min="0" max="10" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencQpPeriphery = e.detail; } save(); }}></app-number>
-                `, {
-  tip: "Spend more encoding quality on the center of the image than on the edges. This advanced option can change artifacts in different areas.\n\nMoves bits within the same bitrate: a QP offset per block, negative for the gaze cut-out tile (finer, more bits) and positive for the periphery tile (coarser, fewer bits), blended over the same edge falloff as the sharpening. 0 / 0 = off. Small values (-2 / 2, -3 / 3) work; large ones starve the whole frame.",
-  reset: { can: settings.nvencQpFovea != 0 || settings.nvencQpPeriphery != 0, on: () => { settings.nvencQpFovea = 0; settings.nvencQpPeriphery = 0; save(); } }
-                }));
-                parts.push(fieldRow(t('Limited Range Video (fixes the black floor)'), html`
-      <app-switch .checked=${!!settings.postPack.limitedRange} @change=${(e: CustomEvent) => { settings.postPack.limitedRange = e.detail; settings.postPack.enable = settings.postPack.enable || settings.postPack.limitedRange; save(); }}></app-switch>
-                `, {
-  tip: "Correct a mismatch between full-range and limited-range video levels. Use this only to diagnose washed-out blacks or crushed shadows; it requires the NVIDIA encoder adjustment path.\n\nSteam Link produces full-range video; the Galaxy XR client handles full-range imperfectly and lifts the 'black floor'. This remaps luma to 16-235 and chroma to 16-240 on the packed frame and tags the stream as limited range, so the headset expands it on its standard path. Measured to fix the black floor with the xrvst2ue-identity APK (no effect on the older Quest-Pro-identity build). Needs the NVENC Tap.",
-  reset: { can: settings.postPack.limitedRange != true, on: () => { settings.postPack.limitedRange = true; settings.postPack.enable = settings.postPack.enable || true; save(); } }
-                }));
-                parts.push(sectionRow(t('Debug'), sections['encoderDbg'], 3, () => this.toggleSection('encoderDbg')));
-if (sections.encoderDbg) {
-                  parts.push(fieldRow(t('vrlink Debug Overlay'), html`
-      <app-switch .checked=${!!galaxyXr.vrlinkDebugOverlay} @change=${(e: CustomEvent) => { galaxyXr.vrlinkDebugOverlay = e.detail; save(); }}></app-switch>
-                  `, {
-  tip: "Show the encoder's diagnostic overlay. Turn it off for normal play after collecting the information you need.\n\nDisplays a coloured overlay on the foveated area and the streamer's advanced graphs (encode time, RFOV %). Diagnostic only; takes effect at the next connect."
-                  }));
-                  parts.push(fieldRow(t('NVENC: Fix Level'), html`
-      <app-switch .checked=${!!settings.nvencFixLevel} @change=${(e: CustomEvent) => { settings.nvencFixLevel = e.detail; save(); }}></app-switch>
-                  `, {
-  tip: "Let the encoder choose an HEVC level and tier suitable for the stream. Incorrect manual choices can prevent a stream from starting.\n\nSets HEVC level to auto-select and tier to High on every encoder init and reconfigure. The streamer hardcodes level 6.1, which the 8192-row canvas exceeds at 90 Hz, so its reconfigures were being rejected. Keep on.",
-  reset: { can: settings.nvencFixLevel != defaults.nvencFixLevel, on: () => { galaxy.reset('nvencFixLevel'); } }
-                  }));
-                  parts.push(fieldRow(t('Peak Headroom (%)'), html`
-      <app-number .value=${settings.nvencMaxBitrateHeadroomPct} step="5" min="0" max="100" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencMaxBitrateHeadroomPct = e.detail; } save(); }}></app-number>
-                  `, {
-  tip: "Allow temporary bitrate peaks above the target budget. This mainly affects modes that are not strict constant bitrate.\n\nPeak bitrate over the average, in percent. Only meaningful without Force CBR (under CBR peak = average). 0 measured safe.",
-  reset: { can: settings.nvencMaxBitrateHeadroomPct != defaults.nvencMaxBitrateHeadroomPct, on: () => { galaxy.reset('nvencMaxBitrateHeadroomPct'); } }
-                  }));
-                  parts.push(fieldRow(t('Force Frame Rate'), html`
-      <app-number .value=${settings.nvencForceFps} step="1" min="0" max="120" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencForceFps = e.detail; } save(); }}></app-number>
-                  `, {
-  tip: "Set the frame-rate value used for encoder budgeting. Match the intended stream rate; changing this alone does not change the headset refresh rate.\n\nPins the encoder's frame rate so the per-frame budget is constant. Without it the streamer passes its momentary estimate (down to 12 fps while hitching) and under CBR the next key frame balloons. Recommended 90. 0 leaves the streamer's value.",
-  reset: { can: settings.nvencForceFps != defaults.nvencForceFps, on: () => { galaxy.reset('nvencForceFps'); } }
-                  }));
-                  parts.push(fieldRow(t('Encoder Bitrate (separate, Mbit/s)'), html`
-      <app-number .value=${settings.nvencBitrateMbit} step="25" min="0" max="600" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencBitrateMbit = e.detail; } save(); }}></app-number>
-                  `, {
-  tip: "Override only the encoder's bitrate budget. This does not automatically change network pacing, so mismatched values can cause problems.\n\n0 = the encoder bitrate equals the pacer bandwidth (normal). Nonzero sets only the encoder, for experiments where the pacer and the encoder should differ.",
-  reset: { can: settings.nvencBitrateMbit != defaults.nvencBitrateMbit, on: () => { galaxy.reset('nvencBitrateMbit'); } }
-                  }));
-                  parts.push(fieldRow(t('NVENC: Verbose Log'), html`
-      <app-switch .checked=${!!settings.nvencVerbose} @change=${(e: CustomEvent) => { settings.nvencVerbose = e.detail; save(); }}></app-switch>
-                  `, {
-  tip: "Write detailed NVIDIA encoder diagnostics to the log. Use this for troubleshooting; extra logging can add overhead and large files.\n\nLogs every reconfigure and hex-dumps the encoder structs. For offline decoding of driver_vrlink's encoder setup; leave off.",
-  reset: { can: settings.nvencVerbose != defaults.nvencVerbose, on: () => { galaxy.reset('nvencVerbose'); } }
-                  }));
-}
-}
-}
-}
 }
         parts.push(noteRow(t('Native identity changes take effect after restarting SteamVR.')));
 }
@@ -426,6 +323,107 @@ if (sections.debug) {
   tip: "Record a short, high-detail burst of tracking samples. The extra work can itself cause stutters, so use it only for a focused test.\n\nHigh-rate diagnostic lines (up to 100/s per device) during fast motion, on top of Pose Logging. Log storms during hard throws can hitch the game/stream, so leave this off unless a session is specifically collecting throw diagnostics.",
   reset: { can: settings.poseLogBurst != defaults.poseLogBurst, on: () => { galaxy.reset('poseLogBurst'); } }
           }));
+}
+if (vendor) {
+        parts.push(sectionHeading(t('Encoder')));
+        parts.push(fieldRow(t('NVENC Tap'), html`
+      <app-switch .checked=${!!settings.nvencTap} @change=${(e: CustomEvent) => { settings.nvencTap = e.detail; save(); }}></app-switch>
+            `, {
+  tip: "Allow this driver to adjust NVIDIA's video encoder. These controls require a supported NVIDIA encoder path and may need a new stream connection.\n\nHooks the streamer's video encoder setup and applies the settings below on every encoder init and reconfigure. Every change is tried once and, if the encoder rejects it, retried with the streamer's own values, so the worst case is stock behaviour plus a log line. Off = stock streamer (the tier then only sets tile width and bandwidth). Requires an NVIDIA GPU; turn on BEFORE launching SteamVR.",
+  reset: { can: settings.nvencTap != defaults.nvencTap, on: () => { galaxy.reset('nvencTap'); } }
+            }));
+if (settings.nvencTap) {
+              parts.push(sectionRow(t('Advanced'), sections['encoderAdv'], 1, () => this.toggleSection('encoderAdv')));
+if (sections.encoderAdv) {
+                parts.push(fieldRow(t('Bandwidth Override (Mbit/s)'), html`
+      <app-number .value=${settings.nvencBandwidthOverrideMbit} step="25" min="0" max="600" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencBandwidthOverrideMbit = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Override the normal stream bandwidth budget. 0 uses the selected stream preset instead of forcing a separate value.\n\n0 follows the tier (or custom) bandwidth. Nonzero writes both the network pacer and the encoder bitrate at once, replacing the tier value.",
+  reset: { can: settings.nvencBandwidthOverrideMbit != defaults.nvencBandwidthOverrideMbit, on: () => { galaxy.reset('nvencBandwidthOverrideMbit'); } }
+                }));
+                parts.push(fieldRow(t('VBV Frames'), html`
+      <app-number .value=${settings.nvencVbvFrames} step="1" min="0" max="30" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencVbvFrames = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Set how much video the encoder may buffer. A smaller buffer can reduce delay but makes sudden complex scenes harder to encode cleanly.\n\nVBV = average bitrate per frame times this, which bounds how large any single frame can be. 2 caps vegetation peaks and reset key frames at about two frame budgets, far below the streamer's 2 MB send limit. 0 leaves the streamer's value.",
+  reset: { can: settings.nvencVbvFrames != defaults.nvencVbvFrames, on: () => { galaxy.reset('nvencVbvFrames'); } }
+                }));
+                parts.push(fieldRow(t('Preset Override (P1-P7)'), html`
+      <app-number .value=${settings.nvencPreset} step="1" min="0" max="7" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencPreset = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Choose the NVIDIA encoding preset. Keep automatic selection unless you are testing a specific quality or latency trade-off.\n\n0 = automatic by NVENC engine count (3 engines: P7, 2: P5, 1: P4; logged as 'preset AUTO'). Higher presets spend more encoder time for better quality at the same bitrate; P7 needs the split across three engines to hold 90 fps.",
+  reset: { can: settings.nvencPreset != defaults.nvencPreset, on: () => { galaxy.reset('nvencPreset'); } }
+                }));
+                parts.push(fieldRow(t('Force CBR'), html`
+      <app-switch .checked=${!!settings.nvencForceCbr} @change=${(e: CustomEvent) => { settings.nvencForceCbr = e.detail; save(); }}></app-switch>
+                `, {
+  tip: "Force constant-bitrate encoding. This changes how the encoder spends its bandwidth budget and can alter image quality and latency.\n\nSwitches rate control to constant bitrate with low-delay key-frame scaling. Every frame gets the same budget, so complex scenes get slightly coarser instead of larger and later. Recommended on.",
+  reset: { can: settings.nvencForceCbr != defaults.nvencForceCbr, on: () => { galaxy.reset('nvencForceCbr'); } }
+                }));
+                parts.push(fieldRow(t('CBR Key Frame Budget (x frames)'), html`
+      <app-number .value=${settings.nvencLowDelayKfScale} step="1" min="1" max="4" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencLowDelayKfScale = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Limit the size of keyframes, which refresh the whole video picture. Large keyframes can create brief network or decoding spikes.\n\nWith Force CBR: how many P-frame budgets the key frame after an encoder reset may spend (1-4). 2 fits inside VBV Frames 2 and gives a sharper key frame than 1.",
+  reset: { can: settings.nvencLowDelayKfScale != defaults.nvencLowDelayKfScale, on: () => { galaxy.reset('nvencLowDelayKfScale'); } }
+                }));
+                parts.push(fieldRow(t('Split-Frame Encoding'), html`
+      <app-number .value=${settings.nvencSplitMode} step="1" min="0" max="15" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencSplitMode = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Allow multiple NVIDIA encoder engines to share the work, where supported. Availability depends on the GPU and encoding mode.\n\nSpreads each frame across the GPU's NVENC engines. The driver only does this by itself for presets P1-P4; higher presets need it forced or they drop to ~50 fps. 1 = forced, driver picks the strip count (measured best); 2-4 force that many strips; 15 disables; 0 leaves the driver's choice. Nonzero opens the encoder session as API 12.1 (look for 'SESSION UPGRADE' in the log).",
+  reset: { can: settings.nvencSplitMode != defaults.nvencSplitMode, on: () => { galaxy.reset('nvencSplitMode'); } }
+                }));
+                parts.push(fieldRow(t('Foveated QP: Fovea / Periphery Delta'), html`
+      <app-number .value=${settings.nvencQpFovea} step="1" min="-10" max="0" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencQpFovea = e.detail; } save(); }}></app-number>
+      <app-number .value=${settings.nvencQpPeriphery} step="1" min="0" max="10" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencQpPeriphery = e.detail; } save(); }}></app-number>
+                `, {
+  tip: "Spend more encoding quality on the center of the image than on the edges. This advanced option can change artifacts in different areas.\n\nMoves bits within the same bitrate: a QP offset per block, negative for the gaze cut-out tile (finer, more bits) and positive for the periphery tile (coarser, fewer bits), blended over the same edge falloff as the sharpening. 0 / 0 = off. Small values (-2 / 2, -3 / 3) work; large ones starve the whole frame.",
+  reset: { can: settings.nvencQpFovea != 0 || settings.nvencQpPeriphery != 0, on: () => { settings.nvencQpFovea = 0; settings.nvencQpPeriphery = 0; save(); } }
+                }));
+                parts.push(fieldRow(t('Limited Range Video (fixes the black floor)'), html`
+      <app-switch .checked=${!!settings.postPack.limitedRange} @change=${(e: CustomEvent) => { settings.postPack.limitedRange = e.detail; settings.postPack.enable = settings.postPack.enable || settings.postPack.limitedRange; save(); }}></app-switch>
+                `, {
+  tip: "Correct a mismatch between full-range and limited-range video levels. Use this only to diagnose washed-out blacks or crushed shadows; it requires the NVIDIA encoder adjustment path.\n\nSteam Link produces full-range video; the Galaxy XR client handles full-range imperfectly and lifts the 'black floor'. This remaps luma to 16-235 and chroma to 16-240 on the packed frame and tags the stream as limited range, so the headset expands it on its standard path. Measured to fix the black floor with the xrvst2ue-identity APK (no effect on the older Quest-Pro-identity build). Needs the NVENC Tap.",
+  reset: { can: settings.postPack.limitedRange != true, on: () => { settings.postPack.limitedRange = true; settings.postPack.enable = settings.postPack.enable || true; save(); } }
+                }));
+                parts.push(sectionRow(t('Debug'), sections['encoderDbg'], 2, () => this.toggleSection('encoderDbg')));
+if (sections.encoderDbg) {
+                  parts.push(fieldRow(t('vrlink Debug Overlay'), html`
+      <app-switch .checked=${!!galaxyXr.vrlinkDebugOverlay} @change=${(e: CustomEvent) => { galaxyXr.vrlinkDebugOverlay = e.detail; save(); }}></app-switch>
+                  `, {
+  tip: "Show the encoder's diagnostic overlay. Turn it off for normal play after collecting the information you need.\n\nDisplays a coloured overlay on the foveated area and the streamer's advanced graphs (encode time, RFOV %). Diagnostic only; takes effect at the next connect."
+                  }));
+                  parts.push(fieldRow(t('NVENC: Fix Level'), html`
+      <app-switch .checked=${!!settings.nvencFixLevel} @change=${(e: CustomEvent) => { settings.nvencFixLevel = e.detail; save(); }}></app-switch>
+                  `, {
+  tip: "Let the encoder choose an HEVC level and tier suitable for the stream. Incorrect manual choices can prevent a stream from starting.\n\nSets HEVC level to auto-select and tier to High on every encoder init and reconfigure. The streamer hardcodes level 6.1, which the 8192-row canvas exceeds at 90 Hz, so its reconfigures were being rejected. Keep on.",
+  reset: { can: settings.nvencFixLevel != defaults.nvencFixLevel, on: () => { galaxy.reset('nvencFixLevel'); } }
+                  }));
+                  parts.push(fieldRow(t('Peak Headroom (%)'), html`
+      <app-number .value=${settings.nvencMaxBitrateHeadroomPct} step="5" min="0" max="100" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencMaxBitrateHeadroomPct = e.detail; } save(); }}></app-number>
+                  `, {
+  tip: "Allow temporary bitrate peaks above the target budget. This mainly affects modes that are not strict constant bitrate.\n\nPeak bitrate over the average, in percent. Only meaningful without Force CBR (under CBR peak = average). 0 measured safe.",
+  reset: { can: settings.nvencMaxBitrateHeadroomPct != defaults.nvencMaxBitrateHeadroomPct, on: () => { galaxy.reset('nvencMaxBitrateHeadroomPct'); } }
+                  }));
+                  parts.push(fieldRow(t('Force Frame Rate'), html`
+      <app-number .value=${settings.nvencForceFps} step="1" min="0" max="120" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencForceFps = e.detail; } save(); }}></app-number>
+                  `, {
+  tip: "Set the frame-rate value used for encoder budgeting. Match the intended stream rate; changing this alone does not change the headset refresh rate.\n\nPins the encoder's frame rate so the per-frame budget is constant. Without it the streamer passes its momentary estimate (down to 12 fps while hitching) and under CBR the next key frame balloons. Recommended 90. 0 leaves the streamer's value.",
+  reset: { can: settings.nvencForceFps != defaults.nvencForceFps, on: () => { galaxy.reset('nvencForceFps'); } }
+                  }));
+                  parts.push(fieldRow(t('Encoder Bitrate (separate, Mbit/s)'), html`
+      <app-number .value=${settings.nvencBitrateMbit} step="25" min="0" max="600" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.nvencBitrateMbit = e.detail; } save(); }}></app-number>
+                  `, {
+  tip: "Override only the encoder's bitrate budget. This does not automatically change network pacing, so mismatched values can cause problems.\n\n0 = the encoder bitrate equals the pacer bandwidth (normal). Nonzero sets only the encoder, for experiments where the pacer and the encoder should differ.",
+  reset: { can: settings.nvencBitrateMbit != defaults.nvencBitrateMbit, on: () => { galaxy.reset('nvencBitrateMbit'); } }
+                  }));
+                  parts.push(fieldRow(t('NVENC: Verbose Log'), html`
+      <app-switch .checked=${!!settings.nvencVerbose} @change=${(e: CustomEvent) => { settings.nvencVerbose = e.detail; save(); }}></app-switch>
+                  `, {
+  tip: "Write detailed NVIDIA encoder diagnostics to the log. Use this for troubleshooting; extra logging can add overhead and large files.\n\nLogs every reconfigure and hex-dumps the encoder structs. For offline decoding of driver_vrlink's encoder setup; leave off.",
+  reset: { can: settings.nvencVerbose != defaults.nvencVerbose, on: () => { galaxy.reset('nvencVerbose'); } }
+                  }));
+}
+}
+}
 }
 if (settings.graveyardEnable) {
           parts.push(sectionRow(t('Graveyard (retired experiments)'), sections['graveyard'], 0, () => this.toggleSection('graveyard')));
@@ -831,7 +829,7 @@ if (vendor) {
 }
 }
 }
-    return html`<app-system-ready .ctx=${this.ctx}>${sectionCards(parts)}</app-system-ready>`;
+    return html`<app-system-ready .ctx=${this.ctx}>${this.sectionCardsFor(parts)}</app-system-ready>`;
   }
 }
 

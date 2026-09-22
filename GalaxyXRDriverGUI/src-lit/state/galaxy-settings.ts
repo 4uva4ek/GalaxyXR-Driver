@@ -108,7 +108,7 @@ export class GalaxySettingsBase {
     headset: true, controllers: true, ctrlFix: true, kalmanAdv: false, ctrlAdv: false, ctrlOffsets: true, tipOffset: false,
     processing: true, color: true, enhance: true, distortion: true, eyeAlign: false, share: false,
     advanced: false, debug: false, graveyard: false,
-    encoder: true, encoderAdv: false, encoderDbg: false,
+    encoderAdv: false, encoderDbg: false,
   });
 
   constructor(appSettings: AppSettingService, dss: DriverSettingService, dis: DriverInfoService) {

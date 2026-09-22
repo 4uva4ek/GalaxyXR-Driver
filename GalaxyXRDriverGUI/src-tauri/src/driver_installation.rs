@@ -871,6 +871,13 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
         fs::remove_dir(&ctx.managed).map_err(|e|error(&ctx.managed,e))?;
     }
     if ctx.data.exists() {
+        // App preferences (gui-settings.json: color scheme, update mode,
+        // advanced mode) must survive driver removal (2026-09-22).
+        let gui_settings=ctx.data.join("gui-settings.json");
+        let gui_bytes=match fs::symlink_metadata(&gui_settings) {
+            Ok(meta) if meta.is_file() => Some(fs::read(&gui_settings).map_err(|e| error(&gui_settings, e))?),
+            _ => None,
+        };
         if let Err(e)=fs::remove_dir_all(&ctx.data) {
             let mut errors=vec![format!("Driver removed and settings restored, but config cleanup failed: {}. Retry uninstall.",error(&ctx.data,e))];
             // Retain original recovery information even if recursive deletion
@@ -878,6 +885,10 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
             if let Err(e)=atomic_json(&ctx.journal(),&journal) { errors.push(format!("Recovery journal save failed: {e}")); }
             if let Err(e)=atomic_json(&ctx.receipt(),&recovery_receipt) { errors.push(format!("Recovery receipt save failed: {e}")); }
             return Err(errors.join("; "));
+        }
+        if let Some(bytes)=gui_bytes {
+            fs::create_dir_all(&ctx.data).map_err(|e|error(&ctx.data,e))?;
+            fs::write(&gui_settings,bytes).map_err(|e|error(&gui_settings,e))?;
         }
         removed_paths.push(ctx.data.to_string_lossy().into_owned());
     }
@@ -1311,5 +1322,19 @@ mod tests {
         // delete/move files; fixture teardown removes the junction itself.
         let result=Command::new("cmd.exe").args(["/C","mklink","/J"]).arg(&link).arg(&target).creation_flags(0x08000000).output().unwrap();
         assert!(result.status.success()); assert!(validate_package(&link,&f.root.join("gui.exe")).is_err()); fs::remove_dir(&link).unwrap();
+    }
+    #[test]
+    fn uninstall_preserves_app_preferences_and_removes_driver_data() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/GalaxyXRDriverGUI/gui.exe");
+        atomic_json(&f.ctx.data.join("settings.json"),&json!({"other":17})).unwrap();
+        atomic_json(&f.ctx.data.join("gui-settings.json"),&json!({"colorScheme":"light","updateMode":"rewrite","advanceMode":true})).unwrap();
+        let installed=install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert!(Path::new(&installed.registered_path).join("driver.vrdrivermanifest").exists());
+        uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert!(!Path::new(&installed.registered_path).exists());
+        assert!(!f.ctx.data.join("settings.json").exists());
+        let gui=read_json(&f.ctx.data.join("gui-settings.json")).unwrap();
+        assert_eq!(gui["colorScheme"],"light");assert_eq!(gui["advanceMode"],true);
+        assert!(source.exists());
     }
 }

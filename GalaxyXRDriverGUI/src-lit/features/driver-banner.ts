@@ -62,7 +62,7 @@ export class DriverEnableBanner extends BasePage {
     const sds = this.ctx.sds;
     const settings = sds.steamVrConfig();
     if (!settings) return sds.steamVRsettingsError()
-      ? html`<div class="driver-banner" role="status">${t('Driver enablement is unknown. Run the installation and settings check on the About page.')} ${sds.steamVRsettingsError()}</div>`
+      ? html`<div class="driver-banner" role="status">${t('Driver enablement is unknown. Run the installation and settings check on the Setup page.')} ${sds.steamVRsettingsError()}</div>`
       : html``;
     const neutral = this.isVendor && sds.getNeutralDriverEnabled(settings);
     const blocked = sds.isDriverBlocked(settings, galaxyXRDriverName);

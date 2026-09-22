@@ -143,7 +143,9 @@ fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettings
     // Capture each file BEFORE interpreting it. Planning from one snapshot and
     // later capturing a different baseline can overwrite a concurrent editor.
     let config_change = FileChange::new(data.join("settings.json"), Some(b"{}\n".to_vec()))?;
-    let gui_change = FileChange::new(data.join("gui-settings.json"), Some(b"{}\n".to_vec()))?;
+    // gui-settings.json is app state (color scheme, update mode, advanced
+    // mode) and is intentionally not reset: cleaning driver settings must
+    // not change this app's appearance or behavior (2026-09-22).
     let info_change = FileChange::new(data.join("info.json"), None)?;
     let diagnostic_change = FileChange::new(data.join("diagnostic.json"), None)?;
     let config = match &config_change.before {
@@ -184,12 +186,11 @@ fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettings
         if data.join("steamvr-changes.json").exists() {
             return Err("SteamVR cannot be located, but a settings recovery journal exists. Locate/register SteamVR and retry; the journal and settings were left intact.".into());
         }
-        warnings.push("SteamVR is not registered on this computer. Only Companion preferences and driver configuration were reset; SteamVR files were not changed.".into());
+        warnings.push("SteamVR is not registered on this computer. Only driver configuration was reset; app preferences and SteamVR files were not changed.".into());
     }
     // An empty object means use the driver's current defaults, not yesterday's
     // info.json defaults. Named Distortion/ files are user data, not deleted.
     changes.push(config_change);
-    changes.push(gui_change);
     changes.push(info_change);
     changes.push(diagnostic_change);
     let reset_files = changes.iter().filter(|c| c.before != c.after).map(|c| c.path.to_string_lossy().into_owned()).collect();
@@ -254,7 +255,7 @@ mod tests {
         atomic_json(&data.join("info.json"),&json!({"driverVersion":"old"})).unwrap();
         let report=clean_settings_at(&data,None).unwrap();
         assert_eq!(read_json(&data.join("settings.json")).unwrap(),json!({}));
-        assert_eq!(read_json(&data.join("gui-settings.json")).unwrap(),json!({}));
+        assert_eq!(read_json(&data.join("gui-settings.json")).unwrap(),json!({"advanceMode":true}));
         assert!(data.join("Distortion/my-profile.json").exists());assert!(!data.join("info.json").exists());
         assert!(Path::new(&report.backup_path).join("manifest.json").exists());
         fs::remove_dir_all(root).unwrap();

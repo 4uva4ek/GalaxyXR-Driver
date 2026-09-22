@@ -63,7 +63,7 @@ export class SystemDiagnosticService {
   }
   public readonly pullingSteamVRinstall = new PullingService(() => this.checkSteamVrInstalled(), 'pullingSteamVRinstallk');
   // (2026-09-22) The per-second driver-install polling loop was removed: every
-  // tick reset driverState to 'checking', flipping the About "Not installed"
+  // tick reset driverState to 'checking', flipping the Setup "Not installed"
   // label to "Checking…" and back — the unreadable one-frame flicker. The
   // driver install check now runs only on demand: app start (initTask below),
   // the "Check installation" button (settings-check.ts), and the install /
@@ -310,10 +310,10 @@ export class SystemDiagnosticService {
     if (this.installing) return false;
     const steamVrPath = this.steamVRinstalled();
     if (!steamVrPath) {
-      // Previously a silent no-op: the About page Install button did nothing
+      // Previously a silent no-op: the Setup page Install button did nothing
       // when SteamVR could not be located, leaving the user with no feedback.
       // Surface the reason (and how to resolve it) instead of failing silently.
-      await this.dialog.message(t('SteamVR not installed'), t('The driver install needs a SteamVR installation. If SteamVR is already installed, launch it once (this registers its OpenVR paths) and then retry. Install SteamVR from Steam, launch it once, then return to About and check again.'));
+      await this.dialog.message(t('SteamVR not installed'), t('The driver install needs a SteamVR installation. If SteamVR is already installed, launch it once (this registers its OpenVR paths) and then retry. Install SteamVR from Steam, launch it once, then return to Setup and check again.'));
       return false;
     }
     this._installingDriver.set(true);
@@ -416,7 +416,7 @@ export class SystemDiagnosticService {
     let suspended = false;
     let completed: CleanSettingsReport | undefined;
     try {
-      if (!await this.dialog.confirm(t('Clean Settings?'), t('Close SteamVR completely first. This resets all Companion-controlled settings to their defaults: app preferences, headset and controller tuning, color, image enhancements, encoder overrides, and active distortion/calibration choices. Unsaved edits are discarded.\n\nRecorded SteamVR changes are restored to their previous values (or removed to use SteamVR defaults). Recognized old identity settings are cleaned. Other SteamVR settings, room setup, game bindings, installed drivers and saved profile files are kept. Driver enable/block choices are not changed.\n\nA recovery backup is created before any file is changed. You can clean before installing. After installing or cleaning, start SteamVR from About to initialize and verify the driver.'), t('Clean Settings'), 'danger')) return undefined;
+      if (!await this.dialog.confirm(t('Clean Settings?'), t('Close SteamVR completely first. This resets all Companion-controlled driver settings to their defaults: headset and controller tuning, color, image enhancements, encoder overrides, and active distortion/calibration choices. Unsaved edits are discarded. App preferences, such as the color scheme, are kept.\n\nRecorded SteamVR changes are restored to their previous values (or removed to use SteamVR defaults). Recognized old identity settings are cleaned. Other SteamVR settings, room setup, game bindings, installed drivers and saved profile files are kept. Driver enable/block choices are not changed.\n\nA recovery backup is created before any file is changed. You can clean before installing. After installing or cleaning, start SteamVR from Setup to initialize and verify the driver.'), t('Clean Settings'), 'danger')) return undefined;
       await this.drainDriverChecks();
       app.inspecting = this.dss.inspecting = this.dis.inspecting = true;
       suspended = true;

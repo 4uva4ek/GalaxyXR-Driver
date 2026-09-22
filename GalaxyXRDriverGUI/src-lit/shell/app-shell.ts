@@ -9,13 +9,13 @@ import { driverAvailable, parseRoute, permittedRoute, visibleRoutes, type Route 
 
 const LABELS: Record<Route, string> = {
   'driver-settings': 'Driver Settings', 'distortion-profile': 'Distortion Profile',
-  'stream-frame': 'Image Settings', 'app-settings': 'App Settings', about: 'About',
+  'stream-frame': 'Image Settings', 'app-settings': 'App Settings', setup: 'Setup', about: 'About',
 };
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
   @property({ attribute: false }) ctx!: AppContext;
-  @property({ type: String }) route: Route = 'about';
+  @property({ type: String }) route: Route = 'driver-settings';
 
   static styles = [interactiveStyles, css`
     :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: var(--colorNeutralBackground2); }
@@ -70,9 +70,9 @@ export class AppShell extends LitElement {
   }
 
   private syncRoute(): void {
-    const requested = parseRoute(window.location.hash);
+    const requested = parseRoute(window.location.hash, this.driverAvailable);
     const next = permittedRoute(requested, this.driverAvailable);
-    const redirected = this.route !== next && next === 'about';
+    const redirected = this.route !== next && requested !== next;
     this.route = next;
     // Do not lose a valid startup deep-link while initial inspection is pending.
     // A definitive missing/unknown result replaces it, including browser Back.
@@ -81,7 +81,7 @@ export class AppShell extends LitElement {
     }
     if (redirected && this.isConnected) {
       void this.updateComplete.then(() => {
-        this.shadowRoot?.querySelector<HTMLElement>('#tab-about')?.focus();
+        this.shadowRoot?.querySelector<HTMLElement>(`#tab-${next}`)?.focus();
       });
     }
   }
@@ -104,6 +104,7 @@ export class AppShell extends LitElement {
       case 'distortion-profile': return html`<app-distortion-profile-page .ctx=${ctx}></app-distortion-profile-page>`;
       case 'stream-frame': return html`<app-stream-frame-page .ctx=${ctx}></app-stream-frame-page>`;
       case 'app-settings': return html`<app-app-settings-page .ctx=${ctx}></app-app-settings-page>`;
+      case 'setup': return html`<app-setup-page .ctx=${ctx}></app-setup-page>`;
       case 'about': return html`<app-about-page .ctx=${ctx}></app-about-page>`;
       default: return html`<app-driver-settings-page .ctx=${ctx}></app-driver-settings-page>`;
     }
@@ -113,7 +114,7 @@ export class AppShell extends LitElement {
     const routes = visibleRoutes(this.driverAvailable);
     const activeRoute = permittedRoute(this.route, this.driverAvailable);
     const update = this.ctx.aus.updateInfo();
-    const warn = update?.updateAvailable || update?.installAvailable || this.ctx.sds.driverVersionMismatch();
+    const setupWarn = update?.installAvailable || this.ctx.sds.driverVersionMismatch();
     const busy = this.ctx.checks.checking() || this.ctx.sds.installingDriver();
     const writeError = this.ctx.dss.writeFileError() || this.ctx.appSetting.writeFileError();
     return html`
@@ -121,7 +122,7 @@ export class AppShell extends LitElement {
         <img class="brand-icon" src="icons/headset_galaxy_xr_ready_2x.png" alt="Galaxy XR Companion" title="Galaxy XR Companion">
         <fluent-tablist activeid=${`tab-${activeRoute}`} aria-label=${t('Settings pages')} ?disabled=${busy} @change=${this.onTabChange}>
           ${routes.map(route => html`<fluent-tab slot="tab" id=${`tab-${route}`} aria-controls=${`panel-${route}`}>
-            ${t(LABELS[route])}${route === 'about' && warn ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
+            ${t(LABELS[route])}${((route === 'about' && update?.updateAvailable) || (route === 'setup' && setupWarn)) ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
           </fluent-tab>`)}
         </fluent-tablist>
       </header>

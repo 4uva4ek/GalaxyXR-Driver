@@ -88,7 +88,7 @@ export abstract class JsonSettingServiceBase<T> {
       this.stopWatching = () => { unwatch(); if (timer !== undefined) clearTimeout(timer); };
     } catch (error) {
       if (timer !== undefined) clearTimeout(timer);
-      console.warn('Cannot watch settings directory; the About check can reload it manually', error);
+      console.warn('Cannot watch settings directory; the Setup check can reload it manually', error);
     }
   }
 

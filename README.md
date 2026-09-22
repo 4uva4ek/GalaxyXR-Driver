@@ -85,7 +85,7 @@ The image processing features should work on other direct-mode streamed headsets
 Galaxy XR icons were made by **Vilkka**.  
 Based on original Quest Pro iconpack made by **Lux / Hekky**.
 
-Built on [CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) by sboys3. The camera calibration scripts in `tools/` started from sboys3's calibration code (see `tools/LICENSE-sboys3-camera-calibration`).
+Built on [CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) by sboys3 with modifications by timkhronos and compdoge [CustomHeadsetOpenVR](https://github.com/timkhronos/CustomHeadsetOpenVrGxR). The camera calibration scripts in `tools/` started from sboys3's calibration code (see `tools/LICENSE-sboys3-camera-calibration`).
 
 ## License
 

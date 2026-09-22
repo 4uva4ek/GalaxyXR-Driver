@@ -19,14 +19,14 @@ function cleanMock(h, next) {
     if(name!=='clean_galaxyxr_settings')return invoke(name,args);
     h.fixture.calls.push({kind:'invoke',name,args});
     if(next) return next(args);
-    h.fixture.put(h.fixture.data+'/settings.json',{});h.fixture.put(h.fixture.data+'/gui-settings.json',{});
+    h.fixture.put(h.fixture.data+'/settings.json',{});
     h.fixture.files.delete(h.fixture.data+'/info.json');h.fixture.files.delete(h.fixture.data+'/diagnostic.json');
-    return {backupPath:'D:/Backups/test',resetFiles:['settings.json','gui-settings.json'],restoredSettings:2,removedIdentityKeys:[],removedIdentitySections:[],steamvrCleaned:!!args.steamvrPath,warnings:[]};
+    return {backupPath:'D:/Backups/test',resetFiles:['settings.json'],restoredSettings:2,removedIdentityKeys:[],removedIdentitySections:[],steamvrCleaned:!!args.steamvrPath,warnings:[]};
   };
 }
 (async()=>{
-  await test('Default and invalid routes open About',()=>{const n=harness().source('domain/navigation');assert.equal(n.parseRoute(''),'about');assert.equal(n.parseRoute('#/missing'),'about');});
-  await test('Before installation, About and App Settings remain available',()=>{const n=harness().source('domain/navigation');assert.deepEqual(Array.from(n.visibleRoutes(false)),['about','app-settings']);assert.equal(n.permittedRoute('driver-settings',false),'about');assert.equal(n.permittedRoute('app-settings',false),'app-settings');});
+  await test('Default and invalid routes land on Setup uninstalled, Driver Settings installed',()=>{const n=harness().source('domain/navigation');assert.equal(n.parseRoute('',false),'setup');assert.equal(n.parseRoute('',true),'driver-settings');assert.equal(n.parseRoute('#/missing',false),'setup');assert.equal(n.parseRoute('#/missing',true),'driver-settings');});
+  await test('Before installation, App Settings, Setup, and About keep their order',()=>{const n=harness().source('domain/navigation');assert.deepEqual(Array.from(n.visibleRoutes(false)),['app-settings','setup','about']);assert.equal(n.permittedRoute('driver-settings',false),'setup');assert.equal(n.permittedRoute('app-settings',false),'app-settings');});
   await test('Runtime checking is read-only and uses the detected SteamVR path',async()=>scenario(async(h,c)=>{
     const calls=[];h.api.invoke=async(name,args)=>{calls.push({name,args});return runtime();};await c.startup.refresh();assert.equal(calls.length,1);assert.equal(calls[0].name,'get_galaxyxr_runtime_status');assert.equal(calls[0].args.steamvrPath,h.fixture.runtime);assert.equal(c.startup.status().driverInitialized,false);
   }));
@@ -40,10 +40,21 @@ function cleanMock(h, next) {
   await test('Cancelled cleanup does not call native reset or change saved files',async()=>scenario(async(h,c)=>{cleanMock(h);c.dialog.confirm=async()=>false;const before=h.fixture.files.get(h.fixture.data+'/settings.json');assert.equal(await c.sds.cleanSettings(c.appSetting),undefined);assert.equal(h.fixture.files.get(h.fixture.data+'/settings.json'),before);assert.equal(h.fixture.calls.filter(x=>x.name==='clean_galaxyxr_settings').length,0);assert.equal(c.sds.installingDriver(),false);}));
   await test('Cleanup before driver installation is available and preserves the uninstalled state',async()=>scenario(async(h,c)=>{cleanMock(h);const r=await c.sds.cleanSettings(c.appSetting);assert.equal(r.backupPath,'D:/Backups/test');assert.equal(c.sds.driverInstalled(),undefined);assert.equal(c.sds.installingDriver(),false);assert.equal(c.dss.values().galaxyXr.nativeIdentity,true);},h=>h.fixture.files.delete(h.fixture.runtime+'/drivers/GalaxyXRNative/driver.vrdrivermanifest')));
   await test('Cleanup without registered SteamVR passes null to native local-only reset',async()=>scenario(async(h,c)=>{cleanMock(h);const r=await c.sds.cleanSettings(c.appSetting);assert.ok(r);const call=h.fixture.calls.find(x=>x.name==='clean_galaxyxr_settings');assert.equal(call.args.steamvrPath,null);assert.equal(r.steamvrCleaned,false);},h=>h.fixture.files.delete(h.fixture.openvr)));
-  await test('Successful reset reloads all driver and app defaults and clears runtime data',async()=>scenario(async(h,c)=>{cleanMock(h);const r=await c.sds.cleanSettings(c.appSetting);assert.ok(r);assert.equal(c.dss.values().galaxyXr.nativeIdentity,true);assert.equal(c.appSetting.values().advanceMode,false);assert.equal(c.dis.values(),undefined);assert.equal(c.sds.driverInstalled(),'1.2.3');assert.equal(c.dss.inspecting,false);assert.equal(c.appSetting.inspecting,false);}));
+  await test('Successful reset reloads driver defaults, keeps app preferences, and clears runtime data',async()=>scenario(async(h,c)=>{cleanMock(h);const r=await c.sds.cleanSettings(c.appSetting);assert.ok(r);assert.equal(c.dss.values().galaxyXr.nativeIdentity,true);assert.equal(c.appSetting.values().advanceMode,true);assert.equal(c.dis.values(),undefined);assert.equal(c.sds.driverInstalled(),'1.2.3');assert.equal(c.dss.inspecting,false);assert.equal(c.appSetting.inspecting,false);}));
   await test('Pending edits cannot rewrite freshly cleaned configuration',async()=>scenario(async(h,c)=>{cleanMock(h);const edited=structuredClone(c.dss.values());edited.galaxyXr.nativeIdentity=false;const pending=c.dss.save(edited);await tick();await c.sds.cleanSettings(c.appSetting);await pending;await h.source('platform/writer').flushFileWrites();assert.deepEqual(JSON.parse(h.fixture.files.get(h.fixture.data+'/settings.json')),{});assert.equal(c.dss.values().galaxyXr.nativeIdentity,true);}));
   await test('Native cleanup failure reloads unchanged files and always clears busy state',async()=>scenario(async(h,c)=>{cleanMock(h,()=>{throw Error('SteamVR is running')});let message='';c.dialog.message=async(_,v)=>{message=v};const before=h.fixture.files.get(h.fixture.data+'/settings.json');assert.equal(await c.sds.cleanSettings(c.appSetting),undefined);assert.match(message,/SteamVR is running/);assert.equal(h.fixture.files.get(h.fixture.data+'/settings.json'),before);assert.equal(c.sds.installingDriver(),false);assert.equal(c.dss.inspecting,false);}));
   await test('Cleanup is serialized against installation and other cleanup requests',async()=>scenario(async(h,c)=>{let release;cleanMock(h,()=>new Promise(r=>release=r));const a=c.sds.cleanSettings(c.appSetting);while(!release)await tick();assert.equal(await c.sds.cleanSettings(c.appSetting),undefined);release({backupPath:'B',resetFiles:[],restoredSettings:0,removedIdentityKeys:[],removedIdentitySections:[],steamvrCleaned:true,warnings:[]});await a;assert.equal(h.fixture.calls.filter(x=>x.name==='clean_galaxyxr_settings').length,1);}));
-  await test('Installation actions are owned by About, not App Settings',()=>{const base=path.join(__dirname,'../GalaxyXRDriverGUI/src-lit/features');const app=fs.readFileSync(path.join(base,'app-settings-page.ts'),'utf8'),about=fs.readFileSync(path.join(base,'about-page.ts'),'utf8');assert.equal(app.includes('app-driver-troubleshooter'),false);assert.equal(app.includes('@click=${() => this.installDriver()}'),false);assert.match(about,/Clean Settings/);assert.match(about,/Driver initialization verified in SteamVR/);assert.match(about,/app-driver-enable-banner/);});
+  await test('Installation actions are owned by Setup, not About or App Settings',()=>{
+    const base=path.join(__dirname,'../GalaxyXRDriverGUI/src-lit/features');
+    for(const name of ['app-settings-page','about-page']) {
+      const source=fs.readFileSync(path.join(base,name+'.ts'),'utf8');
+      assert.equal(source.includes('app-driver-troubleshooter'),false);
+      assert.equal(source.includes('@click=${() => this.installDriver()}'),false);
+    }
+    const setup=fs.readFileSync(path.join(base,'setup-page.ts'),'utf8');
+    assert.match(setup,/Clean Settings/);
+    assert.match(setup,/Driver initialization verified in SteamVR/);
+    assert.match(setup,/app-driver-enable-banner/);
+  });
   if(process.env.ABOUT_SETUP_REPORT)fs.writeFileSync(process.env.ABOUT_SETUP_REPORT,JSON.stringify(results,null,2)+'\n');console.log(`\nAbout/setup service checks: ${results.filter(r=>r.passed).length}/${results.length} passed.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

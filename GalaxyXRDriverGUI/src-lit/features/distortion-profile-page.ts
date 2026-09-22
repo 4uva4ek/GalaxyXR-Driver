@@ -6,7 +6,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles, sectionCards } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import '../ui/controls';
 import './driver-banner';
@@ -265,7 +265,7 @@ if (sections.share) {
               <a href="#/app-settings">${t('Open App Settings')}</a>`));
 }
 }
-    return html`<app-system-ready .ctx=${this.ctx}>${sectionCards(parts)}</app-system-ready>`;
+    return html`<app-system-ready .ctx=${this.ctx}>${this.sectionCardsFor(parts)}</app-system-ready>`;
   }
 }
 

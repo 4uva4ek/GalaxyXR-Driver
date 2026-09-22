@@ -3,7 +3,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionHeading, fieldStyles, sectionCards } from './page-base';
+import { BasePage, fieldRow, noteRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import type { AppSetting } from '../domain/types';
 import { driverAvailable } from '../domain/navigation';
@@ -37,8 +37,9 @@ export class AppSettingsPage extends BasePage {
       this.requestUpdate();
     };
     const body: TemplateResult[] = [
-      ...(galaxy.imageModeError() ? [noteRow(html`<span class="mode-error" role="alert">${galaxy.imageModeError()}</span>`)] : []),
       sectionHeading(t('Application preferences')),
+      ...(appSetting.readFileError() ? [noteRow(t('App preferences could not be verified. Correct the file or its permissions, then use Check installation on Setup.'))] : []),
+      ...(galaxy.imageModeError() ? [noteRow(html`<span class="mode-error" role="alert">${galaxy.imageModeError()}</span>`)] : []),
       fieldRow(t('Color Scheme'), html`
         <app-select .value=${appSetting.values().colorScheme} .options=${[
           { value: 'system', label: t('System') }, { value: 'dark', label: t('Dark') }, { value: 'light', label: t('Light') },
@@ -68,6 +69,6 @@ export class AppSettingsPage extends BasePage {
         ]} @change=${(e: CustomEvent) => save({ updateMode: e.detail as AppSetting['updateMode'] })}></app-select>
       `));
     }
-    return html`${appSetting.readFileError() ? noteRow(t('App preferences could not be verified. Correct the file or its permissions, then use Check installation on About.')) : html``}${sectionCards(body)}`;
+    return this.sectionCardsFor(body);
   }
 }

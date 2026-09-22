@@ -3,42 +3,32 @@
 // and driver-troubleshooter.component.{ts,html}.
 // Shows the page content only when SteamVR + driver + settings are ready;
 // otherwise the troubleshooting checklist with the same actions
-// (install SteamVR, install/enable driver, retry, reset setting).
-import { html, LitElement } from 'lit';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+// (install SteamVR, enable driver, retry, reset setting). Driver installation
+// is linked to Setup so its single button is the only installation entry point.
+import { html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { css } from 'lit';
 import { interactiveStyles } from '../ui/shared-styles';
-import type { AppContext } from '../app-context';
-import { BasePage } from './page-base';
+import { BasePage, fieldStyles, sectionHeading } from './page-base';
 import { galaxyXRDriverName } from '../environment';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { getVersion } from '@tauri-apps/api/app';
 import { t } from '../locale/i18n';
 
 @customElement('app-driver-troubleshooter')
 export class DriverTroubleshooter extends BasePage {
-  static styles = css`
-    ${interactiveStyles}
-    :host { display: block; padding: 1rem; }
-    h2 { margin: 0.25rem 0 0.75rem; }
-    hr { display: block; height: 1px; background: var(--colorNeutralStroke1, #888); margin: 0.5rem 0; }
-    .field { display: grid; grid-template-columns: 22rem 1fr; min-height: 3rem; border-bottom: 1px solid var(--colorNeutralStroke1, rgba(128,128,128,0.4)); align-items: center; }
-    .title { padding-right: 1rem; }
-    .control { display: flex; align-items: center; gap: 0.5rem; }
+  static styles = [fieldStyles, css`
+    :host { display: block; padding: 0 1rem 1rem; }
     .warn { color: var(--colorPaletteRedForeground1, #b00020); }
     .ok { color: var(--colorPaletteGreenForeground1, #107c10); }
     button { height: 2rem; }
-    .read-error { font-size: 0.85rem; opacity: 0.8; }
-  `;
+    .read-error { font-size: 0.85rem; opacity: 0.8; overflow-wrap: anywhere; }
+  `];
 
   @property({ type: Boolean }) wait = false;
-  @property({ type: String }) appVersion = '';
   @property({ type: Boolean }) driverEnablePrompt = false;
 
   connectedCallback(): void {
     super.connectedCallback();
-    getVersion().then(v => this.appVersion = v).catch(() => {});
     const sds = this.ctx.sds;
     sds.initTask
       .catch(error => console.error('Readiness check failed', error))
@@ -65,10 +55,9 @@ export class DriverTroubleshooter extends BasePage {
     const cfg = sds.steamVrConfig();
     this.driverEnablePrompt = !!cfg && !sds.getSteamVRDriverEnableState(cfg, galaxyXRDriverName);
     if (!this.wait) return html``;
-    return html`<h2>${t('System not ready')}</h2>
-    <hr>
+    return this.sectionCardsFor([sectionHeading(t('System not ready')), html`
     ${sds.driverCheckError() ? html`<p class="read-error" role="alert">${sds.driverCheckError()}</p>` : html``}
-    <p><a href="#/app-settings">${t('Open App Settings to check installation and settings')}</a></p>
+    <p><a href="#/setup">${t('Open Setup to check installation and settings')}</a></p>
 
     <div class="field">
       <div class="title">${t('SteamVR installation')}</div>
@@ -84,8 +73,7 @@ export class DriverTroubleshooter extends BasePage {
       <div class="title">${t('Driver installation')}</div>
       <div class="control">
         ${!sds.driverInstalled()
-          ? html`<span class="warn">⚠</span> ${sds.driverState() === 'unknown' ? t('Unable to verify installation') : t('Driver not installed')}
-            ${sds.steamVRinstalled() ? html`<button type="button" ?disabled=${sds.installingDriver()} @click=${() => sds.installDriver()}>${t('Install Driver')}</button>` : html``}`
+          ? html`<span class="warn">⚠</span> ${sds.driverState() === 'unknown' ? t('Unable to verify installation') : t('Driver not installed')}`
           : html`<span class="ok">✓</span>`}
       </div>
     </div>
@@ -119,7 +107,7 @@ export class DriverTroubleshooter extends BasePage {
             ${sds.driverInstalled() ? html`<button type="button" @click=${() => sds.resetDriverSetting()}>${t('Reset Setting')}</button>` : html``}`
           : html`<span class="ok">✓</span>`}
       </div>
-    </div>`;
+    </div>`]);
   }
 }
 

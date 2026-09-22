@@ -12,8 +12,10 @@ const appDefaults: AppSetting = {
 };
 
 export class AppSettingService extends JsonSettingServiceBase<AppSetting> {
-  // Uninstall removes gui-settings.json too. Keep app controls available in
-  // memory without recreating the removed directory or changing driver readiness.
+  // Uninstall preserves gui-settings.json, so app preferences (color scheme
+  // etc.) survive driver removal (2026-09-22). The in-memory defaults still
+  // keep app controls available before the file exists or if it was removed
+  // externally.
   public readonly values = computed(() => this._values() ?? { ...appDefaults });
   protected override normalizeStoredValues(values: unknown): unknown {
     // Older autoCreate wrote JSON.stringify('{}') into gui-settings.json.

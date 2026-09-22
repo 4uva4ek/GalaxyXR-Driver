@@ -32,15 +32,18 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     ['installed', undefined, false], ['installed', '1.2.3', true], ['checking', '1.2.3', true],
   ]) await test(`Navigation: ${state}, ${version ?? 'no verified version'}`, () => {
     assert.equal(nav.driverAvailable(version, state), available);
-    assert.deepEqual(clone(nav.visibleRoutes(available)), available ? clone(nav.ROUTES) : ['about', 'app-settings']);
-    for (const route of nav.ROUTES) assert.equal(nav.permittedRoute(route, available), available || route === 'app-settings' || route === 'about' ? route : 'about');
+    assert.deepEqual(clone(nav.visibleRoutes(available)), available ? clone(nav.ROUTES) : ['app-settings', 'setup', 'about']);
+    for (const route of nav.ROUTES) assert.equal(nav.permittedRoute(route, available), available || ['app-settings', 'setup', 'about'].includes(route) ? route : 'setup');
   });
   await test('Deep links are recognized but cannot bypass the installation gate', () => {
-    for (const hash of ['#/about', '#/driver-settings', '#stream-frame', '#/distortion-profile']) {
-      assert.equal(nav.permittedRoute(nav.parseRoute(hash), false), 'about');
+    for (const hash of ['#/driver-settings', '#stream-frame', '#/distortion-profile']) {
+      assert.equal(nav.permittedRoute(nav.parseRoute(hash), false), 'setup');
     }
-    assert.equal(nav.parseRoute('#/invalid-page'), 'about');
-    assert.equal(nav.parseRoute('#/app-settings'), 'app-settings');
+    assert.equal(nav.parseRoute('#/invalid-page', false), 'setup');
+    assert.equal(nav.parseRoute('#/invalid-page', true), 'driver-settings');
+    assert.equal(nav.parseRoute('#/app-settings', false), 'app-settings');
+    assert.equal(nav.permittedRoute(nav.parseRoute('#/setup'), false), 'setup');
+    assert.equal(nav.permittedRoute(nav.parseRoute('#/about'), false), 'about');
   });
   await test('Baseline reset is immutable and preserves unrelated and unknown settings', async () => scenario(s => {
     s.streamFrame.enable = false;
@@ -152,12 +155,14 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     h.fixture.put(h.fixture.data + '/settings.json', values); await c.checks.refresh();
     assert.equal(c.galaxy.baselineRequested, true); assert.equal(c.galaxy.imageEnhancementsEnabled, false);
   }));
-  await test('Driver removal retains About and App Settings only', async () => scenario(() => {}, async (h, c) => {
+  await test('Driver removal retains App Settings, Setup, and About', async () => scenario(() => {}, async (h, c) => {
     assert.equal(nav.driverAvailable(c.sds.driverInstalled(), c.sds.driverState()), true);
     h.fixture.files.delete(h.fixture.runtime + '/drivers/GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll');
     await c.checks.refresh();
     assert.equal(nav.driverAvailable(c.sds.driverInstalled(), c.sds.driverState()), false);
     assert.equal(nav.permittedRoute('about', false), 'about');
+    assert.deepEqual(clone(nav.visibleRoutes(false)), ['app-settings', 'setup', 'about']);
+    assert.equal(nav.permittedRoute('setup', false), 'setup');
   }));
   await test('Installed but SteamVR-disabled driver retains all tabs', async () => scenario(() => {}, async (h, c) => {
     h.fixture.put(h.fixture.config + '/steamvr.vrsettings', { driver_GalaxyXRNative: { enable: false } });
