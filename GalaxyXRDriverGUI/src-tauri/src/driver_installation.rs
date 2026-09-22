@@ -87,6 +87,17 @@ mod platform {
 }
 
 fn normalized(path: &Path) -> String {
+    // Hosted Windows TEMP can use RUNNER~1 while canonical package paths use
+    // runneradmin (2026-09-22). Resolve the existing ancestor, including for a
+    // destination that has not been created yet, before comparing boundaries.
+    // Reparse-point rejection remains in safe_chain/safe_tree at mutation sites.
+    #[cfg(windows)]
+    let resolved = path.ancestors().find_map(|ancestor| {
+        fs::canonicalize(ancestor).ok().and_then(|canonical|
+            path.strip_prefix(ancestor).ok().map(|suffix| canonical.join(suffix)))
+    });
+    #[cfg(windows)]
+    let path = resolved.as_deref().unwrap_or(path);
     path.to_string_lossy().replace('/', "\\").trim_start_matches("\\\\?\\").trim_end_matches('\\').to_lowercase()
 }
 fn same_path(a: &Path, b: &Path) -> bool { normalized(a) == normalized(b) }
@@ -494,6 +505,9 @@ fn source_paths(ctx: &Context, receipt: Option<&Value>, candidates: &[PathBuf]) 
 fn copy_package(source: &Path, target: &Path) -> Result<()> {
     safe_tree(source)?;
     safe_chain(target)?;
+    if contains_directory(source, target) {
+        return Err(error(target, "Copy destination overlaps the source package"));
+    }
     if target.exists() { return Err(error(target,"Install destination already exists")); }
     fs::create_dir_all(target).map_err(|e|error(target,e))?;
     fn copy_contents(source:&Path,target:&Path)->Result<()> {
@@ -1141,6 +1155,34 @@ mod tests {
             assert!(!f.ctx.receipt().exists());assert!(!f.ctx.journal().exists());assert!(!f.ctx.settings.exists());
             assert_eq!(fs::read_dir(&source).unwrap().count(),2);
         }
+    }
+    #[test]
+    fn copy_rejects_a_descendant_before_creating_it() {
+        let f=Fixture::new(); let source=f.package("bundle");
+        let target=source.join("not-created/nested-driver");
+        assert!(copy_package(&source,&target).unwrap_err().contains("overlaps"));
+        assert!(!source.join("not-created").exists());
+    }
+    #[cfg(windows)]
+    #[test]
+    fn short_path_aliases_preserve_existing_and_missing_path_boundaries() {
+        use std::os::windows::ffi::{OsStrExt,OsStringExt};
+        #[link(name="kernel32")]
+        extern "system" { fn GetShortPathNameW(long:*const u16,short:*mut u16,size:u32)->u32; }
+        let f=Fixture::new(); let source=f.package("Long package directory");
+        let canonical=fs::canonicalize(&source).unwrap();
+        let wide:Vec<u16>=canonical.as_os_str().encode_wide().chain(Some(0)).collect();
+        let mut buffer=vec![0u16;32768];
+        let length=unsafe {GetShortPathNameW(wide.as_ptr(),buffer.as_mut_ptr(),buffer.len() as u32)};
+        assert!(length>0 && (length as usize)<buffer.len());
+        let short=PathBuf::from(std::ffi::OsString::from_wide(&buffer[..length as usize]));
+        assert!(same_path(&short,&canonical));
+        assert!(same_path(&short.join("missing/gui.exe"),&canonical.join("missing/gui.exe")));
+        assert!(contains_directory(&canonical,&short.join("missing/driver")));
+        assert!(!contains_directory(&canonical,&canonical.with_file_name("Long package directory sibling")));
+        assert!(validate_package(&canonical,&short.join("gui.exe")).unwrap_err().contains("running GUI"));
+        assert!(copy_package(&canonical,&short.join("missing/driver")).unwrap_err().contains("overlaps"));
+        assert!(!short.join("missing").exists());
     }
     #[test]
     fn legacy_source_in_config_blocks_uninstall_without_deleting_source() {

@@ -70,12 +70,13 @@ function publishing(t, options = {}) {
   fs.writeFileSync(path.join(directory, `${prefix}.zip`), zip);
   fs.writeFileSync(path.join(directory, `${prefix}.zip.sha256`), `${createHash('sha256').update(zip).digest('hex')}  ${prefix}.zip\n`);
   fs.writeFileSync(path.join(directory, `${prefix}-release-notes.md`), 'Release fixture');
-  const release = { id: 42, draft: true, assets: [], html_url: 'https://github.com/owner/repo/releases/tag/v1.2.1',
+  const release = { id: 42, tag_name: 'v1.2.1', draft: true, assets: [], html_url: 'https://github.com/owner/repo/releases/tag/v1.2.1',
     upload_url: 'https://uploads.github.com/repos/owner/repo/releases/42/assets{?name,label}', ...options.release };
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
     if (route.includes('/git/ref/')) return options.ref || null;
-    if (route.includes('/releases/tags/')) return options.release ? release : null;
+    if (route.includes('/releases/tags/')) return options.release && !release.draft ? release : null;
+    if (route.includes('/releases?')) return options.release ? [release] : [];
     if (route.startsWith('https://uploads.')) { if (options.uploadFails) throw new Error('Upload interrupted'); return {}; }
     if (method === 'PATCH') return { ...release, draft: false };
     return release;
@@ -96,6 +97,8 @@ test('upload failure leaves a draft and a later retry can finish it', async t =>
   const retry = publishing(t, { ref: { object: { type: 'commit', sha: 'a'.repeat(40) } },
     release: { assets: [{ id: 1, name: 'GalaxyXRDriver-v1.2.1-Windows-x64.zip' }] } });
   await publishRelease(retry.args);
+  assert.ok(retry.calls.some(c => c.route.includes('/releases?')));
+  assert.equal(retry.calls.some(c => c.method === 'POST' && c.route.endsWith('/releases')), false);
   assert.equal(retry.calls.filter(c => c.method === 'DELETE').length, 1);
   assert.equal(retry.calls.at(-1).body.draft, false);
 });

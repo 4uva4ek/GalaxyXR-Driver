@@ -22,6 +22,15 @@ async function publishRelease({ repo, version, commit, directory, api }) {
   } else await api('POST', `${base}/git/refs`, { ref: `refs/tags/${tag}`, sha: commit });
 
   let release = await api('GET', `${base}/releases/tags/${tag}`, null, true);
+  // Tag lookup is documented for published releases. A writer can find an
+  // interrupted draft through the paginated release list (2026-09-22).
+  if (!release) {
+    for (let page = 1; ; page++) {
+      const releases = await api('GET', `${base}/releases?per_page=100&page=${page}`);
+      release = releases.find(candidate => candidate.tag_name === tag);
+      if (release || releases.length < 100) break;
+    }
+  }
   if (release && !release.draft) {
     if (!files.every(file => release.assets.some(asset => asset.name === file.name && asset.size > 0 && asset.state === 'uploaded'))) {
       throw new Error(`Published ${tag} is missing required assets; refusing to rewrite a published release.`);

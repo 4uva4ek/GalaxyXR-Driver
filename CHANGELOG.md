@@ -8,6 +8,7 @@ All notable GalaxyXRDriver / Galaxy XR Companion release changes are recorded he
 - Automatically build both vendor variants and publish the Galaxy XR ZIP and checksum when the version changes on `main`.
 - Synchronize all application version fields and lockfiles with `node bump-version.js`.
 - Preserve published releases on retries and publish new releases only after both asset uploads succeed.
+- Resolve Windows short-path aliases in installer boundary checks, preventing a bundle from being copied inside itself.
 - Keep the local `tools/Build-Portable.ps1` command and package layout unchanged.
 
 ## [1.2.0] - 2026-09-21
