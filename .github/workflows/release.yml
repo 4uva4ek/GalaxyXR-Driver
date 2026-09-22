@@ -2,9 +2,16 @@ name: Build and release GalaxyXRDriver
 
 on:
   push:
+    branches: ['**']
     tags:
       - 'v*'
+  pull_request:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the current version (main only; use to retry a release)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -64,6 +71,11 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
 
+      - name: Determine whether to publish
+        id: policy
+        shell: pwsh
+        run: node .\tools\release-policy.cjs
+
       - name: Install frontend dependencies
         working-directory: GalaxyXRDriverGUI
         shell: pwsh
@@ -73,6 +85,19 @@ jobs:
         working-directory: GalaxyXRDriverGUI
         shell: pwsh
         run: npm test
+
+      - name: Run service and packaging regressions
+        shell: pwsh
+        run: |
+          foreach ($test in @('Test-FluentFixes', 'Test-CompanionModes', 'Test-AboutSetup',
+            'Test-SectionCards', 'Test-FluentBuildHooks', 'Test-SourceUpdate')) {
+            node ".\tools\$test.cjs"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Build neutral portable package
+        shell: pwsh
+        run: node .\build.js --vendor neutral
 
       - name: Build Galaxy XR portable package
         shell: pwsh
@@ -111,17 +136,11 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
-        if: github.ref_type == 'tag'
+        if: steps.policy.outputs.publish == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create '${{ github.ref_name }}' `
-            'release/GalaxyXRDriver-v${{ steps.version.outputs.version }}-Windows-x64.zip' `
-            'release/GalaxyXRDriver-v${{ steps.version.outputs.version }}-Windows-x64.zip.sha256' `
-            --verify-tag `
-            --title 'Galaxy XR Companion v${{ steps.version.outputs.version }}' `
-            --notes-file 'release/GalaxyXRDriver-v${{ steps.version.outputs.version }}-Windows-x64-release-notes.md'
+        run: node .\tools\publish-release.cjs
 
       - name: Upload native dependency diagnostics on failure
         if: failure()

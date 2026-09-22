@@ -2,6 +2,14 @@
 
 All notable GalaxyXRDriver / Galaxy XR Companion release changes are recorded here.
 
+## [1.2.1] - 2026-09-22
+
+- Fixed CI service tests on fresh Windows runners and updated section-card checks for the shared collapse state.
+- Automatically build both vendor variants and publish the Galaxy XR ZIP and checksum when the version changes on `main`.
+- Synchronize all application version fields and lockfiles with `node bump-version.js`.
+- Preserve published releases on retries and publish new releases only after both asset uploads succeed.
+- Keep the local `tools/Build-Portable.ps1` command and package layout unchanged.
+
 ## [1.2.0] - 2026-09-21
 
 ### Portable dependency bootstrap correction
@@ -58,4 +66,3 @@ All notable GalaxyXRDriver / Galaxy XR Companion release changes are recorded he
 - Fixed portable `driver.vrdrivermanifest` and `default.vrsettings` generation so JSON is written without a UTF-8 BOM.
 - Preserved the existing portable layout containing `GalaxyXRDriverGUI` beside `GalaxyXRNative`.
 - Added a Windows GitHub Actions release pipeline that checks version consistency, installs dependencies/toolchains, runs frontend tests, builds the driver and Tauri app, produces a versioned portable ZIP, creates SHA-256 metadata, generates release notes from this changelog plus commits since the previous tag, uploads workflow artifacts, and publishes GitHub Releases for `v*` tags.
-

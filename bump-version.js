@@ -1,44 +1,45 @@
-let fs = require("fs")
-let path = require("path")
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const { verifyReleaseVersion } = require('./tools/verify-release-version.cjs');
 
-let version = process.argv[2]
-if(!version || /^\d+\.\d+\.\d+(\-[a-z0-9\.]+)?$/.test(version) === false){
-	console.error("Invalid version format. Please provide a version in the format x.x.x or x.x.x-tag.x")
-	process.exit(1)
-}else{
-	console.log(`Updating version to ${version}`)
+function bumpVersion(repo, version) {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-z0-9]+(?:\.[a-z0-9]+)*)?$/.test(version || '')) {
+    throw new Error('Invalid version. Use x.y.z or x.y.z-tag.x.');
+  }
+  // Validate every old source before writing any of them (2026-09-22).
+  // npm ci and cargo --locked also require their root package versions to agree.
+  const { layout: { gui, driver } } = verifyReleaseVersion(repo);
+  const edits = new Map();
+  const read = file => fs.readFileSync(path.join(repo, file), 'utf8');
+  for (const file of [`${gui}/src-tauri/tauri.conf.json`, `${driver}/DriverFiles/driver.vrdrivermanifest`,
+    `${gui}/package.json`, `${gui}/package-lock.json`]) {
+    const before = read(file);
+    const data = JSON.parse(before.replace(/^\uFEFF/, ''));
+    data.version = version;
+    if (file.endsWith('package-lock.json')) data.packages[''].version = version;
+    const indent = before.match(/\n([ \t]+)"/)?.[1] || '  ';
+    edits.set(file, JSON.stringify(data, null, indent) + '\n');
+  }
+  const cpp = `${driver}/src/Config/Config.cpp`;
+  edits.set(cpp, read(cpp).replace(/(std::string\s+driverVersion\s*=\s*")[^"]+"/, `$1${version}"`));
+  const cargo = `${gui}/src-tauri/Cargo.toml`;
+  const cargoText = read(cargo);
+  const packageSection = cargoText.match(/^\[package\]\s*\r?\n([\s\S]*?)(?=^\[|$(?![\s\S]))/m)[1];
+  const crate = packageSection.match(/^name\s*=\s*"([^"]+)"/m)[1];
+  edits.set(cargo, cargoText.replace(packageSection, packageSection.replace(/^(version\s*=\s*")[^"]+"/m, `$1${version}"`)));
+  const lock = `${gui}/src-tauri/Cargo.lock`;
+  edits.set(lock, read(lock).split(/(?=^\[\[package\]\])/m).map(section => {
+    if (section.match(/^name\s*=\s*"([^"]+)"/m)?.[1] !== crate || /^source\s*=/m.test(section)) return section;
+    return section.replace(/^(version\s*=\s*")[^"]+"/m, `$1${version}"`);
+  }).join(''));
+  for (const [file, text] of edits) fs.writeFileSync(path.join(repo, file), text);
+  verifyReleaseVersion(repo, { expectedVersion: version });
+  return [...edits.keys()];
 }
 
-
-let tauriConfig = path.join(__dirname, "GalaxyXRDriverGUI/src-tauri/tauri.conf.json")
-let tauriConfigCargo = path.join(__dirname, "GalaxyXRDriverGUI/src-tauri/Cargo.toml")
-let driverConfigCpp = path.join(__dirname, "GalaxyXRDriver/src/Config/Config.cpp")
-let driverManifestJson = path.join(__dirname, "GalaxyXRDriver/DriverFiles/driver.vrdrivermanifest")
-
-let tauriConfigData = JSON.parse(fs.readFileSync(tauriConfig, "utf8"))
-tauriConfigData.version = version
-fs.writeFileSync(tauriConfig, JSON.stringify(tauriConfigData, null, 2))
-
-let tauriConfigCargoData = fs.readFileSync(tauriConfigCargo, "utf8")
-let tauriConfigCargoVersionRegex = /^version\s*=\s*"(\d+\.\d+\.\d+(\-[a-z0-9\.]+)?)"$/m
-let tauriConfigCargoVersion = tauriConfigCargoData.match(tauriConfigCargoVersionRegex)
-if(tauriConfigCargoVersion){
-	tauriConfigCargoData = tauriConfigCargoData.replace(tauriConfigCargoVersionRegex, `version = "${version}"`)
-	fs.writeFileSync(tauriConfigCargo, tauriConfigCargoData)
-}else{
-	console.error("Could not find version in Cargo.toml")
+module.exports = { bumpVersion };
+if (require.main === module) {
+  try { console.log(`Updated ${bumpVersion(__dirname, process.argv[2]).length} files to ${process.argv[2]}`); }
+  catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-
-let driverConfigCppData = fs.readFileSync(driverConfigCpp, "utf8")
-let driverConfigCppVersionRegex = /std::string\s*driverVersion\s*=\s*"(\d+\.\d+\.\d+(\-[a-z0-9\.]+)?)"/g
-let driverConfigCppVersion = driverConfigCppData.match(driverConfigCppVersionRegex)
-if(driverConfigCppVersion){
-	driverConfigCppData = driverConfigCppData.replace(driverConfigCppVersionRegex, `std::string driverVersion = "${version}"`)
-	fs.writeFileSync(driverConfigCpp, driverConfigCppData)
-}else{
-	console.error("Could not find version in Config.cpp")
-}
-
-let driverManifestJsonData = JSON.parse(fs.readFileSync(driverManifestJson, "utf8"))
-driverManifestJsonData.version = version
-fs.writeFileSync(driverManifestJson, JSON.stringify(driverManifestJsonData, null, 2).replaceAll("  ", "\t"))

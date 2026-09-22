@@ -33,8 +33,20 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
  test('Collapsing removes descendant controls but keeps an accessible header',()=>{const t=h.sectionCards([h.sectionRow('Closed',false,0,()=>{}),childRow]);const text=flatten(t);assert.ok(!text.includes('Grip Convention'));assert.match(text,/aria-expanded=false/);assert.match(text,/aria-controls=settings-section-0-body/);});
  test('No redundant Expand or Collapse labels remain',()=>assert.doesNotMatch(flatten(cards),/>\s*(Expand|Collapse)\s*</));
  test('Rows before the first heading stay outside section cards',()=>{const t=h.sectionCards([parentRow,h.sectionHeading('Section'),childRow]);assert.equal(t.values[0][0],parentRow);assert.equal(children(t.values[0][1])[0],childRow);});
- test('All six pages use the shared grouping helper',()=>{for(const file of ['driver-settings-page','stream-frame-page','distortion-profile-page','app-settings-page','about-page','setup-page'])assert.match(fs.readFileSync(root+'/src-lit/features/'+file+'.ts','utf8'),/sectionCards\((body|parts|\[)/);});
+ test('All six pages use the shared state-aware grouping helper',()=>{for(const file of ['driver-settings-page','stream-frame-page','distortion-profile-page','app-settings-page','about-page','setup-page'])assert.match(fs.readFileSync(root+'/src-lit/features/'+file+'.ts','utf8'),/this\.sectionCardsFor\((body|parts|\[)/,file);});
+ test('Page grouping uses saved heading state and toggles without saving driver settings',()=>{
+   let state={'heading:Image Processing':false},updates=0;
+   const page={ctx:{galaxy:{sections:Object.assign(()=>state,{set:next=>{state=next;updates++;}})}},toggleSection:h.BasePage.prototype.toggleSection};
+   const rows=[h.sectionHeading('Image Processing'),imageRow];
+   const closed=h.BasePage.prototype.sectionCardsFor.call(page,rows);
+   assert.doesNotMatch(flatten(closed),/Brightness/);
+   assert.match(flatten(closed),/aria-expanded=false/);
+   function handlers(v){if(Array.isArray(v))return v.flatMap(handlers);if(typeof v==='function')return [v];return v?.values?handlers(v.values):[];}
+   const [toggle]=handlers(closed);assert.equal(typeof toggle,'function');toggle();
+   assert.equal(updates,1);assert.equal(state['heading:Image Processing'],true);
+   assert.match(flatten(h.BasePage.prototype.sectionCardsFor.call(page,rows)),/Brightness/);
+ });
  test('Shared styles indent complete child cards and collapse cleanly on narrow screens',()=>{assert.match(h.fieldStyles.cssText,/\.section-body\s*\{[^}]*padding: 4px 16px 12px 22px/);assert.match(h.fieldStyles.cssText,/\.section-body > \.section-card\s*\{[^}]*margin: 12px 0 8px 12px/);assert.match(h.fieldStyles.cssText,/\.section-card \.field \.title::after \{ display: none/);});
- console.log(`${count}/11 section-card checks passed using ${mode}.`);
+ console.log(`${count}/12 section-card checks passed using ${mode}.`);
  if(process.env.SECTION_CARD_FIXTURE){let markup=flatten(cards).replace(/\?hidden=false/g,'').replace(/\?hidden=true/g,'hidden').replace(/@click=\s*/g,'');fs.writeFileSync(process.env.SECTION_CARD_FIXTURE,`<!doctype html><html><head><meta charset="utf-8"><style>:root{--colorNeutralForeground1:#242424;--colorNeutralBackground1:#fff;--colorNeutralBackground2:#fafafa;--colorNeutralBackground3:#f5f5f5;--colorNeutralStroke2:#d1d1d1;--colorNeutralStroke1:#c7c7c7;--colorBrandStroke1:#0f6cbd;--colorNeutralStrokeAccessible:#616161;}body{margin:0;padding:16px;font:16px system-ui;background:var(--colorNeutralBackground2);color:var(--colorNeutralForeground1)}input{max-width:140px} ${h.fieldStyles.cssText}</style></head><body><p>Layout-only fixture: production grouping helper and CSS; native controls substitute for Fluent controls.</p>${markup}</body></html>`);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -37,14 +37,18 @@ test('release still prepares pinned sources and builds the driver and GUI', () =
   assert.match(release, /run: npm ci/);
   assert.match(release, /run: npm test/);
   assert.match(release, /cargo test --locked --lib/);
+  assert.match(release, /node \.\\build\.js --vendor neutral/);
 });
 
 test('release keeps version, package, and publication validation', () => {
   assert.match(release, /Verify-ReleaseVersion\.ps1 -Tag \$tag -PassThru/);
   assert.match(release, /Package-GitHubRelease\.ps1/);
   assert.match(release, /if-no-files-found: error/);
-  assert.match(release, /if: github\.ref_type == 'tag'/);
-  assert.match(release, /--verify-tag/);
+  assert.match(release, /if: steps\.policy\.outputs\.publish == 'true'/);
+  assert.match(release, /node \.\\tools\\release-policy\.cjs/);
+  assert.match(release, /node \.\\tools\\publish-release\.cjs/);
+  assert.match(release, /branches: \['\*\*'\]/);
+  assert.match(release, /pull_request:/);
   assert.match(release, /\.zip\.sha256/);
 });
 
@@ -53,6 +57,8 @@ test('developer workflow runs both PowerShell hosts and all tool suites without 
   assert.match(developer, /pull_request:/);
   assert.match(developer, /workflow_dispatch:/);
   assert.match(developer, /contents: read/);
+  assert.ok(developer.indexOf('run: npm ci') < developer.indexOf('- name: Run service and packaging regressions'));
+  assert.match(developer, /working-directory: GalaxyXRDriverGUI\s+run: npm ci/);
   assert.match(developer, /REQUIRE_PORTABLE_POWERSHELL_TESTS: '1'/);
   assert.match(developer, /REQUIRE_POWERSHELL_TESTS: '1'/);
   assert.match(developer, /-Filter '\*\.test\.cjs'/);

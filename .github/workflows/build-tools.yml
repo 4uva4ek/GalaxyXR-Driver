@@ -38,15 +38,22 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: GalaxyXRDriverGUI/package-lock.json
 
       - name: Verify build sources are tracked
         run: |
           node .\tools\verify-build-sources.cjs --require-tracked
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # The tool tests need no compiler. The service suites below also need
+      # the GUI's locked TypeScript/Lit dependencies on a fresh runner.
+      - name: Install service test dependencies
+        working-directory: GalaxyXRDriverGUI
+        run: npm ci
+
       # One invocation runs every test file, so a failed suite does not hide
-      # the results of later suites. No npm install or compiler is needed here.
+      # the results of later suites.
       - name: Run build tool tests
         run: |
           $testFiles = @(Get-ChildItem -LiteralPath .\tools\tests -Filter '*.test.cjs' |
