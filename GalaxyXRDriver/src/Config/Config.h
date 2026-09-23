@@ -350,8 +350,11 @@ struct GalaxyXrConfig{
 	// nonFoveatedStreamFormatWidth) from it. with no section the log says
 	// "Using defaults as unknown headset: 1" and "Warning: HMD does not
 	// support 10bit." -> "Using 10bit mode: 0": the stream is 8-bit HEVC.
-	// 2026-09-23: On mirrors profile and tuning requests to vrlink_xrvst2ue,
+	// 2026-09-23 routing correction: tuning always reaches driver_vrlink.
+	// On additionally mirrors tuning/profile requests to vrlink_xrvst2ue,
 	// vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro before connection.
+	// Known Quest/PICO models bypass per-model capability loading in the
+	// inspected VRLink build; those requests do not override built-in profiles.
 	// Each section keeps its own recovery journal originals. Off preserves
 	// tuning in driver_vrlink and capabilities in vrlink_<original model>
 	// (xrvst2ue fallback); an active SDR10 baseline still requests capabilities.

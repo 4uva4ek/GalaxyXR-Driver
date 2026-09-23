@@ -18,7 +18,8 @@
 #include <string>
 #include "nlohmann/json.hpp"
 
-// Route tuning independently from the baseline's effective capability gate.
+// Read actual tuning from driver_vrlink; per-model copies are not read by the
+// recognized Quest/PICO paths in the inspected VRLink build (2026-09-23).
 static const char* VrlinkSection() {
     return gxr::VrlinkTuningSection(driverConfig.galaxyXr.vrlinkHeadsetProfile);
 }
@@ -317,8 +318,8 @@ static void ApplyHeadsetProfileSetting(const std::string &modelNumberIn, const g
 			SetInt32IfDifferent(sec, "maxStreamFormatWidth", maxSfw);
 			SetInt32IfDifferent(sec, "minNonFoveatedStreamFormatWidth", 1024);
 			SetInt32IfDifferent(sec, "maxNonFoveatedStreamFormatWidth", maxSfw);
-			DriverLog("GalaxyXR: wrote vrlink headset profile [%s] (render %dx%d, supports10bit %d, streamFormatWidth 1024..%d; effective at SteamVR start). "
-				"Verify in driver_vrlink.txt: 'Found settings for unknown hmd' and 'Using 10bit mode'.",
+			DriverLog("GalaxyXR: wrote vrlink headset profile request [%s] (render %dx%d, supports10bit %d, streamFormatWidth 1024..%d). "
+				"Known Quest/PICO models use built-in capabilities; profile writes do not prove consumption. Verify driver_vrlink.txt after reconnect.",
 				sec, kGalaxyXrRenderWidth, kGalaxyXrRenderHeight, (int)policy.profileSupports10bit, maxSfw);
 			if(policy.active){
 				// 2026-09-19 SDR10 baseline: this request is FORCED relative to

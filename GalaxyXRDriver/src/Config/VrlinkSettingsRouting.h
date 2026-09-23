@@ -3,13 +3,13 @@
 #include <string>
 #include <vector>
 
-// UI profile enablement selects a DESTINATION. It is deliberately independent
+// UI profile enablement selects additional profile destinations, independently
 // from Sdr10BaselinePolicy::profileEnabled (the baseline can request 10-bit
 // capabilities even when the saved profile switch is off).
 namespace gxr {
 inline constexpr const char* kGalaxyProfileSection = "vrlink_xrvst2ue";
-inline const char* VrlinkTuningSection(bool useGalaxyProfile) {
-    return useGalaxyProfile ? kGalaxyProfileSection : "driver_vrlink";
+inline const char* VrlinkTuningSection(bool /*useGalaxyProfile*/) {
+    return "driver_vrlink";
 }
 inline std::string VrlinkCapabilitySection(bool useGalaxyProfile, const std::string& originalModel) {
     // OFF preserves the previous per-model capability/baseline destination.
@@ -17,14 +17,18 @@ inline std::string VrlinkCapabilitySection(bool useGalaxyProfile, const std::str
 }
 // 2026-09-23: patched Steam Link clients also report these Quest/PICO model
 // identities. Prepare the same settings before connection for all three.
-inline std::vector<std::string> VrlinkTuningSections(bool useGalaxyProfile) {
+inline std::vector<std::string> VrlinkCapabilitySections(bool useGalaxyProfile, const std::string& originalModel) {
     if(useGalaxyProfile)
         return {kGalaxyProfileSection, "vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"};
-    return {VrlinkTuningSection(false)};
-}
-inline std::vector<std::string> VrlinkCapabilitySections(bool useGalaxyProfile, const std::string& originalModel) {
-    if(useGalaxyProfile) return VrlinkTuningSections(true);
     return {VrlinkCapabilitySection(false, originalModel)};
+}
+inline std::vector<std::string> VrlinkTuningSections(bool useGalaxyProfile) {
+    // 2026-09-23: installed VRLink reads tuning from driver_vrlink, and known
+    // Quest/PICO identities bypass the unknown-model profile loader entirely.
+    // Retain the requested mirrors without removing the consumed global keys.
+    auto sections = useGalaxyProfile ? VrlinkCapabilitySections(true, "") : std::vector<std::string>{};
+    sections.insert(sections.begin(), VrlinkTuningSection(useGalaxyProfile));
+    return sections;
 }
 inline bool IsVrlinkCapabilityKey(const std::string& key) {
     return key == "recommendedRenderWidth" || key == "recommendedRenderHeight"
