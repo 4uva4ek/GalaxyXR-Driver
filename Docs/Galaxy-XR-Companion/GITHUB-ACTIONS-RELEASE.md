@@ -18,39 +18,75 @@ A tagged release must use exactly `v<version>`.
 
 ## Automatic release from main
 
-Run the version command with the next version, update `CHANGELOG.md`, and commit
-all seven version files listed above. The command updates both lockfiles without
-changing dependency versions. For example:
+Commit your changes and push them to `main`. CI chooses the next version from
+commit subjects since the latest reachable stable release tag, updates all seven
+version files above, and prepends an entry to `CHANGELOG.md`.
+
+This project's rules use **patch** for fixes, **minor** for features, and **major** for reworks:
+
+| Commit subject | Version change (starting at 1.2.4) |
+| --- | --- |
+| `fix: correct an issue` or `fix(gui): correct an issue` | `1.2.5` |
+| `feat: add a feature` or `feat(gui): add a feature` | `1.3.0` |
+| `rework: redesign a feature` or `rework(gui): redesign a feature` | `2.0.0` |
+| Mixed prefixes in the unreleased commits | One bump at the highest level: `rework:` > `feat:` > `fix:` |
+| Only `docs:`, `chore:`, or other subjects | Build and test; no release |
+
+Squash merges use the squash commit's subject, so give it the appropriate prefix.
+Normal merges retain the individual commit subjects; merge commits themselves are
+excluded. Prefixes must be lowercase and followed by a space and a description.
+An optional `!` is accepted but does not change these project-specific rules.
+
+Generated entries group reworks, features, fixes, and other changes, include short commit
+IDs, and preserve existing changelog history. Icon attribution stays in `CREDITS.md`
+inside the ZIP and in the README; it is not appended to each release's notes.
+
+After the full build, tests, packaging, and artifact upload succeed, CI pushes a
+`chore(release): v...` commit containing only the version files and changelog,
+then tags **that exact built commit** and publishes. Pull `main` before your next
+push to receive this metadata commit. The workflow uses `GITHUB_TOKEN` with
+`contents: write`; its push does not start another Actions run
+([GitHub's token-trigger rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)).
+If branch protection prevents the bot from pushing, publication fails rather
+than bypassing protection.
+
+If `main` advances while a build runs, that stale run does not overwrite it or
+publish its prepared version. The next main run considers all unreleased commits.
+Reruns recreate the same metadata commit; interrupted publication can reuse it.
+
+Manual version overrides remain available, including patch and prerelease versions:
 
 ```powershell
-node bump-version.js 1.2.2
+node bump-version.js 1.2.5
 node tools/verify-release-version.cjs
 ```
 
-When that version change reaches `main`, the Windows workflow automatically
-creates the matching tag and publishes a release after validation. Other pushes
-and pull requests build and test without publishing. The version comparison uses
-the commit before the entire push, so a version bump followed by another commit
-in the same push is still detected.
+Commit all seven version files. CI respects an explicitly changed version and
+generates its changelog entry if missing. Existing authored entries are retained.
+For a repository with no stable release tag, CI uses the push's base commit;
+if neither is available, create an initial stable `v<version>` tag first.
+Feature branches and pull requests build and test without changing versions or
+publishing. Local builds never generate release commits or push anything.
 
 The Windows workflow:
 
 1. checks out the full repository and recursive submodules;
-2. installs Node.js and Rust and locates MSBuild;
+2. installs Node.js, prepares automatic metadata, installs Rust and locates MSBuild;
 3. verifies all release version fields (and the tag on tag-triggered runs);
 4. runs `npm ci` and the frontend test suite;
 5. runs `node build.js --vendor neutral` and `node build.js --vendor galaxyxr`, each building the native OpenVR driver and Tauri application, then runs the Rust library tests;
 6. validates the staged executable, driver DLL, manifest and default settings;
 7. packages the complete Galaxy XR portable pair into `GalaxyXRDriver-v<version>-Windows-x64.zip`;
 8. creates a SHA-256 checksum;
-9. generates release notes from the version's changelog plus non-merge commits since the previous `v*` tag;
+9. generates release notes from the version's changelog entry without duplicating its commit list;
 10. uploads the ZIP and metadata as Actions artifacts; and
-11. pins `v<version>` to the built commit, uploads the ZIP and checksum to a draft, and publishes after both uploads succeed. Prerelease versions are marked as prereleases.
+11. saves generated metadata to `main`, pins `v<version>` to the built commit, uploads the ZIP and checksum to a draft, and publishes after both uploads succeed. Prerelease versions are marked as prereleases.
 
 A manual **Run workflow** invocation builds without publishing by default. To retry
 a failed publication, select **main** and enable **publish**. Reruns preserve an
 already published release and never move an existing tag to a different commit;
-after code changes, bump to a new version. Explicit `v*` tag pushes remain supported.
+after code changes, use a `fix:`/`feat:`/`rework:` commit or an explicit new version.
+Explicit `v*` tag pushes remain supported and build the tagged files without rewriting them.
 
 `build-tools.yml` separately installs the locked frontend dependencies and runs
 the service regressions plus build-tool tests under PowerShell 5.1 and 7.
@@ -79,7 +115,4 @@ GalaxyXRDriver-v<version>-Windows-x64/
 
 Keep `GalaxyXRDriverGUI` and `GalaxyXRNative` together after extraction.
 
-## Icon attribution
-
-Galaxy XR icons were made by **Vilkka**.  
-Based on original Quest Pro iconpack made by **Lux / Hekky**.
+See `CREDITS.md` for icon attribution.

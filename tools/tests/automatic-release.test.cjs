@@ -8,7 +8,7 @@ const { execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const { bumpVersion } = require('../../bump-version.js');
 const { verifyReleaseVersion } = require('../verify-release-version.cjs');
-const { releasePolicy, planRelease } = require('../release-policy.cjs');
+const { releasePolicy, planRelease, prepareRelease, persistRelease, nextVersion, changelogEntry, updateChangelog } = require('../release-policy.cjs');
 const { publishRelease } = require('../publish-release.cjs');
 const project = path.resolve(__dirname, '../..');
 const files = ['GalaxyXRDriver/src/Config/Config.cpp', 'GalaxyXRDriver/DriverFiles/driver.vrdrivermanifest',
@@ -61,7 +61,202 @@ test('main compares against the entire push base, including multi-commit pushes'
   assert.equal(planRelease(repo, env, { before }).publish, false);
   bumpVersion(repo, '9.8.7');
   assert.equal(planRelease(repo, env, { before }).publish, true);
-  assert.throws(() => planRelease(repo, env, {}), /Missing push base/);
+  assert.throws(() => planRelease(repo, env, {}), /Missing release tag or push base/);
+});
+
+function history(t) {
+  const repo = fixture(t);
+  const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', windowsHide: true }).trim();
+  git('init', '--quiet', '--initial-branch=main');
+  git('config', 'core.autocrlf', 'false');
+  git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.invalid');
+  git('config', 'commit.gpgsign', 'false');
+  bumpVersion(repo, '1.2.4');
+  fs.writeFileSync(path.join(repo, 'CHANGELOG.md'), '# Changelog\n\n## [1.2.4] - 2026-09-23\n\nExisting authored history.\n');
+  let sequence = 0;
+  const commit = subject => {
+    fs.writeFileSync(path.join(repo, 'source.txt'), String(++sequence));
+    git('add', '.'); git('commit', '--quiet', '-m', subject);
+    return git('rev-parse', 'HEAD');
+  };
+  const before = commit('Initial release'); git('tag', 'v1.2.4');
+  return { repo, git, commit, before, env: { GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/main' } };
+}
+test('project commit policy uses patch for fixes, minor for features and major for reworks', () => {
+  const next = (...subjects) => nextVersion('1.2.4', subjects.map(subject => ({ subject })));
+  assert.equal(next('fix: first', 'fix(gui): second'), '1.2.5');
+  assert.equal(next('feat: first'), '1.3.0');
+  assert.equal(next('fix: first', 'feat(gui)!: second'), '1.3.0');
+  assert.equal(next('rework: redesign'), '2.0.0');
+  assert.equal(next('fix: first', 'rework(gui): redesign', 'feat: second'), '2.0.0');
+  assert.equal(next('rework(gui)!: redesign', 'fix: second'), '2.0.0');
+  assert.equal(next('docs: mention feat: here', 'prefix fix: irrelevant', 'chore: cleanup'), '1.2.4');
+});
+test('main generates synchronized versions and a changelog from all unreleased commits', t => {
+  const f = history(t);
+  const first = f.commit('fix(gui): collapse on the first click');
+  f.commit('docs: explain controls'); f.commit('fix: remove warning');
+  const plan = prepareRelease(f.repo, f.env, { before: first });
+  assert.equal(plan.version, '1.2.5'); assert.equal(plan.generated, true); assert.equal(plan.publish, true);
+  assert.equal(verifyReleaseVersion(f.repo).version, '1.2.5');
+  const text = fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8');
+  assert.match(text, /## \[1\.2\.5\]/); assert.match(text, /gui: collapse on the first click/);
+  assert.match(text, /remove warning/); assert.match(text, /docs: explain controls/);
+  assert.match(text, /Existing authored history/); assert.doesNotMatch(text, /Icon credits|Vilkka/);
+  assert.equal(f.git('status', '--porcelain'), '');
+  assert.deepEqual(f.git('diff-tree', '--no-commit-id', '--name-only', '-r', plan.commit).split('\n').sort(), [...files, 'CHANGELOG.md'].sort());
+});
+test('a feat wins over fixes and unrelated tags never set the release baseline', t => {
+  const f = history(t);
+  f.git('checkout', '--quiet', '-b', 'unrelated'); f.commit('unreleased branch'); f.git('tag', 'v99.0.0');
+  f.git('checkout', '--quiet', 'main');
+  f.commit('feat: add feature'); f.commit('fix: correct it');
+  assert.equal(prepareRelease(f.repo, f.env, { before: f.before }).version, '1.3.0');
+});
+test('a rework wins over features and fixes and gets its own changelog group', t => {
+  const f = history(t);
+  f.commit('feat: new control'); f.commit('rework(gui): redesign settings'); f.commit('fix: repair validation');
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(plan.version, '2.0.0');
+  assert.equal(verifyReleaseVersion(f.repo).version, '2.0.0');
+  const text = fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8');
+  assert.match(text, /### Reworks\n\n- gui: redesign settings/);
+  assert.match(text, /### Features\n\n- new control/);
+  assert.match(text, /### Fixes\n\n- repair validation/);
+});
+test('docs-only changes, feature branches, pull requests and default manual runs do not mutate or publish', t => {
+  const f = history(t); f.commit('docs: update guide');
+  assert.equal(prepareRelease(f.repo, f.env, {}).publish, false);
+  f.commit('feat: new control');
+  for (const env of [{ ...f.env, GITHUB_REF: 'refs/heads/feature' },
+    { ...f.env, GITHUB_EVENT_NAME: 'pull_request' }, { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' }]) {
+    const plan = prepareRelease(f.repo, env, {});
+    assert.equal(plan.publish, false); assert.equal(plan.generated, false); assert.equal(plan.version, '1.2.4');
+  }
+  assert.equal(f.git('status', '--porcelain'), '');
+});
+test('rerunning the source recreates the exact release commit and retrying persisted metadata reuses it', t => {
+  const f = history(t); const source = f.commit('fix: repair startup');
+  const plan = prepareRelease(f.repo, f.env, {});
+  f.git('tag', plan.tag);
+  const retryEnv = { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' };
+  const persisted = prepareRelease(f.repo, retryEnv, { inputs: { publish: true } });
+  assert.equal(persisted.commit, plan.commit); assert.equal(persisted.generated, false);
+  f.git('checkout', '--quiet', '--detach', source);
+  const again = prepareRelease(f.repo, f.env, {});
+  assert.equal(again.commit, plan.commit);
+  assert.equal((fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8').match(/## \[1\.2\.5\]/g) || []).length, 1);
+});
+test('manual version overrides remain usable and authored entries are preserved', t => {
+  const f = history(t); bumpVersion(f.repo, '1.2.5');
+  f.commit('fix: manual hotfix version');
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(plan.version, '1.2.5');
+  assert.match(fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8'), /manual hotfix version/);
+  const authored = '# Changelog\n\n## [1.2.5] - 2026-09-23\n\nHandwritten release notes.\n';
+  assert.equal(updateChangelog(authored, 'replacement', '1.2.5'), authored);
+});
+test('existing tagged releases retry without creating a different commit for the same version', t => {
+  const f = history(t);
+  const env = { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' };
+  assert.equal(prepareRelease(f.repo, env, { inputs: { publish: true } }).commit, f.before);
+  f.commit('docs: only documentation');
+  assert.throws(() => prepareRelease(f.repo, env, { inputs: { publish: true } }), /No new release version/);
+});
+test('dirty worktrees cannot be absorbed into automatic metadata commits', t => {
+  const f = history(t); f.commit('fix: startup');
+  fs.writeFileSync(path.join(f.repo, 'unrelated.txt'), 'private local edit');
+  assert.throws(() => prepareRelease(f.repo, f.env, {}), /clean checkout/);
+  assert.equal(verifyReleaseVersion(f.repo).version, '1.2.4');
+});
+test('manual prereleases can be prepared and retried without moving a published tag', t => {
+  const f = history(t); bumpVersion(f.repo, '2.0.0-beta.1'); f.commit('feat: preview feature');
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(plan.version, '2.0.0-beta.1');
+  f.git('tag', plan.tag);
+  const retry = prepareRelease(f.repo, { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' }, { inputs: { publish: true } });
+  assert.equal(retry.commit, plan.commit); assert.equal(retry.generated, false);
+  f.commit('fix: more preview changes');
+  assert.throws(() => prepareRelease(f.repo, f.env, {}), /already tagged prerelease/);
+});
+test('commit subjects remain literal changelog text', () => {
+  const text = changelogEntry('1.3.0', '2026-09-23', [{ hash: 'a'.repeat(40), subject: 'fix: <script> and [link](bad) `code`' }]);
+  assert.ok(text.includes('\\<script\\>')); assert.ok(text.includes('\\[link\\]')); assert.ok(text.includes('\\`code\\`'));
+});
+function remote(t, f) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'GalaxyXR release remote '));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  f.git('init', '--quiet', '--bare', directory); f.git('remote', 'add', 'origin', directory);
+  f.git('push', '--quiet', 'origin', 'HEAD:refs/heads/main');
+  return directory;
+}
+test('verified metadata fast-forwards main once and persistence is idempotent', t => {
+  const f = history(t); f.commit('fix: publish'); remote(t, f);
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(persistRelease(f.repo, plan, f.env.GITHUB_REF), true);
+  assert.equal(f.git('ls-remote', 'origin', 'refs/heads/main').split(/\s/)[0], plan.commit);
+  assert.equal(persistRelease(f.repo, plan, f.env.GITHUB_REF), true);
+});
+test('a newer main push suppresses stale publication and its next run includes every unreleased change', t => {
+  const f = history(t); const source = f.commit('fix: first repair'); remote(t, f);
+  const plan = prepareRelease(f.repo, f.env, {});
+  f.git('checkout', '--quiet', '--detach', source);
+  const newer = f.commit('feat: new feature'); f.git('push', '--quiet', 'origin', 'HEAD:refs/heads/main');
+  f.git('checkout', '--quiet', '--detach', plan.commit);
+  assert.equal(persistRelease(f.repo, plan, f.env.GITHUB_REF), false);
+  assert.equal(f.git('ls-remote', 'origin', 'refs/heads/main').split(/\s/)[0], newer);
+  f.git('checkout', '--quiet', '--detach', newer);
+  const next = prepareRelease(f.repo, f.env, {});
+  assert.equal(next.version, '1.3.0'); assert.equal(next.commits.length, 2);
+});
+test('workflow CLI exports the prepared SHA and persists it through the separate post-build step', t => {
+  const f = history(t);
+  for (const file of ['tools/release-policy.cjs', 'tools/verify-release-version.cjs', 'bump-version.js']) {
+    fs.mkdirSync(path.dirname(path.join(f.repo, file)), { recursive: true });
+    fs.copyFileSync(path.join(project, file), path.join(f.repo, file));
+  }
+  f.commit('fix: exercise workflow environment'); remote(t, f);
+  const event = path.join(f.repo, '.git/event.json'), output = path.join(f.repo, '.git/output'), environment = path.join(f.repo, '.git/environment');
+  fs.writeFileSync(event, JSON.stringify({ before: f.before }));
+  const env = { ...process.env, ...f.env, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output, GITHUB_ENV: environment };
+  const cli = path.join(f.repo, 'tools/release-policy.cjs');
+  execFileSync(process.execPath, [cli], { cwd: f.repo, env, windowsHide: true });
+  const exported = Object.fromEntries(fs.readFileSync(environment, 'utf8').trim().split('\n').map(line => line.split('=')));
+  assert.equal(exported.RELEASE_VERSION, '1.2.5'); assert.equal(exported.RELEASE_GENERATED, 'true');
+  assert.equal(exported.RELEASE_COMMIT, f.git('rev-parse', 'HEAD'));
+  execFileSync(process.execPath, [cli, '--persist'], { cwd: f.repo, env: { ...env, ...exported }, windowsHide: true });
+  assert.equal(f.git('ls-remote', 'origin', 'refs/heads/main').split(/\s/)[0], exported.RELEASE_COMMIT);
+});
+test('PowerShell packages the generated changelog once and keeps icon credits in CREDITS.md', { skip: process.platform !== 'win32' }, t => {
+  const f = history(t); f.commit('fix: first click collapses');
+  const plan = prepareRelease(f.repo, f.env, {});
+  for (const file of ['tools/Package-GitHubRelease.ps1', 'tools/Verify-ReleaseVersion.ps1', 'tools/verify-release-version.cjs', 'CREDITS.md']) {
+    fs.mkdirSync(path.dirname(path.join(f.repo, file)), { recursive: true });
+    fs.copyFileSync(path.join(project, file), path.join(f.repo, file));
+  }
+  const staging = path.join(f.repo, 'staging');
+  for (const [file, content] of [
+    ['GalaxyXRDriverGUI/Galaxy XR Companion.exe', 'test fixture, not an executable'],
+    ['GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll', 'test fixture, not a DLL'],
+    ['GalaxyXRNative/driver.vrdrivermanifest', JSON.stringify({ name: 'GalaxyXRNative', version: plan.version })],
+    ['GalaxyXRNative/resources/settings/default.vrsettings', '{}']]) {
+    fs.mkdirSync(path.dirname(path.join(staging, file)), { recursive: true });
+    fs.writeFileSync(path.join(staging, file), content);
+  }
+  // Node does not perform PowerShell's cross-edition environment cleanup.
+  // Let each host discover its own standard modules (especially Get-FileHash).
+  const packageEnv = { ...process.env };
+  for (const key of Object.keys(packageEnv)) if (key.toLowerCase() === 'psmodulepath') delete packageEnv[key];
+  execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(f.repo, 'tools/Package-GitHubRelease.ps1'),
+    '-Version', plan.version, '-Commit', plan.commit, '-StagingDirectory', staging], { cwd: f.repo, env: packageEnv, windowsHide: true });
+  const prefix = `GalaxyXRDriver-v${plan.version}-Windows-x64`;
+  const notes = fs.readFileSync(path.join(f.repo, 'release', `${prefix}-release-notes.md`), 'utf8');
+  assert.equal((notes.match(/first click collapses/g) || []).length, 1);
+  assert.doesNotMatch(notes, /Icon credits|Vilkka|Existing authored history/);
+  assert.match(fs.readFileSync(path.join(f.repo, 'build/github-release', prefix, 'CREDITS.md'), 'utf8'), /Vilkka/);
+  const zip = fs.readFileSync(path.join(f.repo, 'release', `${prefix}.zip`));
+  assert.equal(fs.readFileSync(path.join(f.repo, 'release', `${prefix}.zip.sha256`), 'utf8').trim(),
+    `${createHash('sha256').update(zip).digest('hex')}  ${prefix}.zip`);
 });
 function publishing(t, options = {}) {
   const directory = fixture(t), version = '1.2.1', commit = 'a'.repeat(40), calls = [];

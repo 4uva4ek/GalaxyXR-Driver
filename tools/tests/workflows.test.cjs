@@ -47,9 +47,24 @@ test('release keeps version, package, and publication validation', () => {
   assert.match(release, /if: steps\.policy\.outputs\.publish == 'true'/);
   assert.match(release, /node \.\\tools\\release-policy\.cjs/);
   assert.match(release, /node \.\\tools\\publish-release\.cjs/);
+  assert.match(release, /if: steps\.persist\.outputs\.publish == 'true'/);
+  assert.match(release, /-Commit \$env:RELEASE_COMMIT/);
+  assert.ok(release.indexOf('Prepare automatic version and changelog') < release.indexOf('Verify release version'));
+  const persist = release.indexOf('node .\\tools\\release-policy.cjs --persist');
+  assert.ok(persist > release.indexOf('cargo test --locked --lib'));
+  assert.ok(persist > release.indexOf('Package-GitHubRelease.ps1'));
+  assert.ok(persist < release.indexOf('node .\\tools\\publish-release.cjs'));
+  assert.match(read('tools/publish-release.cjs'), /commit: process\.env\.RELEASE_COMMIT \|\| process\.env\.GITHUB_SHA/);
   assert.match(release, /branches: \['\*\*'\]/);
   assert.match(release, /pull_request:/);
   assert.match(release, /\.zip\.sha256/);
+});
+
+test('packaging uses the changelog once and keeps attribution in the separate credits file', () => {
+  const packaging = read('tools/Package-GitHubRelease.ps1');
+  assert.doesNotMatch(packaging, /Icon credits|Vilkka|Lux \/ Hekky|commitLines/);
+  assert.match(packaging, /Copy-Item.*CREDITS\.md/);
+  assert.match(packaging, /\$releaseSection,/);
 });
 
 test('developer workflow runs both PowerShell hosts and all tool suites without masking failure', () => {

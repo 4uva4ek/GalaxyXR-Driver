@@ -66,10 +66,7 @@ $builtUtc = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
 @(
     "Galaxy XR Companion $Version",
     "Commit: $Commit",
-    "Built UTC: $builtUtc",
-    "",
-    "Galaxy XR icons were made by Vilkka.",
-    "Based on original Quest Pro iconpack made by Lux / Hekky."
+    "Built UTC: $builtUtc"
 ) | Set-Content -LiteralPath (Join-Path $packageRoot 'VERSION.txt') -Encoding UTF8
 
 $changelog = Get-Content -Raw -LiteralPath (Join-Path $repo 'CHANGELOG.md')
@@ -77,32 +74,10 @@ $escaped = [regex]::Escape($Version)
 $releaseSectionMatch = [regex]::Match($changelog, "(?ms)^## \[$escaped\].*?(?=^## \[|\z)")
 $releaseSection = if ($releaseSectionMatch.Success) { $releaseSectionMatch.Value.Trim() } else { "## $Version`r`n`r`nSee CHANGELOG.md for release details." }
 
-$allTags = @(& git -C $repo tag --list 'v*' --sort=-v:refname)
-$currentTag = "v$Version"
-$previousTag = $allTags | Where-Object { $_ -ne $currentTag } | Select-Object -First 1
-if ($previousTag) {
-    $range = "$previousTag..HEAD"
-    $commitHeading = "## Commits since $previousTag"
-} else {
-    $range = 'HEAD'
-    $commitHeading = '## Commits included in this release'
-}
-$commitLines = @(& git -C $repo log $range --no-merges --pretty=format:'- %s (`%h`) — %an')
-if ($commitLines.Count -eq 0) { $commitLines = @('- No additional commits after the previous release tag.') }
-
 $notes = @(
     "# Galaxy XR Companion v$Version",
     '',
     $releaseSection,
-    '',
-    $commitHeading,
-    '',
-    ($commitLines -join "`r`n"),
-    '',
-    '## Icon credits',
-    '',
-    'Galaxy XR icons were made by **Vilkka**.  ',
-    'Based on original Quest Pro iconpack made by **Lux / Hekky**.',
     '',
     '## Package',
     '',

@@ -40,6 +40,11 @@ jobs:
           cache: npm
           cache-dependency-path: GalaxyXRDriverGUI/package-lock.json
 
+      - name: Prepare automatic version and changelog
+        id: policy
+        shell: pwsh
+        run: node .\tools\release-policy.cjs
+
       # Build-tool compatibility tests run independently in build-tools.yml.
       # Release CI uses the runner's installed MSVC/SDK, not the local installer.
       - name: Prepare release inputs (CI layout v3)
@@ -70,11 +75,6 @@ jobs:
           $version = & .\tools\Verify-ReleaseVersion.ps1 -Tag $tag -PassThru
           "version=$version" >> $env:GITHUB_OUTPUT
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
-
-      - name: Determine whether to publish
-        id: policy
-        shell: pwsh
-        run: node .\tools\release-policy.cjs
 
       - name: Install frontend dependencies
         working-directory: GalaxyXRDriverGUI
@@ -114,7 +114,7 @@ jobs:
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { '' }
           .\tools\Package-GitHubRelease.ps1 `
             -Version '${{ steps.version.outputs.version }}' `
-            -Commit $env:GITHUB_SHA `
+            -Commit $env:RELEASE_COMMIT `
             -Tag $tag
 
       - name: Upload portable ZIP artifact
@@ -135,8 +135,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release
+      - name: Save verified version and changelog to main
         if: steps.policy.outputs.publish == 'true'
+        id: persist
+        shell: pwsh
+        run: node .\tools\release-policy.cjs --persist
+
+      - name: Publish GitHub Release
+        if: steps.persist.outputs.publish == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
