@@ -6,6 +6,12 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.2.7] - 2026-09-23
+
+### Fixes
+
+- settings now applied under driver\_vrlink (`bd7535e`)
+
 ## [1.2.6] - 2026-09-23
 
 ### Fixes
