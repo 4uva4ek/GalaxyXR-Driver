@@ -8,7 +8,12 @@ import { JsonSettingServiceBase } from './settings-base';
 const appDefaults: AppSetting = {
   colorScheme: 'dark',
   updateMode: 'rewrite',
-  advanceMode: false
+  advanceMode: false,
+  // Default Off (2026-09-23): a fresh install — or the one before an
+  // uninstall — requires a new SteamVR verification before the Setup check
+  // may show green again. gui-settings.json survives uninstall, so the flag
+  // is cleared explicitly by the install/uninstall handlers.
+  driverVerified: false
 };
 
 export class AppSettingService extends JsonSettingServiceBase<AppSetting> {

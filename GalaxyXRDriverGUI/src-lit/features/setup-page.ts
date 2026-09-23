@@ -46,7 +46,12 @@ export class SetupPage extends BasePage {
     const status = startup.status();
     const config = sds.steamVrConfig();
     const enabled = config ? sds.getSteamVRDriverEnableState(config, galaxyXRDriverName) : undefined;
-    const initialized = installed && enabled !== false && status?.driverInitialized === true;
+    // Verification latch (2026-09-23): once SteamVR has confirmed the driver
+    // initialized, the check stays verified until the next install or
+    // uninstall clears the flag — closing SteamVR or restarting the app must
+    // not force a re-verification.
+    const verified = this.ctx.appSetting.values()?.driverVerified === true;
+    const initialized = installed && enabled !== false && (verified || status?.driverInitialized === true);
     const installLabel = !installed ? t('Install Driver') : updateInfo?.installAvailable
       ? this.installText(updateInfo.currentVersion) : t('Re-Install Driver');
     return html`<div class="setup-content">
@@ -132,9 +137,30 @@ export class SetupPage extends BasePage {
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.runtimeUnsubs = [this.ctx.startup.status, this.ctx.startup.error, this.ctx.startup.launching]
-      .map(state => state.subscribe(() => this.requestUpdate()));
+    this.runtimeUnsubs = [
+      this.ctx.startup.status.subscribe(() => { this.rememberVerified(); this.requestUpdate(); }),
+      this.ctx.startup.error.subscribe(() => this.requestUpdate()),
+      this.ctx.startup.launching.subscribe(() => this.requestUpdate()),
+    ];
     void this.pollRuntime(++this.pollGeneration);
+  }
+
+  /** Persist the verification latch when SteamVR confirms driver
+   * initialization (2026-09-23). Fires from every refresh path that ends in
+   * a status change: Start SteamVR, Check driver now, and the 2s poll. */
+  private rememberVerified(): void {
+    if (this.ctx.startup.status()?.driverInitialized !== true) return;
+    const appSetting = this.ctx.appSetting;
+    if (appSetting.values()?.driverVerified === true) return;
+    void appSetting.save({ ...appSetting.values(), driverVerified: true });
+  }
+
+  /** Clear the latch: a fresh install or an uninstall must be re-verified in
+   * SteamVR (2026-09-23). No-op when already cleared. */
+  private async resetVerified(): Promise<void> {
+    const appSetting = this.ctx.appSetting;
+    if (appSetting.values()?.driverVerified !== true) return;
+    await appSetting.save({ ...appSetting.values(), driverVerified: false });
   }
 
   disconnectedCallback(): void {
@@ -153,6 +179,7 @@ export class SetupPage extends BasePage {
     if (await this.ctx.sds.installDriver()) {
       this.ctx.startup.invalidate();
       this.ctx.checks.clear();
+      await this.resetVerified(); // new install needs a fresh SteamVR verification (2026-09-23)
       await this.ctx.dialog.message(t('Driver files installed'), t('Next, use Start SteamVR on Setup and connect your headset through Steam Link. Wait for Driver initialization verified in SteamVR before considering setup complete.'));
     }
   }
@@ -172,6 +199,10 @@ export class SetupPage extends BasePage {
   }
 
   private async uninstallDriver(): Promise<void> {
+    // A successful uninstall leaves settings writes suspended, so the latch
+    // must be cleared BEFORE it runs; a save afterwards would be rejected
+    // (2026-09-23). gui-settings.json survives uninstall, so this sticks.
+    await this.resetVerified();
     if (await this.ctx.sds.uninstallDriver()) {
       this.ctx.startup.invalidate();
       this.ctx.checks.clear();

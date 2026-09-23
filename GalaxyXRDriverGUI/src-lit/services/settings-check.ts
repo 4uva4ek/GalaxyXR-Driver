@@ -65,7 +65,10 @@ export class SettingsCheckService {
       // Refresh runtime-published defaults before interpreting omitted keys.
       if (!await this.info.loadSetting()) report.warnings.push('Runtime information is unavailable. Missing settings use bundled defaults.');
       if (await this.app.loadSetting()) {
-        report.checks.push(...inspectBooleanSettings(this.app.values(), this.app.storedValues(), 'gui-settings.json'));
+        // driverVerified is the Setup page's verification latch, not a user
+        // setting, so it stays out of the settings report (2026-09-23).
+        report.checks.push(...inspectBooleanSettings(this.app.values(), this.app.storedValues(), 'gui-settings.json')
+          .filter(check => check.key !== 'driverVerified'));
       } else report.errors.push(`gui-settings.json: ${this.app.readFileError()?.message ?? this.app.readFileError()?.reason}`);
       if (await this.driver.loadSetting()) {
         report.checks.push(...inspectBooleanSettings(this.driver.values(), this.driver.storedValues(), 'settings.json'));

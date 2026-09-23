@@ -414,6 +414,10 @@ export type AppSetting = {
   colorScheme: 'system' | 'dark' | 'light';
   updateMode: 'replace' | 'rewrite';
   advanceMode: boolean;
+  // Setup "Start SteamVR and verify" latch (2026-09-23): once the driver has
+  // passed the live SteamVR initialization check it stays verified until the
+  // next install or uninstall clears it. GUI state, not a user-facing toggle.
+  driverVerified: boolean;
 }
 
 export const HeadsetType = {
