@@ -17,6 +17,7 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
  function test(name,fn){fn();count++;console.log('PASS '+name);}
  function children(t){return Array.isArray(t.values?.at(-1))?t.values.at(-1):[];}
  function flatten(v){if(Array.isArray(v))return v.map(flatten).join('');if(v?.strings)return v.strings.reduce((s,text,i)=>s+text+flatten(v.values[i]),'');if(typeof v==='function'||v==null)return '';return String(v);}
+ function handlers(v){if(Array.isArray(v))return v.flatMap(handlers);if(typeof v==='function')return [v];return v?.values?handlers(v.values):[];}
  const parentRow=h.fieldRow('Official Controller Input Profile',html`<input type="checkbox" aria-label="Official Controller Input Profile">`);
  const childRow=h.fieldRow('Grip Convention',html`<input type="checkbox" checked aria-label="Grip Convention">`);
  const deepRow=h.fieldRow('Prediction strength',html`<input type="number" value="1.15" aria-label="Prediction strength">`);
@@ -41,12 +42,50 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
    const closed=h.BasePage.prototype.sectionCardsFor.call(page,rows);
    assert.doesNotMatch(flatten(closed),/Brightness/);
    assert.match(flatten(closed),/aria-expanded=false/);
-   function handlers(v){if(Array.isArray(v))return v.flatMap(handlers);if(typeof v==='function')return [v];return v?.values?handlers(v.values):[];}
    const [toggle]=handlers(closed);assert.equal(typeof toggle,'function');toggle();
    assert.equal(updates,1);assert.equal(state['heading:Image Processing'],true);
    assert.match(flatten(h.BasePage.prototype.sectionCardsFor.call(page,rows)),/Brightness/);
  });
+ test('Fresh headings collapse on the first click, retain state across tabs, and work after restart',()=>{
+   // Each session starts with only the explicitly declared section defaults.
+   for(let session=0;session<2;session++){
+     let state={color:true,debug:false},updates=0;
+     const ctx={galaxy:{sections:Object.assign(()=>state,{set:next=>{state=next;updates++;}})}};
+     // Recreate the page for each render, as switching tabs does, while
+     // keeping the application-owned section state.
+     const render=(title,row)=>h.BasePage.prototype.sectionCardsFor.call(
+       {ctx,toggleSection:h.BasePage.prototype.toggleSection},[h.sectionHeading(title),row]);
+     for(const [title,row,content] of [['Image Processing',imageRow,'Brightness'],['Setup',childRow,'Grip Convention']]){
+       const initial=render(title,row);
+       assert.match(flatten(initial),/aria-expanded=true/);
+       assert.ok(flatten(initial).includes(content));
+       handlers(initial)[0]();
+       assert.equal(state['heading:'+title],false,'first click must close '+title);
+       const closed=render(title,row);
+       assert.match(flatten(closed),/aria-expanded=false/);
+       assert.ok(!flatten(closed).includes(content));
+     }
+     assert.equal(updates,2);
+     const revisited=render('Image Processing',imageRow);
+     assert.match(flatten(revisited),/aria-expanded=false/);
+     handlers(revisited)[0]();
+     assert.ok(flatten(render('Image Processing',imageRow)).includes('Brightness'));
+     assert.equal(state['heading:Setup'],false);
+     assert.equal(state.color,true);assert.equal(state.debug,false);
+     assert.equal(updates,3);
+   }
+ });
+ test('Explicitly open and closed feature sections still toggle on the first click',()=>{
+   let state={color:true,debug:false};
+   const page={ctx:{galaxy:{sections:Object.assign(()=>state,{set:next=>{state=next;}})}},toggleSection:h.BasePage.prototype.toggleSection};
+   for(const key of ['color','debug']){
+     const initial=state[key];
+     const cards=h.BasePage.prototype.sectionCardsFor.call(page,[h.sectionRow(key,initial,0,()=>page.toggleSection(key)),imageRow]);
+     handlers(cards)[0]();
+     assert.equal(state[key],!initial);
+   }
+ });
  test('Shared styles indent complete child cards and collapse cleanly on narrow screens',()=>{assert.match(h.fieldStyles.cssText,/\.section-body\s*\{[^}]*padding: 4px 16px 12px 22px/);assert.match(h.fieldStyles.cssText,/\.section-body > \.section-card\s*\{[^}]*margin: 12px 0 8px 12px/);assert.match(h.fieldStyles.cssText,/\.section-card \.field \.title::after \{ display: none/);});
- console.log(`${count}/12 section-card checks passed using ${mode}.`);
+ console.log(`${count}/14 section-card checks passed using ${mode}.`);
  if(process.env.SECTION_CARD_FIXTURE){let markup=flatten(cards).replace(/\?hidden=false/g,'').replace(/\?hidden=true/g,'hidden').replace(/@click=\s*/g,'');fs.writeFileSync(process.env.SECTION_CARD_FIXTURE,`<!doctype html><html><head><meta charset="utf-8"><style>:root{--colorNeutralForeground1:#242424;--colorNeutralBackground1:#fff;--colorNeutralBackground2:#fafafa;--colorNeutralBackground3:#f5f5f5;--colorNeutralStroke2:#d1d1d1;--colorNeutralStroke1:#c7c7c7;--colorBrandStroke1:#0f6cbd;--colorNeutralStrokeAccessible:#616161;}body{margin:0;padding:16px;font:16px system-ui;background:var(--colorNeutralBackground2);color:var(--colorNeutralForeground1)}input{max-width:140px} ${h.fieldStyles.cssText}</style></head><body><p>Layout-only fixture: production grouping helper and CSS; native controls substitute for Fluent controls.</p>${markup}</body></html>`);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

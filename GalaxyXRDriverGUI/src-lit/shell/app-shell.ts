@@ -48,7 +48,7 @@ export class AppShell extends LitElement {
       this.ctx.sds.driverInstalled.subscribe(this.onInstallation),
       this.ctx.sds.installingDriver.subscribe(notify),
       this.ctx.sds.driverState.subscribe(this.onInstallation),
-      this.ctx.aus.updateInfo.subscribe(notify), this.ctx.sds.driverVersionMismatch.subscribe(notify),
+      this.ctx.aus.updateInfo.subscribe(notify),
       this.ctx.checks.checking.subscribe(notify), this.ctx.checks.report.subscribe(notify),
       this.ctx.dss.writeFileError.subscribe(notify), this.ctx.appSetting.writeFileError.subscribe(notify),
       subscribeLocale(notify),
@@ -114,7 +114,6 @@ export class AppShell extends LitElement {
     const routes = visibleRoutes(this.driverAvailable);
     const activeRoute = permittedRoute(this.route, this.driverAvailable);
     const update = this.ctx.aus.updateInfo();
-    const setupWarn = update?.installAvailable || this.ctx.sds.driverVersionMismatch();
     const busy = this.ctx.checks.checking() || this.ctx.sds.installingDriver();
     const writeError = this.ctx.dss.writeFileError() || this.ctx.appSetting.writeFileError();
     return html`
@@ -122,7 +121,7 @@ export class AppShell extends LitElement {
         <img class="brand-icon" src="icons/headset_galaxy_xr_ready_2x.png" alt="Galaxy XR Companion" title="Galaxy XR Companion">
         <fluent-tablist activeid=${`tab-${activeRoute}`} aria-label=${t('Settings pages')} ?disabled=${busy} @change=${this.onTabChange}>
           ${routes.map(route => html`<fluent-tab slot="tab" id=${`tab-${route}`} aria-controls=${`panel-${route}`}>
-            ${t(LABELS[route])}${((route === 'about' && update?.updateAvailable) || (route === 'setup' && setupWarn)) ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
+            ${t(LABELS[route])}${(route === 'about' && update?.updateAvailable) ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
           </fluent-tab>`)}
         </fluent-tablist>
       </header>

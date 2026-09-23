@@ -170,10 +170,10 @@ export class BasePage extends LitElement {
     return !!sections[name];
   }
 
-  protected toggleSection(name: string): void {
+  protected toggleSection(name: string, defaultOpen = false): void {
     const current = this.ctx.galaxy.sections();
     const next = { ...(current as unknown as Record<string, boolean>) };
-    next[name] = !next[name];
+    next[name] = !(next[name] ?? defaultOpen);
     this.ctx.galaxy.sections.set(next as unknown as typeof current);
   }
 
@@ -183,7 +183,9 @@ export class BasePage extends LitElement {
   protected sectionCardsFor(rows: readonly TemplateResult[]): TemplateResult {
     return sectionCards(rows, {
       sections: this.ctx.galaxy.sections() as Record<string, boolean>,
-      onToggle: (key: string) => this.toggleSection(key),
+      // Match the renderer's open default for headings with no saved state;
+      // otherwise their first click leaves them open (2026-09-23).
+      onToggle: (key: string) => this.toggleSection(key, true),
     });
   }
 }
