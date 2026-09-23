@@ -7,6 +7,7 @@ import { BasePage, fieldRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import { signal } from '../reactive';
 import { delay } from '../domain/pure';
+import { projectUrl } from '../domain/project';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 @customElement('app-about-page')
@@ -69,6 +70,7 @@ export class AboutPage extends BasePage {
       } else {
         control = html`<span>${updateInfo.currentVersion}</span>
           ${!checking && updateInfo.fetchSuccess ? html`<span>${t('(Up to date)')}</span>` : html``}
+          ${!checking && !updateInfo.fetchSuccess ? html`<span role="status">${t('Could not check for updates. Please try again.')}</span>` : html``}
           <button class="icon-btn" type="button" aria-label=${t('Check for updates')} title=${t('Check for updates')} ?disabled=${checking} @click=${() => this.checkUpdate()}>
             ${checking ? html`<span class="spin primary-color">↻</span>` : html`<span class="primary-color">↻</span>`}
           </button>`;
@@ -76,7 +78,7 @@ export class AboutPage extends BasePage {
       parts.push(fieldRow(t('App Version'), control));
     }
 
-    const github = 'https://github.com/timkhronos/CustomHeadsetOpenVrGxR';
+    const github = projectUrl;
     parts.push(
       fieldRow(t('Source Code and Releases'), html`
         <a class="donation-link" href=${github} @click=${(e: Event) => this.openExternal(e, github)}>
@@ -88,10 +90,10 @@ export class AboutPage extends BasePage {
         </a>
       `),
       fieldRow(t('Documentation'), html`
-        <a href=${github + '/blob/GxR/Docs/StreamFrame.md'} @click=${(e: Event) => this.openExternal(e, github + '/blob/GxR/Docs/StreamFrame.md')}>
+        <a href=${github + '/blob/main/Docs/StreamFrame.md'} @click=${(e: Event) => this.openExternal(e, github + '/blob/main/Docs/StreamFrame.md')}>
           ${t('Setup and image processing guide')}
         </a>
-        <a href=${github + '/blob/GxR/Docs/TunerUsage.md'} @click=${(e: Event) => this.openExternal(e, github + '/blob/GxR/Docs/TunerUsage.md')}>
+        <a href=${github + '/blob/main/Docs/TunerUsage.md'} @click=${(e: Event) => this.openExternal(e, github + '/blob/main/Docs/TunerUsage.md')}>
           ${t('Distortion tuner guide')}
         </a>
       `),

@@ -1,0 +1,1 @@
+node bump-version.js 1.2.2

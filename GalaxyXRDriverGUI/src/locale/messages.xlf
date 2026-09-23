@@ -29,6 +29,9 @@
       <trans-unit id="8491984279391991305" datatype="html">
         <source>(Up to date)</source>
       </trans-unit>
+      <trans-unit id="update-check-failed" datatype="html">
+        <source>Could not check for updates. Please try again.</source>
+      </trans-unit>
       <trans-unit id="6915767768628367173" datatype="html">
         <source>Github Page</source>
       </trans-unit>

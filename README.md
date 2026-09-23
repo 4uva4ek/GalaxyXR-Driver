@@ -30,7 +30,7 @@ Configure the driver in **Galaxy XR Companion 1.2.0**, using Driver Settings, Im
 
 ## Installing
 
-1. Download the latest release from the [releases page](https://github.com/timkhronos/CustomHeadsetOpenVrGxR/releases/latest).
+1. Download the latest release from the [releases page](https://github.com/AngelDark92/GalaxyXR-Driver/releases/latest).
 2. Extract the whole folder from the zip. The `GalaxyXRDriverGUI` and `GalaxyXRNative` folders must stay next to each other.
 3. Run `Galaxy XR Companion.exe` in `GalaxyXRDriverGUI`, go to About, press Install.
 4. If the stock CustomHeadsetOpenVR driver is also enabled, the GUI shows a notice and a "Switch to this driver" button. Press it.
@@ -46,7 +46,7 @@ The source directories are now `GalaxyXRDriverGUI` and `GalaxyXRDriver`, with `G
 
 ## Updating
 
-Same as installing: extract the new zip, run the GUI, go to About and press Install (or Re-Install). The GUI checks this repository's releases and tells you when a newer version is available.
+Same as installing: extract the new zip, run the GUI, go to Setup and press Install (or Re-Install). The GUI checks this repository's latest stable release and tells you when a newer version is available. If the check fails, the About page shows a failure message; use Check for updates to retry.
 
 ## Recommended settings
 
@@ -65,7 +65,7 @@ Then restart SteamVR once.
 
 ## Reporting issues and Feature Requests
 
-Open an issue [here](https://github.com/timkhronos/CustomHeadsetOpenVrGxR/issues) and attach `Steam\logs\vrserver.txt` if applicable. Please do not report problems with this fork on the original CustomHeadsetOpenVR repository.
+Open an issue [here](https://github.com/AngelDark92/GalaxyXR-Driver/issues) and attach `Steam\logs\vrserver.txt` if applicable. Please do not report problems with this fork on the original CustomHeadsetOpenVR repository.
 
 ## Manual configuration
 

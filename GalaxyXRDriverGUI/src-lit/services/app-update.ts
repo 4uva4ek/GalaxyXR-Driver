@@ -6,6 +6,7 @@
 import { signal } from '../reactive';
 import { getVersion } from '@tauri-apps/api/app';
 import { isNewVersion } from '../domain/pure';
+import { latestReleaseApiUrl } from '../domain/project';
 import type { SystemDiagnosticService } from './system-diagnostic';
 import { effect } from '../reactive';
 
@@ -61,7 +62,7 @@ export class AppUpdateService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch('https://api.github.com/repos/timkhronos/CustomHeadsetOpenVrGxR/releases/latest', {
+      const response = await fetch(latestReleaseApiUrl, {
         signal: controller.signal,
         headers: { accept: 'application/vnd.github+json' },
       });
