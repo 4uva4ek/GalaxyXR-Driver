@@ -6,6 +6,12 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.2.6] - 2026-09-23
+
+### Fixes
+
+- the settings are now also written under Quest Pro and Pico 4 Pro identities for people with the identity patch (`71b62ac`)
+
 ## [1.2.5] - 2026-09-23
 
 ### Fixes
