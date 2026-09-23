@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <string>
+#include <vector>
 
 // UI profile enablement selects a DESTINATION. It is deliberately independent
 // from Sdr10BaselinePolicy::profileEnabled (the baseline can request 10-bit
@@ -12,6 +14,17 @@ inline const char* VrlinkTuningSection(bool useGalaxyProfile) {
 inline std::string VrlinkCapabilitySection(bool useGalaxyProfile, const std::string& originalModel) {
     // OFF preserves the previous per-model capability/baseline destination.
     return useGalaxyProfile ? kGalaxyProfileSection : "vrlink_" + (originalModel.empty() ? "xrvst2ue" : originalModel);
+}
+// 2026-09-23: patched Steam Link clients also report these Quest/PICO model
+// identities. Prepare the same settings before connection for all three.
+inline std::vector<std::string> VrlinkTuningSections(bool useGalaxyProfile) {
+    if(useGalaxyProfile)
+        return {kGalaxyProfileSection, "vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"};
+    return {VrlinkTuningSection(false)};
+}
+inline std::vector<std::string> VrlinkCapabilitySections(bool useGalaxyProfile, const std::string& originalModel) {
+    if(useGalaxyProfile) return VrlinkTuningSections(true);
+    return {VrlinkCapabilitySection(false, originalModel)};
 }
 inline bool IsVrlinkCapabilityKey(const std::string& key) {
     return key == "recommendedRenderWidth" || key == "recommendedRenderHeight"
@@ -40,9 +53,11 @@ inline bool ShouldRestoreInactiveVrlinkKey(const std::string& section, const std
     if(IsVrlinkCapabilityKey(key)) {
         // Before HMD activation, an OFF route does not yet know the patched
         // model. Do not remove its previous profile using a guessed fallback.
-        return (useGalaxyProfile || !originalModel.empty())
-            && section != VrlinkCapabilitySection(useGalaxyProfile, originalModel);
+        if(!useGalaxyProfile && originalModel.empty()) return false;
+        const auto sections = VrlinkCapabilitySections(useGalaxyProfile, originalModel);
+        return std::find(sections.begin(), sections.end(), section) == sections.end();
     }
-    return section != VrlinkTuningSection(useGalaxyProfile);
+    const auto sections = VrlinkTuningSections(useGalaxyProfile);
+    return std::find(sections.begin(), sections.end(), section) == sections.end();
 }
 } // namespace gxr

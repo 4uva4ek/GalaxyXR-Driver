@@ -9,6 +9,13 @@ use sysinfo::{ProcessesToUpdate, System};
 
 const DRIVER: &str = "GalaxyXRNative";
 const LEGACY: &str = "CustomHeadsetOpenVR";
+// 2026-09-23: Setup cleanup follows all Companion profile destinations, but
+// each removal still requires its existing fingerprint/value or journal proof.
+// This list is not an ownership allowlist for unjournaled uninstall cleanup.
+const COMPANION_PROFILE_SECTIONS: [&str; 5] = [
+    "vrlink_xrvst2ue", "vrlink_xrvst2", "vrlink_Galaxy XR",
+    "vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro",
+];
 type Result<T> = std::result::Result<T, String>;
 
 #[derive(Deserialize, Debug)]
@@ -304,7 +311,7 @@ fn clean_identity(ctx: &Context) -> Result<IdentityCleanupReport> {
 }
 fn plan_identity_cleanup(settings: &mut Value, journal: Option<&Value>, report: &mut IdentityCleanupReport) -> Result<()> {
     let root = settings.as_object_mut().ok_or("SteamVR settings must be a JSON object")?;
-    for name in ["vrlink_xrvst2ue", "vrlink_xrvst2", "vrlink_Galaxy XR"] {
+    for name in COMPANION_PROFILE_SECTIONS {
         let Some(value) = root.get_mut(name) else { continue };
         let section = value.as_object_mut().ok_or_else(||format!("SteamVR section {name} must be a JSON object"))?;
         let strong_identity = section.get("manufacturerName") == Some(&json!("Samsung"))
@@ -985,6 +992,41 @@ mod tests {
         atomic_json(&f.ctx.settings,&baseline).unwrap();let before=fs::read(&f.ctx.settings).unwrap();
         let report=clean_identity(&f.ctx).unwrap();assert!(report.removed_keys.is_empty());assert!(report.backup_path.is_none());
         assert_eq!(fs::read(&f.ctx.settings).unwrap(),before);
+    }
+    #[test]
+    fn mirrored_identity_cleanup_requires_galaxy_fingerprint_and_exact_values() {
+        for (section, manufacturer, model) in [
+            ("vrlink_Oculus Quest Pro", "Meta", "Oculus Quest Pro"),
+            ("vrlink_PICO 4 Pro", "PICO", "PICO 4 Pro"),
+        ] {
+            let native = json!({"manufacturerName":manufacturer,"modelNumber":model,
+                "enable":true,"hasEyeTracking":true,"supportsEyeTracking":true,
+                "renderModelName":"generic_hmd","supports10bit":true,"targetBandwidth":80});
+            let mut settings = json!({section:native.clone()});
+            let mut report = IdentityCleanupReport { removed_keys:vec![],removed_sections:vec![],warnings:vec![],backup_path:None };
+            plan_identity_cleanup(&mut settings,None,&mut report).unwrap();
+            assert_eq!(settings[section],native);assert!(report.removed_keys.is_empty());
+
+            settings[section] = legacy_identity();
+            settings[section]["manufacturerName"] = json!(manufacturer);
+            settings[section]["supports10bit"] = json!(true);
+            settings[section]["targetBandwidth"] = json!(80);
+            let journal = json!({"entries":{section:{"resourceRoot":{}}},"legacyKeys":{section:{"inputProfilePath":true}}});
+            plan_identity_cleanup(&mut settings,Some(&journal),&mut report).unwrap();
+            assert_eq!(report.removed_keys.len(),9);
+            assert_eq!(settings[section],json!({"manufacturerName":manufacturer,
+                "resourceRoot":DRIVER,"inputProfilePath":"{GalaxyXRNative}/input/galaxy_xr_hmd_profile.json",
+                "supports10bit":true,"targetBandwidth":80}));
+            assert_eq!(report.warnings.len(),2);
+        }
+    }
+    #[test]
+    fn legacy_uninstall_does_not_claim_unjournaled_mirrored_profiles() {
+        let original = json!({"vrlink_Oculus Quest Pro":{"supports10bit":true,"targetBandwidth":80},
+            "vrlink_PICO 4 Pro":{"recommendedRenderWidth":1920,"renderWidth":1920}});
+        let mut settings = original.clone();
+        assert_eq!(legacy_reset(&mut settings,&json!({"entries":{}})).unwrap(),0);
+        assert_eq!(settings,original);
     }
     #[test]
     fn identity_cleanup_preserves_journal_entries_and_legacy_baselines() {

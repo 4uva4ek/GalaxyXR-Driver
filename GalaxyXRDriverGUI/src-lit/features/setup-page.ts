@@ -229,7 +229,7 @@ export class SetupPage extends BasePage {
       sectionHeading(t('Cleanup')),
       fieldRow(t('Settings'), html`<button type="button" ?disabled=${busy}
         @click=${() => this.cleanSettings()}>${t('Clean Settings')}</button>`),
-      noteRow(t('Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.')),
+      noteRow(t('Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings, including the Quest Pro and PICO 4 Pro profiles used by patched Steam Link. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.')),
       ...(sds.driverInstalled() ? [
         fieldRow(t('Driver'), html`<button type="button" ?disabled=${busy}
           @click=${() => this.uninstallDriver()}>${t('Uninstall Driver')}</button>`),

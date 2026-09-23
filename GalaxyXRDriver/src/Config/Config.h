@@ -350,12 +350,13 @@ struct GalaxyXrConfig{
 	// nonFoveatedStreamFormatWidth) from it. with no section the log says
 	// "Using defaults as unknown headset: 1" and "Warning: HMD does not
 	// support 10bit." -> "Using 10bit mode: 0": the stream is 8-bit HEVC.
-	// this toggle writes that section. EXPERIMENTAL: key names are from
-	// the binary, the section name is inferred from a "vrlink_" literal
-	// adjacent to "[GetHmdModel] Unknown HMD Model number"; verify with a
-	// connect session ("Found settings for unknown hmd. Attempting to
-	// load." / "Using 10bit mode: 1" in driver_vrlink.txt). off removes
-	// the keys we wrote. takes effect at SteamVR start.
+	// 2026-09-23: On mirrors profile and tuning requests to vrlink_xrvst2ue,
+	// vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro before connection.
+	// Each section keeps its own recovery journal originals. Off preserves
+	// tuning in driver_vrlink and capabilities in vrlink_<original model>
+	// (xrvst2ue fallback); an active SDR10 baseline still requests capabilities.
+	// Only unchanged journal-owned values are restored. Requires a SteamVR
+	// restart/reconnect; verify actual negotiation in driver_vrlink.txt.
 	bool vrlinkHeadsetProfile = true;
 	// profile contents. maxStreamFormatWidth is the "foveated transport
 	// maximum" the community measured as 1536; we raise it so the tiers

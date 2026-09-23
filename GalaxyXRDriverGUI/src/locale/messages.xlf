@@ -1638,13 +1638,28 @@ Recorded SteamVR changes are restored to their previous values (or removed to us
 A recovery backup is created before any file is changed. You can clean before installing. After installing or cleaning, start SteamVR from Setup to initialize and verify the driver.</source>
       </trans-unit>
       <trans-unit id="setup-layout-cleanup-note-20260922" datatype="html">
-        <source>Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.</source>
+        <source>Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings, including the Quest Pro and PICO 4 Pro profiles used by patched Steam Link. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.</source>
       </trans-unit>
       <trans-unit id="setup-layout-c27e7bcd7dcbc754" datatype="html">
         <source>Driver enablement is unknown. Run the installation and settings check on the Setup page.</source>
       </trans-unit>
       <trans-unit id="setup-layout-4f2efa8671d64af1" datatype="html">
         <source>Open Setup to check installation and settings</source>
+      </trans-unit>
+      <trans-unit id="mirrored-vrlink-native-resolution-20260923" datatype="html">
+        <source>Ask SteamVR to render at the Galaxy XR's native per-eye size. This improves the requested resolution but can increase GPU load. Restart SteamVR to apply it.
+
+Requests 3552 × 3840 per eye at 90 Hz. Headset-specific renderWidth, renderHeight, overrideRenderWidth, overrideRenderHeight, and displayFrequency are mirrored to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro when vrlink Headset Profile is On, otherwise to the previous driver_vrlink section. SteamVR’s global preferredRefreshRate remains in steamvr because SteamVR reads it there. The recovery journal keeps each section's original values independently. Turning this off restores only unchanged journal-owned values; settings owned by another tool are not removed.</source>
+      </trans-unit>
+      <trans-unit id="mirrored-vrlink-profile-20260923" datatype="html">
+        <source>Keep this on to apply the same Galaxy XR settings when Steam Link reports Galaxy XR, Quest Pro or PICO 4 Pro. Turning it off switches settings back to their previous destinations. Requires a SteamVR restart.
+
+Enabled by default. On mirrors the same baseline/capability requests, stream size and bandwidth, render overrides, diagnostics, and supported extra vrlink keys to the exact steamvr.vrsettings sections vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro. All three are prepared before connection. The recovery journal keeps each section's original values independently and restores only unchanged journal-owned values. Off preserves the previous split: tuning in driver_vrlink, baseline/capabilities in vrlink_&lt;original model&gt; (xrvst2ue if no model is available). An active SDR 10-bit baseline still requests capabilities in that legacy destination; it does not silently turn this saved switch back on. Driver enable/block keys and SteamVR global settings keep their required sections. A restart/reconnect is needed; whether a Steam Link version consumes every profile key must be checked in its logs.</source>
+      </trans-unit>
+      <trans-unit id="mirrored-vrlink-baseline-20260923" datatype="html">
+        <source>Request a neutral 10-bit SDR picture. Enabling this resets image-processing adjustments to their defaults and turns Image Enhancements off. Switch Image Enhancements off in App Settings before enabling the baseline. Turn the baseline off before enabling enhancements again. Restart SteamVR and reconnect after changing it.
+
+The reset covers color/brightness, sharpening, FXAA, dither, black-floor correction, distortion curves/maps, eye alignment, dimming, calibration and video-color metadata. Controller motion, tracking, stream quality, bitrate and encoder presets are not reset. The custom shader target for this headset is turned off to avoid a conflicting color path. Previous picture adjustments are not restored when the baseline is disabled; export or back up first. The same capability request is mirrored to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro with vrlink Headset Profile On, otherwise it uses the previous vrlink_&lt;original model&gt; destination. Each section's original values are tracked independently by the recovery journal. A request does not prove the live codec: restart/reconnect and check driver_vrlink.txt for Using 10bit mode: 1.</source>
       </trans-unit>
     </body>
   </file>

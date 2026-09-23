@@ -1,12 +1,12 @@
-# Clean older Galaxy XR identity settings
+# Clean Galaxy XR settings
 
-Open **About → Clean Older Identity Settings** with SteamVR completely closed. This button is available even when the driver is uninstalled.
+Open **Setup → Clean Settings** with SteamVR completely closed. This button is available even when the driver is uninstalled.
 
-It removes recognized older identity values from `vrlink_xrvst2ue`, `vrlink_xrvst2`, and `vrlink_Galaxy XR`, including stale `GalaxyXRNative` resource references. Matching requires driver-specific resource references or the Samsung/Galaxy XR/serial identity together. Each removed key must match a known value; custom values, other headset sections, and render/stream profile settings remain untouched. Recognized empty sections are removed too.
+The reset restores journal-owned SteamVR overrides independently in every recorded section, including `vrlink_Oculus Quest Pro` and `vrlink_PICO 4 Pro`. Each key returns to its own previous value, or is removed if the driver originally added it. External edits and unrelated settings are preserved.
 
-Before changing anything, the action saves an exact-byte backup beside `steamvr.vrsettings`, named `steamvr.vrsettings.galaxyxr-identity-backup-<id>-<timestamp>.json`. The result dialog reports the backup path and removal counts. A no-op does not create a backup. Keep the backup if you may need to restore the previous configuration.
+It also removes recognized older Galaxy XR identity values from `vrlink_xrvst2ue`, `vrlink_xrvst2`, `vrlink_Galaxy XR`, `vrlink_Oculus Quest Pro`, and `vrlink_PICO 4 Pro`, including stale `GalaxyXRNative` resource references. Matching requires driver-specific resource references or the Samsung/Galaxy XR/serial identity together. Native Meta/PICO identity values are not treated as stale Galaxy XR identity. Saved custom overrides without a journal are removed only when their current values exactly match the app's saved overrides; other unrecorded render/stream settings remain untouched. Recognized empty sections are removed too.
 
-Values tracked by the current installation's recovery journal are preserved with a warning. Uninstall first if those values need restoration. Cleanup does not remove driver packages, alter registrations, or recreate deleted driver configuration. It does not recover unknown historical values; it removes only the recognized legacy overrides.
+Before changing files, the action saves exact originals and a manifest under `%APPDATA%/GalaxyXR/Backups/clean-settings-<timestamp>-<pid>/`. The result dialog reports the backup path and counts. Driver settings return to defaults; app preferences and named distortion profiles are kept. Driver packages, registrations, and enable/block choices are preserved. The identity/custom-override cleanup cannot remove pre-existing values just restored by the journal.
 
 The button uses the same operation gate and backend settings mutex as installation/uninstallation, rejects a running SteamVR session, validates paths and JSON, and writes settings atomically. Tests use temporary files and mocked host services; development validation does not run cleanup against the user's live SteamVR file.
 

@@ -12,14 +12,18 @@ static void Check(bool result, const char* description) {
     if(!result) { ++failures; std::cerr << "FAIL: " << description << '\n'; }
 }
 int main() {
-    const std::vector<std::string> models = {"", "xrvst2ue", "Galaxy XR", "Patched Quest Identity"};
+    const std::vector<std::string> models = {"", "xrvst2ue", "Galaxy XR", "Oculus Quest Pro", "PICO 4 Pro", "Patched Quest Identity"};
+    const std::vector<std::string> profiles = {"vrlink_xrvst2ue", "vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"};
     for(const auto& model : models) {
         Check(gxr::VrlinkCapabilitySection(true, model) == "vrlink_xrvst2ue", "ON always uses exact Galaxy capability section");
         Check(gxr::VrlinkCapabilitySection(false, model) == "vrlink_" + (model.empty() ? "xrvst2ue" : model), "OFF preserves original-model capability destination");
+        Check(gxr::VrlinkCapabilitySections(true, model) == profiles, "ON mirrors capabilities to the exact three model identities");
+        Check(gxr::VrlinkCapabilitySections(false, model) == std::vector<std::string>{"vrlink_" + (model.empty() ? "xrvst2ue" : model)}, "OFF retains only the original-model capability destination");
         for(bool baseline : {false, true}) for(bool profile : {false, true}) {
             Config config{}; config.galaxyXr.sdr10Baseline = baseline; config.galaxyXr.vrlinkHeadsetProfile = profile;
             const auto policy = gxr::ResolveSdr10Policy(config);
             Check(std::string(gxr::VrlinkTuningSection(profile)) == (profile ? "vrlink_xrvst2ue" : "driver_vrlink"), "tuning routing is independent of baseline");
+            Check(gxr::VrlinkTuningSections(profile) == (profile ? profiles : std::vector<std::string>{"driver_vrlink"}), "all tuning destinations are independent of baseline");
             Check(!baseline || policy.profileEnabled, "baseline still requests legacy capabilities when profile is off");
             Check(config.galaxyXr.vrlinkHeadsetProfile == profile, "resolver does not change the saved profile switch");
         }
@@ -61,8 +65,37 @@ int main() {
     Check(gxr::ShouldRestoreInactiveVrlinkKey("vrlink_Patched", "supports10bit", true, "Patched"), "ON routes old patched capability keys to exact Galaxy section");
     Check(!gxr::ShouldRestoreInactiveVrlinkKey("vrlink_xrvst2ue", "targetBandwidth", true, "Patched"), "selected profile is never cleaned as inactive");
     Check(gxr::ShouldRestoreInactiveVrlinkKey("vrlink_xrvst2ue", "targetBandwidth", false, "Patched"), "OFF releases previously profile-scoped tuning");
+    for(const auto& section : profiles) {
+        for(const auto& key : {"supports10bit", "targetBandwidth", "customOldExpertKey"})
+            Check(!gxr::ShouldRestoreInactiveVrlinkKey(section, key, true, "Patched"), "ON retains every active mirrored capability/tuning/expert key");
+        Check(gxr::ShouldRestoreInactiveVrlinkKey(section, "targetBandwidth", false, "Oculus Quest Pro"), "OFF releases tuning from all mirrored profiles");
+        Check(gxr::ShouldRestoreInactiveVrlinkKey(section, "supports10bit", false, "Oculus Quest Pro") == (section != "vrlink_Oculus Quest Pro"), "OFF retains only detected model capabilities");
+        Check(!gxr::ShouldRestoreInactiveVrlinkKey(section, "supports10bit", false, ""), "early OFF retains capabilities until model detection");
+        Check(!gxr::ShouldRestoreInactiveVrlinkKey(section, "enable", true, "Patched"), "mirrored profile lifecycle keys remain separate");
+    }
     Check(!gxr::ShouldRestoreInactiveVrlinkKey("steamvr", "preferredRefreshRate", true, "Patched"), "global compositor refresh is not relocated");
     bool present = true; Json value;
+    {
+        Json journal = {{"schema", 1}, {"driver", "GalaxyXRNative"}, {"entries", Json::object()}};
+        Json settings = Json::object();
+        for(size_t i = 0; i < profiles.size(); ++i) settings[profiles[i]]["targetBandwidth"] = 70 + i;
+        for(const auto& section : profiles) {
+            gxrsettings::RecordChange(journal, settings, section, "targetBandwidth", true, 200);
+            settings[section]["targetBandwidth"] = 200;
+        }
+        for(size_t i = 0; i < profiles.size(); ++i) {
+            const auto& section = profiles[i];
+            const auto& entry = journal["entries"][section]["targetBandwidth"];
+            Check(gxrsettings::PlanOwnedRestore(entry, settings, section, "targetBandwidth", present, value)
+                && present && value == 70 + i, "each mirror restores its independently journaled original");
+            Json changed = settings; changed[section]["targetBandwidth"] = 999;
+            Check(!gxrsettings::PlanOwnedRestore(entry, changed, section, "targetBandwidth", present, value), "external edits to each mirrored section are preserved");
+            changed[section].erase("targetBandwidth");
+            Check(!gxrsettings::PlanOwnedRestore(entry, changed, section, "targetBandwidth", present, value), "external deletions from each mirrored section are preserved");
+            const auto& other = profiles[(i + 1) % profiles.size()];
+            Check(gxrsettings::PlanOwnedRestore(journal["entries"][other]["targetBandwidth"], changed, other, "targetBandwidth", present, value), "an external change to one mirror does not block another mirror's restoration");
+        }
+    }
     const Json saved = {{"present", false}, {"lastPresent", true}, {"lastValue", 42}};
     Check(gxrsettings::PlanOwnedRestore(saved, {{"driver_vrlink", {{"test", 42}}}}, "driver_vrlink", "test", present, value) && !present, "unchanged journal-owned insertion is removed");
     Check(!gxrsettings::PlanOwnedRestore(saved, {{"driver_vrlink", {{"test", 43}}}}, "driver_vrlink", "test", present, value), "external changed value is preserved");

@@ -19,7 +19,7 @@ Use a backed-up test installation. Record OS, scaling, WebView2 version, SteamVR
 | Advanced visibility | Both identity switches hidden normally, visible in Advanced mode, On for missing keys; saved Off survives restart | NOT RUN |
 | Confirmation | Off requires warning, Cancel restores the real switch, confirmed Off saves; warning remains when controls are hidden | NOT RUN |
 | Settings refresh | About check rereads external changes and updates all visible and hidden values; malformed/unreadable files remain errors | NOT RUN |
-| Profile On | After restart/reconnect, baseline/capability and applicable tuning writes occur under exact `vrlink_xrvst2ue`, even with a patched model name | NOT RUN |
+| Profile On | Before connection, the same baseline/capability and applicable tuning settings are written under exact `vrlink_xrvst2ue`, `vrlink_Oculus Quest Pro` and `vrlink_PICO 4 Pro`; after restart/reconnect, inspect active negotiation separately. Original values remain independently journaled for each section | NOT RUN |
 | Profile Off, baseline On | Saved switch remains Off; baseline uses prior original-model section/fallback; tuning uses `driver_vrlink` | NOT RUN |
 | Profile Off, baseline Off | Prior routing retained; no spurious profile-enable mutation; picture values remain at the defaults intentionally reset when baseline was enabled | NOT RUN |
 | Mid-session route change | Relevant writers all change route; UI explains restart; no claim that an active stream has already renegotiated | NOT RUN |

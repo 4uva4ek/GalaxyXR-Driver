@@ -66,7 +66,7 @@ fn reset_owned_steamvr(settings: &mut Value, journal: Option<&Value>, config: &V
     // only when it exactly matches the value stored by this app, and never
     // undo a recorded pre-install value that the journal just restored.
     if let Some(extra) = config["galaxyXr"]["vrlinkExtraKeys"].as_object() {
-        for section in ["driver_vrlink", "vrlink_xrvst2ue", "vrlink_xrvst2", "vrlink_Galaxy XR"] {
+        for section in std::iter::once("driver_vrlink").chain(COMPANION_PROFILE_SECTIONS.iter().copied()) {
             for (key, raw) in extra {
                 if lifecycle_key(section, key) || journal.and_then(|j| j["entries"].get(section)).and_then(|s| s.get(key)).is_some() { continue; }
                 let expected = if raw.is_boolean() || raw.is_number() { Some(raw.clone()) }
@@ -244,6 +244,49 @@ mod tests {
         let mut settings=json!({"driver_vrlink":{"foo":12},"vrlink_xrvst2ue":{"foo":12,"changed":99},"driver_other":{"foo":12}});
         let (_,count,_)=reset_owned_steamvr(&mut settings,None,&json!({"galaxyXr":{"vrlinkExtraKeys":{"foo":{"i":12},"changed":4}}})).unwrap();
         assert_eq!(count,2);assert_eq!(settings["vrlink_xrvst2ue"]["changed"],99);assert_eq!(settings["driver_other"]["foo"],12);
+    }
+    #[test]
+    fn mirrored_profiles_restore_independent_originals_and_preserve_external_changes() {
+        let profiles = ["vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"];
+        let mut settings = json!({});
+        let mut journal = json!({"entries":{},"sectionPresence":{}});
+        for (index, section) in profiles.iter().enumerate() {
+            settings[*section] = json!({"renderWidth":3552,"supports10bit":true,"targetBandwidth":999,
+                "custom":8,"resourceRoot":"temporary","otherApp":42});
+            journal["entries"][*section] = json!({
+                "renderWidth":entry(Some(json!(2000 + index)),Some(json!(3552))),
+                "supports10bit":entry(None,Some(json!(true))),
+                "targetBandwidth":entry(Some(json!(80)),Some(json!(200))),
+                "maxVideoQueueLatencyUs":entry(Some(json!(100)),Some(json!(200))),
+                "custom":entry(Some(json!(7)),Some(json!(8))),
+                "resourceRoot":entry(Some(json!(DRIVER)),Some(json!("temporary")))});
+        }
+        let (_,count,report) = reset_owned_steamvr(&mut settings,Some(&journal),
+            &json!({"galaxyXr":{"vrlinkExtraKeys":{"custom":7}}})).unwrap();
+        assert_eq!(count,8);
+        for (index,section) in profiles.iter().enumerate() {
+            assert_eq!(settings[*section],json!({"renderWidth":2000 + index,"targetBandwidth":999,
+                "custom":7,"resourceRoot":DRIVER,"otherApp":42}));
+            assert!(report.warnings.iter().any(|w|w.contains(&format!("{section}.targetBandwidth"))));
+            assert!(report.warnings.iter().any(|w|w.contains(&format!("{section}.maxVideoQueueLatencyUs"))));
+        }
+        assert!(report.removed_keys.is_empty());
+    }
+    #[test]
+    fn mirrored_profiles_clean_only_exact_saved_unjournaled_extras() {
+        let mut settings = json!({});
+        for section in ["vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro", "vrlink_other"] {
+            settings[section] = json!({"integer":12,"float":0.5,"boolean":true,"changed":99,
+                "supports10bit":true,"otherApp":42});
+        }
+        let untouched = settings["vrlink_other"].clone();
+        let (_,count,report) = reset_owned_steamvr(&mut settings,None,
+            &json!({"galaxyXr":{"vrlinkExtraKeys":{"integer":{"i":12},"float":{"f":0.5},"boolean":{"b":true},"changed":4}}})).unwrap();
+        assert_eq!(count,6);assert!(report.removed_keys.is_empty());
+        for section in ["vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"] {
+            assert_eq!(settings[section],json!({"changed":99,"supports10bit":true,"otherApp":42}));
+        }
+        assert_eq!(settings["vrlink_other"],untouched);
     }
     #[test]
     fn local_reset_backs_up_raw_files_and_keeps_named_profiles() {
