@@ -35,8 +35,6 @@ With the official input profile on, SteamVR sees `galaxy_xr_controller`. Games t
 
 Controller Fix Mode drives the pose filter. Kalman CA is the default, the tuning row below it shows the gains for whichever mode is selected, and Kalman Advanced Settings holds the rarely-touched knobs. Since 1.0.0 the reported angular velocity is in controller-local frame, which is what SteamVR's own prediction expects.
 
-Kalman CA now includes 30 ms position and rotation smoothing plus bounded braking when acceleration reporting is off and fixed-lag smoothing is zero. This adds motion latency; native hand tracking bypasses the controller filters. See [controller motion details and validation](ControllerMotionSmoothing.md).
-
 Controller Offsets (under Controllers Advanced) are authored for the left hand and mirrored to the right by default. Per-hand trims appear when Mirror is off and are added on top of the shared offsets.
 
 ## Image processing notes
