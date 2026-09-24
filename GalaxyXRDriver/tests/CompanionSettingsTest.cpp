@@ -82,6 +82,38 @@ int main() {
     }
     Check(!gxr::ShouldRestoreInactiveVrlinkKey("steamvr", "preferredRefreshRate", true, "Patched"), "global compositor refresh is not relocated");
     bool present = true; Json value;
+    // 2026-09-24: retire the native-resolution option's implicit refresh writes
+    // without overwriting a later user-selected 75 Hz or an external deletion.
+    std::vector<std::string> refreshSections = tuning;
+    refreshSections.push_back("steamvr");
+    for(const auto& section : refreshSections) for(bool originalPresent : {false, true}) {
+        const std::string key = section == "steamvr" ? "preferredRefreshRate" : "displayFrequency";
+        Json journal = {{"schema", 1}, {"driver", "GalaxyXRNative"}, {"entries", Json::object()}};
+        Json settings = Json::object();
+        if(originalPresent) settings[section][key] = 75;
+        gxrsettings::RecordChange(journal, settings, section, key, true, 90);
+        settings[section][key] = 90;
+        const auto& entry = journal["entries"][section][key];
+
+        Json changed = settings;
+        changed[section][key] = 75;
+        Check(!gxrsettings::PlanOwnedRestore(entry, changed, section, key, present, value),
+            "refresh retirement preserves external 75 Hz in every global/profile destination");
+        changed[section].erase(key);
+        Check(!gxrsettings::PlanOwnedRestore(entry, changed, section, key, present, value),
+            "refresh retirement preserves external deletion in every global/profile destination");
+
+        const bool restore = gxrsettings::PlanOwnedRestore(entry, settings, section, key, present, value);
+        Check(restore && present == originalPresent && (!present || value == 75),
+            "unchanged app-owned 90 Hz restores original 75 Hz or original absence");
+        if(restore) {
+            gxrsettings::RecordChange(journal, settings, section, key, present, value);
+            if(present) settings[section][key] = value;
+            else settings[section].erase(key);
+        }
+        Check(!gxrsettings::PlanOwnedRestore(journal["entries"][section][key], settings, section, key, present, value),
+            "repeated refresh retirement is a no-op after journaled restoration");
+    }
     {
         Json journal = {{"schema", 1}, {"driver", "GalaxyXRNative"}, {"entries", Json::object()}};
         Json settings = Json::object();

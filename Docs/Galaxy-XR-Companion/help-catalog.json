@@ -165,7 +165,7 @@
     "source": "features/driver-settings-page.ts",
     "originalLine": 78,
     "summary": "Ask SteamVR to render at the Galaxy XR's native per-eye size. This improves the requested resolution but can increase GPU load. Restart SteamVR to apply it.",
-    "details": "Requests 3552 × 3840 per eye at 90 Hz. renderWidth, renderHeight, overrideRenderWidth, overrideRenderHeight, and displayFrequency are written to driver_vrlink, where VRLink reads the tuning settings. With vrlink Headset Profile On, the same values are also copied to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro. SteamVR's global preferredRefreshRate remains in steamvr. Each section's original values are journaled independently. Turning this off restores only unchanged journal-owned values; external edits are preserved."
+    "details": "Requests 3552 × 3840 per eye without forcing a refresh rate. Your selected refresh rate, including 75 Hz, is preserved. renderWidth, renderHeight, overrideRenderWidth, and overrideRenderHeight are written to driver_vrlink, where VRLink reads the tuning settings. With vrlink Headset Profile On, the same values are also copied to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro. Previous refresh-rate overrides are restored only when still journal-owned and unchanged; explicit displayFrequency extra keys remain under your control. Each section's original values are journaled independently. Turning this off restores only unchanged journal-owned resolution values; external edits are preserved."
   },
   {
     "source": "features/driver-settings-page.ts",

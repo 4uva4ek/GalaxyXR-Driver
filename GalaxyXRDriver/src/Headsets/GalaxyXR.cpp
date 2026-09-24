@@ -418,6 +418,19 @@ void GalaxyXR_EarlyApplyVrlinkSettings(){
 // repeatedly; only writes on difference. changes are read by the compositor
 // at SteamVR start, so mid-session toggles take effect next launch.
 static void ApplyNativeResolutionSetting(){
+    // 2026-09-24: native render geometry must not reset a user's refresh rate.
+    // Retire old implicit 90 Hz writes only while the journal still owns them.
+    // Keep explicit expert overrides (including removals) across HMD activation,
+    // which reapplies geometry without reapplying the extra-key list.
+    const auto& extraKeys = driverConfig.galaxyXr.vrlinkExtraKeys;
+    const bool explicitDisplayFrequency = std::any_of(extraKeys.begin(), extraKeys.end(),
+        [](const auto& entry){ return std::get<0>(entry) == "displayFrequency"; });
+    if(!explicitDisplayFrequency){
+        for(const auto& target : gxr::VrlinkTuningSections(true))
+            gxrsettings::RestoreOwnedKey(target.c_str(), "displayFrequency");
+    }
+    gxrsettings::RestoreOwnedKey("steamvr", "preferredRefreshRate");
+
     for(const auto& target : gxr::VrlinkTuningSections(driverConfig.galaxyXr.vrlinkHeadsetProfile)){
         const char* section = target.c_str();
         if(driverConfig.galaxyXr.nativeResolution){
@@ -425,17 +438,11 @@ static void ApplyNativeResolutionSetting(){
             SetInt32IfDifferent(section, "renderHeight", kGalaxyXrRenderHeight);
             SetInt32IfDifferent(section, "overrideRenderWidth", kGalaxyXrRenderWidth);
             SetInt32IfDifferent(section, "overrideRenderHeight", kGalaxyXrRenderHeight);
-            SetInt32IfDifferent(section, "displayFrequency", 90);
         }else{
-            for(const char* key : {"renderWidth", "renderHeight", "overrideRenderWidth", "overrideRenderHeight", "displayFrequency"})
+            for(const char* key : {"renderWidth", "renderHeight", "overrideRenderWidth", "overrideRenderHeight"})
                 gxrsettings::RestoreOwnedKey(section, key);
         }
     }
-    // SteamVR consumes this global key here, not in a headset profile.
-    if(driverConfig.galaxyXr.nativeResolution)
-        SetInt32IfDifferent("steamvr", "preferredRefreshRate", 90);
-    else
-        gxrsettings::RestoreOwnedKey("steamvr", "preferredRefreshRate");
 }
 
 // ---------------- HMD ----------------

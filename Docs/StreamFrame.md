@@ -106,7 +106,7 @@ Blackout Headset Screens (Advanced section) turns both panels black while tracki
 Check `Steam\logs\vrserver.txt`:
 
 - `FrameComponentShim: wrapping IVRDriverDirectModeComponent`: the frame path is hooked. Missing: the headset driver is not direct mode, or the driver did not load (check for duplicate registrations).
-- `GalaxyXR: wrote driver_vrlink render 3552x3840 @90`: native resolution is set. Takes effect on the next SteamVR start.
+- Native resolution requests 3552x3840 per eye without forcing a refresh rate. Your selected rate (for example, 75 Hz) is preserved. Earlier refresh-rate overrides are restored only with journal ownership and an unchanged value. Resolution changes take effect on the next SteamVR start.
 - `GalaxyXR: stream quality '<preset>'`: the preset was applied. Takes effect at the next headset connect.
 - `GalaxyXR: SDR10 baseline: profile + supports10bit forced on ... REQUESTED ONLY`: the SDR 10-bit baseline forced the profile request; the device confirms at connect. Check `driver_vrlink.txt` for `Using 10bit mode: 1` after the next SteamVR start.
 - `FrameProcessor: matched hmd adapter <gpu>`: processing runs on the GPU SteamVR renders on. `no adapter matched` / `failed to create D3D11 device`: report with your GPU setup.
