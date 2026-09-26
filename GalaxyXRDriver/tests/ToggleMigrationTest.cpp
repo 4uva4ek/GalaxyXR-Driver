@@ -30,12 +30,21 @@ int main(int argc, char** argv) {
     json input = {{"streamFrame", {{"streamFrameSchema",4},{"nvencSettingsVersion",3}}},
         {"galaxyXr", {{"sdr10SettingsVersion",2}}}};
     auto &sf = input["streamFrame"];
+    const json customTuning = {
+        {"nvencVbvFrames",5},{"nvencLowDelayKfScale",4},{"nvencMaxBitrateHeadroomPct",20},
+        {"nvencForceFps",72},{"nvencSplitMode",3},{"nvencPreset",7},{"nvencAqStrength",4},
+        {"nvencMinQp",5},{"nvencMinQpIntra",7},{"nvencMaxQp",31},{"nvencVuiFullRange",1},
+        {"nvencVuiMatrix",1},{"nvencVuiPrimaries",1},{"nvencVuiTransfer",1},
+        {"nvencBitrateMbit",123},{"nvencBandwidthOverrideMbit",234},
+    };
+    const bool customUpgrade = scenario == 0 || scenario == 7 || scenario == 8 || scenario == 14;
     const char* toggles[] = {"nvencTap", "nvencFixLevel", "nvencForceCbr", "nvencBitrateScale", "nvencPresetMerge"};
-    if (scenario == 0 || scenario == 7 || scenario == 8) {
-        sf["nvencSettingsVersion"] = scenario == 7 ? 4 : 0;
+    if (customUpgrade) {
+        sf["nvencSettingsVersion"] = scenario == 14 ? 3 : scenario == 7 ? 4 : 0;
         for (auto key : toggles) sf[key] = false;
         input["galaxyXr"]["vrlinkHeadsetProfile"] = false;
-        sf["nvencBitrateMbit"] = 123;
+        input["galaxyXr"]["customStreamFormatWidth"] = 1856;
+        sf.update(customTuning);
         sf["postPack"] = {{"enable",false},{"casEnable",false}};
         if (scenario == 8) std::ofstream(testFolder + "nvenc-settings-v4.migrated") << "4";
     } else if (scenario == 1) {
@@ -52,13 +61,45 @@ int main(int argc, char** argv) {
         sf["nvencSettingsVersion"] = 4;
         if (scenario != 9) sf["hitchDiag"] = scenario == 11;
     } else if (scenario == 12) {
-        // Clean Settings must survive both migrations and repeated loads.
+        // An explicitly saved legacy stock-encoder profile is still a user
+        // choice on direct upgrade, even though Clean Settings now resets it.
         sf["nvencSettingsVersion"] = 4;
         for (auto key : toggles) sf[key] = false;
         for (auto key : {"nvencVbvFrames", "nvencLowDelayKfScale", "nvencForceFps", "nvencSplitMode"}) sf[key] = 0;
         sf["postPack"] = {{"enable",false},{"casEnable",false}};
     } else if (scenario == 13) {
         input = json::object(); // Fresh installation before any GUI/runtime save.
+    } else if (scenario == 15) {
+        // Rust Clean Settings replaces old configuration with this payload
+        // and removes its migration marker transactionally. The native parser
+        // must also discard any previous in-memory picture/calibration state.
+        input = {{"galaxyXr", {{"nativeIdentity",true}}}};
+        Check(!std::filesystem::exists(testFolder + "nvenc-settings-v4.migrated"), "reset starts without a stale migration marker");
+        driverConfig.galaxyXr.nativeIdentity = false;
+        driverConfig.galaxyXr.nativeResolution = false;
+        driverConfig.galaxyXr.sdr10Baseline = true;
+        driverConfig.streamFrame.nvencTap = false;
+        driverConfig.streamFrame.nvencFixLevel = false;
+        driverConfig.streamFrame.nvencForceCbr = false;
+        driverConfig.streamFrame.nvencBitrateScale = false;
+        driverConfig.streamFrame.nvencPresetMerge = false;
+        driverConfig.streamFrame.nvencVbvFrames = 5;
+        driverConfig.streamFrame.nvencPreset = 7;
+        driverConfig.streamFrame.nvencAqStrength = 4;
+        driverConfig.streamFrame.nvencBitrateMbit = 123;
+        driverConfig.streamFrame.postPack.enable = false;
+        driverConfig.streamFrame.postPack.casEnable = false;
+        driverConfig.streamFrame.enable = true;
+        driverConfig.streamFrame.gamma = 1.3;
+        driverConfig.streamFrame.brightness = 0.2;
+        driverConfig.streamFrame.saturation = 87;
+        driverConfig.streamFrame.calib.blackout = true;
+        driverConfig.streamFrame.calib.captureMode = true;
+        driverConfig.streamFrame.calib.pattern = 4;
+        driverConfig.streamFrame.eyeGaze.debugGrid = true;
+        driverConfig.streamFrame.eyeGaze.calibDot = true;
+        driverConfig.streamFrame.eyeGaze.probeCapture = true;
+        driverConfig.customShader.enable = true;
     } else return 2;
     const auto path = testFolder + "settings.json";
     { std::ofstream out(path); out << input.dump(); }
@@ -67,12 +108,22 @@ int main(int argc, char** argv) {
         const auto &s = driverConfig.streamFrame;
         Check(s.nvencSettingsVersion == 4, "version reaches current schema");
         Check(s.hitchDiag == (scenario == 11), "hitch diagnostics defaults OFF and preserves explicit choices");
-        if (scenario == 0 || scenario == 7 || scenario == 8) {
+        if (customUpgrade) {
             Check(!s.nvencTap && !s.nvencFixLevel && !s.nvencForceCbr
                 && !s.nvencBitrateScale && !s.nvencPresetMerge, "all explicit encoder OFF choices preserved");
             Check(!driverConfig.galaxyXr.vrlinkHeadsetProfile, "profile OFF preserved");
             Check(!s.postPack.enable && !s.postPack.casEnable, "post-pack OFF preserved");
-            if (scenario != 0) Check(s.nvencBitrateMbit == 123, "current schema/marker preserves custom tuning");
+            Check(s.nvencVbvFrames == 5, "VBV tuning preserved");
+            Check(s.nvencLowDelayKfScale == 4, "keyframe scale preserved");
+            Check(s.nvencMaxBitrateHeadroomPct == 20, "bitrate headroom preserved");
+            Check(s.nvencForceFps == 72, "frame rate override preserved");
+            Check(s.nvencSplitMode == 3 && s.nvencPreset == 7, "split and preset preserved");
+            Check(s.nvencAqStrength == 4, "AQ tuning preserved");
+            Check(s.nvencMinQp == 5 && s.nvencMinQpIntra == 7 && s.nvencMaxQp == 31, "QP bounds preserved");
+            Check(s.nvencVuiFullRange == 1 && s.nvencVuiMatrix == 1
+                && s.nvencVuiPrimaries == 1 && s.nvencVuiTransfer == 1, "VUI choices preserved");
+            Check(s.nvencBitrateMbit == 123 && s.nvencBandwidthOverrideMbit == 234, "bandwidth tuning preserved");
+            Check(driverConfig.galaxyXr.customStreamFormatWidth == 1856, "valid custom stream width preserved");
         } else if (scenario == 1) {
             const StreamFrameConfig defaults;
             Check(s.nvencTap == defaults.nvencTap && s.nvencFixLevel == defaults.nvencFixLevel
@@ -91,20 +142,37 @@ int main(int argc, char** argv) {
             Check(!s.postPack.casEnable && s.postPack.limitedRange, "explicit post-pack sharpening OFF retained");
         } else if (scenario == 12) {
             Check(!s.nvencTap && !s.nvencFixLevel && !s.nvencForceCbr
-                && !s.nvencBitrateScale && !s.nvencPresetMerge, "cleaned encoder switches remain OFF");
-            Check(!s.postPack.enable && !s.postPack.casEnable, "cleanup does not revive post-pack");
+                && !s.nvencBitrateScale && !s.nvencPresetMerge, "saved legacy encoder switches remain OFF");
+            Check(!s.postPack.enable && !s.postPack.casEnable, "upgrade preserves legacy post-pack OFF");
             Check(s.nvencVbvFrames == 0 && s.nvencLowDelayKfScale == 0
-                && s.nvencForceFps == 0 && s.nvencSplitMode == 0, "cleanup leaves encoder budgeting overrides off");
-        } else if (scenario == 13) {
+                && s.nvencForceFps == 0 && s.nvencSplitMode == 0, "upgrade preserves disabled encoder budgeting overrides");
+        } else if (scenario == 13 || scenario == 15) {
             Check(s.nvencTap && s.nvencFixLevel && s.nvencForceCbr
-                && s.nvencBitrateScale && s.nvencPresetMerge, "fresh install enables reference encoder switches");
+                && s.nvencBitrateScale && s.nvencPresetMerge, "fresh/reset config enables reference encoder switches");
             Check(s.nvencPreset == 0 && s.nvencVbvFrames == 2 && s.nvencLowDelayKfScale == 2
-                && s.nvencForceFps == 90 && s.nvencSplitMode == 1, "fresh install uses reference encoder tuning");
+                && s.nvencForceFps == 90 && s.nvencSplitMode == 1, "fresh/reset config uses reference encoder tuning");
+            Check(s.nvencAqStrength == 0 && s.nvencMinQp == 0 && s.nvencMinQpIntra == 0 && s.nvencMaxQp == 0
+                && s.nvencBitrateMbit == 0 && s.nvencBandwidthOverrideMbit == 0, "fresh/reset config clears custom AQ, QP and bitrate overrides");
+            Check(s.nvencVuiFullRange == -1 && s.nvencVuiMatrix == -1 && s.nvencVuiPrimaries == -1
+                && s.nvencVuiTransfer == -1, "fresh/reset config uses automatic VUI metadata");
+            Check(s.postPack.enable && s.postPack.casEnable && !s.cas.enable, "fresh/reset config uses only post-pack sharpening");
+            Check(driverConfig.galaxyXr.nativeIdentity && driverConfig.galaxyXr.nativeResolution, "fresh/reset config enables native identity and resolution");
+            Check(!driverConfig.galaxyXr.sdr10Baseline && !driverConfig.galaxyXr.profileSupports10bit, "fresh/reset config keeps current SDR10 OFF policy");
+            Check(!s.enable && !driverConfig.customShader.enable, "old picture processing is inactive after reset");
+            Check(s.gamma == 2.2 && s.brightness == 1.0 && s.saturation == 50, "old picture tuning returns to defaults");
+            Check(!s.calib.blackout && !s.calib.captureMode && s.calib.pattern == -1, "old blackout and calibration patterns are inactive");
+            Check(!s.eyeGaze.debugGrid && !s.eyeGaze.calibDot && !s.eyeGaze.probeCapture, "old gaze calibration overlays are inactive");
         }
     };
     checkExpected();
     json persisted;
     { std::ifstream in(path); in >> persisted; }
+    if (customUpgrade) {
+        for (auto entry = customTuning.begin(); entry != customTuning.end(); ++entry) {
+            Check(persisted["streamFrame"][entry.key()] == entry.value(), (entry.key() + " persists after migration").c_str());
+        }
+        Check(persisted["galaxyXr"]["customStreamFormatWidth"] == 1856, "custom stream width persists after migration");
+    }
     ParseConfig();
     checkExpected();
     json reopened;

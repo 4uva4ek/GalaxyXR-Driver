@@ -13,14 +13,12 @@ import { BasePage, fieldStyles, sectionHeading } from './page-base';
 import { galaxyXRDriverName } from '../environment';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { t } from '../locale/i18n';
+import { statusMessage } from '../ui/presentation';
 
 @customElement('app-driver-troubleshooter')
 export class DriverTroubleshooter extends BasePage {
   static styles = [fieldStyles, css`
     :host { display: block; padding: 0 1rem 1rem; }
-    .warn { color: var(--colorPaletteRedForeground1, #b00020); }
-    .ok { color: var(--colorPaletteGreenForeground1, #107c10); }
-    button { height: 2rem; }
     .read-error { font-size: 0.85rem; opacity: 0.8; overflow-wrap: anywhere; }
   `];
 
@@ -54,18 +52,18 @@ export class DriverTroubleshooter extends BasePage {
     const sds = this.ctx.sds;
     const cfg = sds.steamVrConfig();
     this.driverEnablePrompt = !!cfg && !sds.getSteamVRDriverEnableState(cfg, galaxyXRDriverName);
-    if (!this.wait) return html``;
+    if (!this.wait) return html`<div class="status-badge-row" role="status"><fluent-spinner size="tiny" aria-hidden="true"></fluent-spinner>${t('Checking installation…')}</div>`;
     return this.sectionCardsFor([sectionHeading(t('System not ready')), html`
-    ${sds.driverCheckError() ? html`<p class="read-error" role="alert">${sds.driverCheckError()}</p>` : html``}
-    <p><a href="#/setup">${t('Open Setup to check installation and settings')}</a></p>
+    ${statusMessage('info', t('Complete setup to use these controls'), t('Check the items below, then verify the driver on Setup.'), html`<a href="#/setup">${t('Open Setup')}</a>`)}
+    ${sds.driverCheckError() ? statusMessage('error', t('Installation could not be checked'), sds.driverCheckError()!) : html``}
 
     <div class="field">
       <div class="title">${t('SteamVR installation')}</div>
       <div class="control">
         ${!sds.steamVRinstalled()
-          ? html`<span class="warn">⚠</span> ${t('SteamVR not installed')}
-            <button type="button" @click=${this.installSteamVR}>${t('Install SteamVR')}</button>`
-          : html`<span class="ok">✓</span>`}
+          ? html`<fluent-badge appearance="tint" color="warning">${t('Not installed')}</fluent-badge>
+            <fluent-button appearance="primary" @click=${this.installSteamVR}>${t('Install SteamVR')}</fluent-button>`
+          : html`<fluent-badge appearance="tint" color="success">${t('Installed')}</fluent-badge>`}
       </div>
     </div>
 
@@ -73,18 +71,18 @@ export class DriverTroubleshooter extends BasePage {
       <div class="title">${t('Driver installation')}</div>
       <div class="control">
         ${!sds.driverInstalled()
-          ? html`<span class="warn">⚠</span> ${sds.driverState() === 'unknown' ? t('Unable to verify installation') : t('Driver not installed')}`
-          : html`<span class="ok">✓</span>`}
+          ? html`<fluent-badge appearance="tint" color="warning">${sds.driverState() === 'unknown' ? t('Unknown') : sds.driverState() === 'checking' ? t('Checking…') : t('Not installed')}</fluent-badge>`
+          : html`<fluent-badge appearance="tint" color="success">${t('Installed')}</fluent-badge>`}
       </div>
     </div>
 
     <div class="field">
       <div class="title">${t('Driver enabled')}</div>
       <div class="control">
-        ${!cfg ? html`<span class="warn">${t('Unknown')}</span>` : this.driverEnablePrompt
-          ? html`<span class="warn">⚠</span> ${t('Driver not enabled')}
-            ${sds.steamVRinstalled() ? html`<button type="button" ?disabled=${sds.installingDriver()} @click=${this.enableDriver}>${t('Enable Driver')}</button>` : html``}`
-          : html`<span class="ok">✓</span>`}
+        ${!cfg ? html`<fluent-badge appearance="tint" color="warning">${t('Unknown')}</fluent-badge>` : this.driverEnablePrompt
+          ? html`<fluent-badge appearance="tint" color="warning">${t('Disabled')}</fluent-badge>
+            ${sds.steamVRinstalled() ? html`<fluent-button appearance="primary" ?disabled=${sds.installingDriver()} @click=${this.enableDriver}>${t('Enable Driver')}</fluent-button>` : html``}`
+          : html`<fluent-badge appearance="tint" color="success">${t('Enabled')}</fluent-badge>`}
       </div>
     </div>
 
@@ -92,9 +90,10 @@ export class DriverTroubleshooter extends BasePage {
       <div class="title">${t('Editable driver settings')}</div>
       <div class="control">
         ${!sds.settingFileInited()
-          ? html`<span class="warn">⚠</span> ${t('Driver settings are missing or could not be loaded')}
-            ${sds.driverInstalled() ? html`<button type="button" ?disabled=${sds.installingDriver()} @click=${() => sds.checkDriverInstalled()}>${t('Retry')}</button>` : html``}`
-          : html`<span class="ok">✓</span>`}
+          ? html`<fluent-badge appearance="tint" color="warning">${t('Unavailable')}</fluent-badge>
+            <span>${t('Settings are missing or could not be loaded.')}</span>
+            ${sds.driverInstalled() ? html`<fluent-button appearance="outline" ?disabled=${sds.installingDriver()} @click=${() => sds.checkDriverInstalled()}>${t('Retry')}</fluent-button>` : html``}`
+          : html`<fluent-badge appearance="tint" color="success">${t('Ready')}</fluent-badge>`}
       </div>
     </div>
 
@@ -102,10 +101,9 @@ export class DriverTroubleshooter extends BasePage {
       <div class="title">${t('Driver settings valid')}</div>
       <div class="control">
         ${this.ctx.dss.readFileError()
-          ? html`<span class="warn">⚠</span> ${t('Driver settings are not valid')}
-            <span class="read-error">${this.ctx.dss.readFileError()?.message}</span>
-            ${sds.driverInstalled() ? html`<button type="button" @click=${() => sds.resetDriverSetting()}>${t('Reset Setting')}</button>` : html``}`
-          : html`<span class="ok">✓</span>`}
+          ? html`${statusMessage('error', t('Driver settings could not be read'), this.ctx.dss.readFileError()?.message)}
+            ${sds.driverInstalled() ? html`<fluent-button appearance="outline" @click=${() => sds.resetDriverSetting()}>${t('Reset Setting')}</fluent-button>` : html``}`
+          : html`<fluent-badge appearance="tint" color=${sds.settingFileInited() ? 'success' : 'warning'}>${sds.settingFileInited() ? t('Valid') : t('Unknown')}</fluent-badge>`}
       </div>
     </div>`]);
   }

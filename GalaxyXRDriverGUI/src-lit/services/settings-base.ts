@@ -1,8 +1,8 @@
 import { effect, signal } from '../reactive';
-import { exists, mkdir, readTextFile, watchImmediate, writeTextFile } from '@tauri-apps/plugin-fs';
+import { exists, readTextFile, watchImmediate } from '@tauri-apps/plugin-fs';
 import { cleanJsonComments, deepCopy, deepMerge } from '../domain/pure';
 import { validateBooleanSettings } from '../domain/settings-inspection';
-import { type DebouncedFileWriter, debouncedFileWriter, FileWritesSuspendedError } from '../platform/writer';
+import { type DebouncedFileWriter, debouncedFileWriter } from '../platform/writer';
 import type { AppSetting } from '../domain/types';
 
 export enum FileReadErrorReason {
@@ -27,6 +27,7 @@ export abstract class JsonSettingServiceBase<T> {
   protected defaults?: T;
   private verified?: T;
   private saveSequence = 0;
+  private pendingSaves = 0;
   private stopWatching?: () => void;
   private stopDefaults?: () => void;
   private disposed = false;
@@ -36,7 +37,7 @@ export abstract class JsonSettingServiceBase<T> {
 
   constructor(
     private _filePath: string, private _fileDir: string, private defaultValue: () => T | undefined,
-    private autoCreate: boolean, private watchFileforAutoReload: boolean,
+    private defaultsWhenMissing: boolean, private watchFileforAutoReload: boolean,
     updateModeProvider: () => AppSetting | undefined,
   ) {
     if (!_filePath || !_fileDir) throw new Error('Settings service received an uninitialized path');
@@ -60,8 +61,6 @@ export abstract class JsonSettingServiceBase<T> {
 
   protected async init(): Promise<void> {
     try {
-      if (!await exists(this._fileDir)) await mkdir(this._fileDir, { recursive: true });
-      if (!await exists(this._filePath) && this.autoCreate) await writeTextFile(this._filePath, '{}');
       await this.refreshWatch();
       await this.loadSetting();
     } catch (error) {
@@ -77,6 +76,7 @@ export abstract class JsonSettingServiceBase<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const normalize = (path: string) => path.replaceAll('\\', '/').toLowerCase();
     try {
+      if (!await exists(this._fileDir)) return;
       const unwatch = await watchImmediate(this._fileDir, event => {
         if (this.disposed || this.inspecting || this.debouncedFileWriter.isSavingFile()) return;
         if (!event.paths.some(path => normalize(path) === normalize(this._filePath))) return;
@@ -93,13 +93,38 @@ export abstract class JsonSettingServiceBase<T> {
   }
 
   async loadSetting(): Promise<boolean> {
+    // 2026-09-26: a watcher/runtime-default read can finish after a newer UI
+    // save. Discard that result, including its errors and rollback snapshot.
+    const sequence = this.saveSequence;
+    const stale = () => this.disposed || sequence !== this.saveSequence;
     return navigator.locks.request(`loadfile_${this._filePath}`, async () => {
+      if (stale()) return false;
+      // A read requested after save() starts must see the completed write too.
+      if (this.debouncedFileWriter.isSavingFile()) {
+        try { await this.debouncedFileWriter.flush(); }
+        catch { return false; } // save() owns write errors and rollback.
+      }
+      // save() can still be waiting for initialization before scheduling its
+      // writer. Do not read in that gap, or wait for save() here: init itself
+      // calls loadSetting(), so waiting would deadlock the initial save.
+      if (stale() || this.pendingSaves > 0) return false;
       try {
-        if (!await exists(this._filePath)) {
+        const fileExists = await exists(this._filePath);
+        if (stale()) return false;
+        if (!fileExists) {
+          if (this.defaultsWhenMissing) {
+            this.defaults = this.defaultValue() ?? {} as T;
+            this._storedValues.set(undefined);
+            this.verified = structuredClone(this.defaults);
+            this._values.set(structuredClone(this.defaults));
+            this._readFileError.set(undefined);
+            return true;
+          }
           this._readFileError.set({ reason: FileReadErrorReason.NotExists });
         } else {
           // Separate I/O failure from malformed JSON; neither represents Off.
           const text = await readTextFile(this._filePath);
+          if (stale() || this.pendingSaves > 0) return false;
           try {
             this.defaults = this.defaultValue() ?? {} as T;
             const parsed = this.normalizeStoredValues(JSON.parse(cleanJsonComments(text)));
@@ -116,6 +141,7 @@ export abstract class JsonSettingServiceBase<T> {
           }
         }
       } catch (error) {
+        if (stale()) return false;
         this._readFileError.set({ reason: FileReadErrorReason.ReadFailed, message: String(error) });
       }
       this._storedValues.set(undefined);
@@ -134,24 +160,42 @@ export abstract class JsonSettingServiceBase<T> {
 
   public flush(): Promise<void> { return this.debouncedFileWriter.flush(); }
 
+  /** Invalidate stale reads/writes after native removal, without creating files. */
+  public clearAfterUninstall(): void {
+    ++this.saveSequence;
+    this.debouncedFileWriter.cancelPending();
+    this.stopWatching?.(); this.stopWatching = undefined;
+    this._storedValues.set(undefined);
+    this.defaults = this.defaultValue() ?? {} as T;
+    this.verified = this.defaultsWhenMissing ? structuredClone(this.defaults) : undefined;
+    this._values.set(this.verified === undefined ? undefined : structuredClone(this.verified));
+    this._writeFileError.set(undefined);
+    this._readFileError.set(this.defaultsWhenMissing ? undefined : { reason: FileReadErrorReason.NotExists });
+  }
+
   async save(values: T): Promise<boolean> {
     if (this.inspecting || this.disposed) return false;
     const snapshot = structuredClone(values);
     const sequence = ++this.saveSequence;
-    await this._initTask;
-    if (this.inspecting || this.disposed) return false;
-    this._values.set(snapshot);
+    ++this.pendingSaves;
     try {
-      await this.debouncedFileWriter.save(JSON.stringify(deepCopy(snapshot, this.defaults ?? {}), undefined, 4));
-      this.verified = structuredClone(snapshot);
-      this._writeFileError.set(undefined);
-      return true;
-    } catch (error) {
-      if (!(error instanceof FileWritesSuspendedError)) {
-        this._writeFileError.set(String(error));
-        if (sequence === this.saveSequence) this._values.set(this.verified === undefined ? undefined : structuredClone(this.verified));
+      await this._initTask;
+      if (this.inspecting || this.disposed || sequence !== this.saveSequence) return false;
+      this._values.set(snapshot);
+      try {
+        await this.debouncedFileWriter.save(JSON.stringify(deepCopy(snapshot, this.defaults ?? {}), undefined, 4));
+        this.verified = structuredClone(snapshot);
+        this._writeFileError.set(undefined);
+        return true;
+      } catch (error) {
+        if (sequence === this.saveSequence) {
+          this._writeFileError.set(String(error));
+          this._values.set(this.verified === undefined ? undefined : structuredClone(this.verified));
+        }
+        return false;
       }
-      return false;
+    } finally {
+      --this.pendingSaves;
     }
   }
 

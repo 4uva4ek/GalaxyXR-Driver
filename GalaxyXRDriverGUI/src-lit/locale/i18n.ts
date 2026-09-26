@@ -32,7 +32,12 @@ export function subscribeLocale(fn: () => void): () => void {
 }
 
 export function t(source: string, params?: Record<string, string | number>): string {
-  let out = map()[source] ?? source;
+  const translations = map();
+  const normalizedSource = source.trim().replace(/\s+/g, ' ');
+  const normalized = translations[normalizedSource];
+  // Catalog generation normalizes source whitespace. Keep exact entries first,
+  // and retain paragraph formatting when the English identity map is used.
+  let out = translations[source] ?? (normalized === normalizedSource ? source : normalized) ?? source;
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       out = out.split(`{${key}}`).join(String(value));

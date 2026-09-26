@@ -6,6 +6,9 @@ use super::*;
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanSettingsReport {
+    outcome: &'static str,
+    preserved_paths: Vec<String>,
+    unresolved_items: Vec<String>,
     backup_path: String,
     reset_files: Vec<String>,
     restored_settings: usize,
@@ -29,21 +32,16 @@ fn lifecycle_key(section: &str, key: &str) -> bool {
 
 /// Only recorded writes are reversible. Keep installation/safe-mode entries
 /// in the recovery journal so a later uninstall still restores them correctly.
-fn reset_owned_steamvr(settings: &mut Value, journal: Option<&Value>, config: &Value)
+fn reset_owned_steamvr(settings: &mut Value, journal: Option<&Value>, _config: &Value)
     -> Result<(Option<Value>, usize, IdentityCleanupReport)> {
     let mut identity = IdentityCleanupReport { removed_keys: vec![], removed_sections: vec![], warnings: vec![], backup_path: None };
     let mut reset_count = 0;
     let mut retained = journal.cloned();
-    let mut protected = json!({"entries":{},"sectionPresence":{},"legacyKeys":{}});
     if let Some(journal) = journal {
         let mut reversible = journal.clone();
         for (section, keys) in reversible["entries"].as_object_mut().ok_or("Invalid journal entries")? {
             keys.as_object_mut().ok_or("Invalid journal section")?.retain(|key, _| !lifecycle_key(section, key));
         }
-        // Every recorded key is protected from the old-identity pass. That
-        // pass must never delete either an external edit OR a pre-install
-        // value that the journal has just correctly restored.
-        protected["entries"] = journal["entries"].clone();
         reset_count += restore_settings(settings, &reversible, &mut identity.warnings)?;
         if let Some(keep) = &mut retained {
             for (section, keys) in keep["entries"].as_object_mut().unwrap() {
@@ -56,34 +54,12 @@ fn reset_owned_steamvr(settings: &mut Value, journal: Option<&Value>, config: &V
                 for (section, keys) in legacy.iter_mut() { keys.as_object_mut().unwrap().retain(|key, _| lifecycle_key(section, key)); }
                 legacy.retain(|_, keys| !keys.as_object().unwrap().is_empty());
             }
-            // Do not perform broad legacy deletion during a later uninstall.
-            keep["legacy"] = json!(false);
+            // 2026-09-26: retire restored entries. The next default write
+            // captures the restored original (or preserved external edit) as
+            // its baseline. Keep lifecycle and historical detection intact.
         }
     } else {
-        identity.warnings.push("No ownership journal was found. Recognized old Galaxy XR identity values and exact saved custom overrides are cleaned; other historical SteamVR values are preserved because their owner cannot be proved.".into());
-    }
-    // Extra-key JSON is user-configurable. Remove an older unjournaled value
-    // only when it exactly matches the value stored by this app, and never
-    // undo a recorded pre-install value that the journal just restored.
-    if let Some(extra) = config["galaxyXr"]["vrlinkExtraKeys"].as_object() {
-        for section in std::iter::once("driver_vrlink").chain(COMPANION_PROFILE_SECTIONS.iter().copied()) {
-            for (key, raw) in extra {
-                if lifecycle_key(section, key) || journal.and_then(|j| j["entries"].get(section)).and_then(|s| s.get(key)).is_some() { continue; }
-                let expected = if raw.is_boolean() || raw.is_number() { Some(raw.clone()) }
-                    else if let Some(v) = raw.get("i").and_then(Value::as_i64) { Some(json!(v)) }
-                    else if let Some(v) = raw.get("f").and_then(Value::as_f64) { Some(json!(v as f32)) }
-                    else { raw.get("b").and_then(Value::as_bool).map(|v| json!(v)) };
-                if expected.is_some() && setting_equal(settings.get(section).and_then(|s| s.get(key)), expected.as_ref()) {
-                    set_value(settings, section, key, None)?;
-                    reset_count += 1;
-                }
-            }
-        }
-    }
-    let old_warnings = identity.warnings.len();
-    plan_identity_cleanup(settings, Some(&protected), &mut identity)?;
-    for warning in &mut identity.warnings[old_warnings..] {
-        *warning = warning.replace("tracked by the current installation journal; uninstall the driver first", "the recovery record protects its pre-existing or externally edited value");
+        identity.warnings.push("No ownership journal was found. Driver and app defaults were reset; unrecorded SteamVR settings were preserved. Uninstall can inspect verified historical driver settings.".into());
     }
     Ok((retained, reset_count, identity))
 }
@@ -106,7 +82,7 @@ where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
         if let Some(bytes) = &change.before { atomic_bytes(&backup.join(&name), bytes)?; }
         manifest.push(json!({"path":change.path,"originallyPresent":change.before.is_some(),"backupFile":name}));
     }
-    atomic_json(&backup.join("manifest.json"), &json!({"schema":1,"operation":"Clean Settings","files":manifest}))?;
+    atomic_json(&backup.join("manifest.json"), &json!({"schema":1,"operation":"Reset all settings","files":manifest}))?;
     let mut committed: Vec<usize> = vec![];
     let transaction = (|| {
         for change in &changes {
@@ -138,15 +114,10 @@ where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
 }
 
 fn clean_driver_config() -> Value {
-    // 2026-09-26: an empty object would enable the installation's NVENC
-    // defaults again. Persist stock passthrough, including the migration
-    // version, so neither the driver nor the GUI revives encoder overrides.
-    json!({"streamFrame":{
-        "nvencSettingsVersion":4, "nvencTap":false, "nvencFixLevel":false,
-        "nvencForceCbr":false, "nvencBitrateScale":false, "nvencPresetMerge":false,
-        "nvencVbvFrames":0, "nvencLowDelayKfScale":0, "nvencForceFps":0,
-        "nvencSplitMode":0, "postPack":{"enable":false,"casEnable":false}
-    }})
+    // 2026-09-26: Clean Settings means the same defaults as a fresh install,
+    // including NVENC On. Do not persist a second, encoder-off reset profile.
+    // Keep the file present so startup cannot import the legacy driver's data.
+    json!({"galaxyXr":{"nativeIdentity":true}})
 }
 
 fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettingsReport> {
@@ -156,11 +127,13 @@ fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettings
     // later capturing a different baseline can overwrite a concurrent editor.
     let config_change = FileChange::new(data.join("settings.json"),
         Some(serde_json::to_vec_pretty(&clean_driver_config()).map_err(|e| e.to_string())?))?;
-    // gui-settings.json is app state (color scheme, update mode, advanced
-    // mode) and is intentionally not reset: cleaning driver settings must
-    // not change this app's appearance or behavior (2026-09-22).
+    // Sparse preferences resolve through AppSettingService's single defaults.
+    let app_change = FileChange::new(data.join("gui-settings.json"), Some(b"{}".to_vec()))?;
     let info_change = FileChange::new(data.join("info.json"), None)?;
     let diagnostic_change = FileChange::new(data.join("diagnostic.json"), None)?;
+    // A reset starts the same migration lifecycle as a fresh configuration.
+    // Back up the marker and remove it in the same rollback-safe transaction.
+    let migration_change = FileChange::new(data.join("nvenc-settings-v4.migrated"), None)?;
     let config = match &config_change.before {
         Some(bytes) => match parse_json_bytes(&config_change.path, bytes) {
             Ok(v) if v.is_object() => v,
@@ -174,6 +147,9 @@ fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettings
     if let Some(ctx) = ctx {
         let mut steamvr_change = FileChange::new(ctx.settings.clone(), None)?;
         let mut journal_change = FileChange::new(ctx.journal(), None)?;
+        if journal_change.before.is_some() && steamvr_change.before.is_none() {
+            return Err("The recorded SteamVR settings file is missing. Restore or locate it before resetting; recovery records were preserved.".into());
+        }
         // Bad SteamVR JSON/journal is an error, never permission to overwrite it.
         let mut settings = match &steamvr_change.before {
             Some(bytes) => parse_json_bytes(&steamvr_change.path, bytes)?,
@@ -199,17 +175,22 @@ fn clean_settings_at(data: &Path, ctx: Option<&Context>) -> Result<CleanSettings
         if data.join("steamvr-changes.json").exists() {
             return Err("SteamVR cannot be located, but a settings recovery journal exists. Locate/register SteamVR and retry; the journal and settings were left intact.".into());
         }
-        warnings.push("SteamVR is not registered on this computer. Only driver configuration was reset; app preferences and SteamVR files were not changed.".into());
+        warnings.push("SteamVR is not registered on this computer. Driver and app settings were reset; SteamVR files were not changed.".into());
     }
-    // Other settings use current driver defaults. Named Distortion/ files are
-    // user data, not deleted. NVENC stays off until explicitly enabled again.
+    // All settings use current driver defaults. Named Distortion/ files are
+    // user data, not deleted; the default configuration does not select them.
     changes.push(config_change);
+    changes.push(app_change);
     changes.push(info_change);
     changes.push(diagnostic_change);
+    changes.push(migration_change);
     let reset_files = changes.iter().filter(|c| c.before != c.after).map(|c| c.path.to_string_lossy().into_owned()).collect();
     let backup_path = commit_clean(data, changes)?;
     warnings.extend(identity.warnings);
-    Ok(CleanSettingsReport { backup_path, reset_files, restored_settings,
+    let mut preserved_paths = preserved_data_paths(data);
+    preserved_paths.push(backup_path.clone());
+    Ok(CleanSettingsReport { outcome: if warnings.is_empty() { "complete" } else { "attention-required" },
+        preserved_paths, unresolved_items: warnings.clone(), backup_path, reset_files, restored_settings,
         removed_identity_keys: identity.removed_keys, removed_identity_sections: identity.removed_sections,
         steamvr_cleaned: ctx.is_some(), warnings })
 }
@@ -253,10 +234,10 @@ mod tests {
         assert_eq!(settings,original); assert!(report.warnings.iter().any(|w|w.contains("external")));
     }
     #[test]
-    fn unjournaled_custom_keys_match_both_profile_and_old_section() {
+    fn reset_preserves_unjournaled_custom_keys_even_when_values_match() {
         let mut settings=json!({"driver_vrlink":{"foo":12},"vrlink_xrvst2ue":{"foo":12,"changed":99},"driver_other":{"foo":12}});
         let (_,count,_)=reset_owned_steamvr(&mut settings,None,&json!({"galaxyXr":{"vrlinkExtraKeys":{"foo":{"i":12},"changed":4}}})).unwrap();
-        assert_eq!(count,2);assert_eq!(settings["vrlink_xrvst2ue"]["changed"],99);assert_eq!(settings["driver_other"]["foo"],12);
+        assert_eq!(count,0);assert_eq!(settings["driver_vrlink"]["foo"],12);assert_eq!(settings["vrlink_xrvst2ue"]["foo"],12);assert_eq!(settings["vrlink_xrvst2ue"]["changed"],99);assert_eq!(settings["driver_other"]["foo"],12);
     }
     #[test]
     fn mirrored_profiles_restore_independent_originals_and_preserve_external_changes() {
@@ -286,7 +267,7 @@ mod tests {
         assert!(report.removed_keys.is_empty());
     }
     #[test]
-    fn mirrored_profiles_clean_only_exact_saved_unjournaled_extras() {
+    fn reset_does_not_claim_mirrored_unjournaled_extras() {
         let mut settings = json!({});
         for section in ["vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro", "vrlink_other"] {
             settings[section] = json!({"integer":12,"float":0.5,"boolean":true,"changed":99,
@@ -295,9 +276,9 @@ mod tests {
         let untouched = settings["vrlink_other"].clone();
         let (_,count,report) = reset_owned_steamvr(&mut settings,None,
             &json!({"galaxyXr":{"vrlinkExtraKeys":{"integer":{"i":12},"float":{"f":0.5},"boolean":{"b":true},"changed":4}}})).unwrap();
-        assert_eq!(count,6);assert!(report.removed_keys.is_empty());
+        assert_eq!(count,0);assert!(report.removed_keys.is_empty());
         for section in ["vrlink_Oculus Quest Pro", "vrlink_PICO 4 Pro"] {
-            assert_eq!(settings[section],json!({"changed":99,"supports10bit":true,"otherApp":42}));
+            assert_eq!(settings[section],untouched);
         }
         assert_eq!(settings["vrlink_other"],untouched);
     }
@@ -311,7 +292,7 @@ mod tests {
         atomic_json(&data.join("info.json"),&json!({"driverVersion":"old"})).unwrap();
         let report=clean_settings_at(&data,None).unwrap();
         assert_eq!(read_json(&data.join("settings.json")).unwrap(),clean_driver_config());
-        assert_eq!(read_json(&data.join("gui-settings.json")).unwrap(),json!({"advanceMode":true}));
+        assert_eq!(read_json(&data.join("gui-settings.json")).unwrap(),json!({}));
         assert!(data.join("Distortion/my-profile.json").exists());assert!(!data.join("info.json").exists());
         assert!(Path::new(&report.backup_path).join("manifest.json").exists());
         fs::remove_dir_all(root).unwrap();
@@ -333,6 +314,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("gxr-clean-fixture-{stamp}"));
         let ctx = Context { steamvr: root.join("runtime"), paths_file: root.join("openvrpaths.vrpath"),
             settings: root.join("config/steamvr.vrsettings"), data: root.join("GalaxyXR/CustomHeadset"), managed: root.join("packages") };
+        atomic_json(&ctx.paths_file, &json!({"external_drivers":[]})).unwrap();
         atomic_json(&ctx.settings, &json!({"steamvr":{"roomSetup":"keep"},"driver_other":{"enable":true}})).unwrap();
         atomic_json(&ctx.data.join("settings.json"), &json!({"galaxyXr":{"nativeIdentity":false}})).unwrap();
         (root, ctx)
@@ -351,6 +333,32 @@ mod tests {
             assert_eq!(read_json(&ctx.receipt()).unwrap()["keep"], "receipt");
             assert_eq!(read_json(&ctx.paths_file).unwrap()["external_drivers"][0], "unrelated");
         }
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn clean_matches_fresh_install_and_backs_up_migration_state() {
+        let (root, ctx) = fixture();
+        let marker = ctx.data.join("nvenc-settings-v4.migrated");
+        atomic_bytes(&marker, b"old migration state").unwrap();
+        atomic_json(&ctx.data.join("settings.json"), &json!({
+            "galaxyXr":{"nativeIdentity":false,"nativeResolution":false},
+            "streamFrame":{"nvencTap":false,"nvencSettingsVersion":4,"saturation":77},
+            "unknownOldSetting":42})).unwrap();
+        atomic_json(&ctx.data.join("info.json"), &json!({"defaultSettings":{"streamFrame":{"nvencTap":false}}})).unwrap();
+        atomic_json(&ctx.data.join("diagnostic.json"), &json!({"old":true})).unwrap();
+        let mut first_install = json!({});
+        default_native_identity(&mut first_install).unwrap();
+        let report = clean_settings_at(&ctx.data, Some(&ctx)).unwrap();
+        assert_eq!(read_json(&ctx.data.join("settings.json")).unwrap(), first_install);
+        assert!(!marker.exists());
+        assert!(!ctx.data.join("info.json").exists());
+        assert!(!ctx.data.join("diagnostic.json").exists());
+        assert!(report.reset_files.contains(&marker.to_string_lossy().into_owned()));
+        let backup = PathBuf::from(&report.backup_path);
+        let manifest = read_json(&backup.join("manifest.json")).unwrap();
+        let marker_backup = manifest["files"].as_array().unwrap().iter()
+            .find(|entry| entry["path"] == json!(marker)).unwrap();
+        assert_eq!(fs::read(backup.join(marker_backup["backupFile"].as_str().unwrap())).unwrap(), b"old migration state");
         fs::remove_dir_all(root).unwrap();
     }
     #[test]
@@ -413,6 +421,47 @@ mod tests {
         let (_, _, report) = reset_owned_steamvr(&mut settings, Some(&journal), &json!({})).unwrap();
         assert_eq!(settings["vrlink_xrvst2ue"]["inputProfilePath"], original);
         assert!(report.removed_keys.is_empty());
+    }
+
+    #[test]
+    fn reset_then_new_writes_preserve_original_absence_empty_sections_and_external_changes() {
+        for (original, external) in [(Some(json!(77)),None),(None,None),(Some(json!(77)),Some(json!(99)))] {
+            let (root,ctx)=fixture();
+            atomic_json(&ctx.settings,&json!({"empty":{},"driver_other":{"enable":true}})).unwrap();
+            let mut baseline=read_settings(&ctx.settings).unwrap();
+            if let Some(value)=&original { baseline["driver_vrlink"]["targetBandwidth"]=value.clone(); }
+            atomic_json(&ctx.settings,&baseline).unwrap();
+            apply_changes(&ctx,vec![
+                SettingChange{section:"driver_vrlink".into(),key:"targetBandwidth".into(),present:true,value:json!(200)},
+                SettingChange{section:"empty".into(),key:"owned".into(),present:true,value:json!(true)},
+                SettingChange{section:"driver_other".into(),key:"enable".into(),present:true,value:json!(false)},
+            ]).unwrap();
+            if let Some(value)=&external {
+                let mut edited=read_settings(&ctx.settings).unwrap();edited["driver_vrlink"]["targetBandwidth"]=value.clone();
+                atomic_json(&ctx.settings,&edited).unwrap();baseline["driver_vrlink"]["targetBandwidth"]=value.clone();
+            }
+            clean_settings_at(&ctx.data,Some(&ctx)).unwrap();
+            let kept=load_journal(&ctx).unwrap();
+            assert!(kept["entries"]["driver_vrlink"].get("targetBandwidth").is_none());
+            assert_eq!(kept["entries"]["driver_other"]["enable"]["value"],true);
+            apply_changes(&ctx,vec![SettingChange{section:"driver_vrlink".into(),key:"targetBandwidth".into(),present:true,value:json!(350)}]).unwrap();
+            let mut final_settings=read_settings(&ctx.settings).unwrap();
+            restore_settings(&mut final_settings,&load_journal(&ctx).unwrap(),&mut vec![]).unwrap();
+            assert_eq!(final_settings,baseline);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn missing_recorded_steamvr_target_prevents_reset() {
+        let (root,ctx)=fixture();
+        apply_changes(&ctx,vec![SettingChange{section:"owned".into(),key:"on".into(),present:true,value:json!(true)}]).unwrap();
+        let config=fs::read(ctx.data.join("settings.json")).unwrap();let journal=fs::read(ctx.journal()).unwrap();
+        fs::remove_file(&ctx.settings).unwrap();
+        assert!(clean_settings_at(&ctx.data,Some(&ctx)).unwrap_err().contains("missing"));
+        assert_eq!(fs::read(ctx.data.join("settings.json")).unwrap(),config);
+        assert_eq!(fs::read(ctx.journal()).unwrap(),journal);
+        fs::remove_dir_all(root).unwrap();
     }
 
 }

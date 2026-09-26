@@ -1435,13 +1435,10 @@ void ConfigLoader::ParseConfig(){
 			}
 			sf.streamFrameSchema = 4;
 		}
-		// v3 encoder-settings migration (2026-09-05). files written before the
-		// NVENC rewrite carry per-experiment values (AQ, floors, VBR, no fps
-		// pin, tap off, legacy tier names). the measured outcome of the
-		// project is one configuration, so a pre-v3 file gets the v3 encoder
-		// scalar defaults over it; toggle choices and bandwidth/tier/custom widths survive. AQ is
-		// forced off unconditionally: any spatial AQ serializes NVENC
-		// submission (run X3). the GUI writes the current migration stamp on save.
+		// v3 encoder-settings migration (2026-09-05), preservation fix
+		// (2026-09-26): parsing already fills absent keys from defaults.
+		// Direct upgrades retain supported encoder tuning and toggle choices;
+		// only retired fields, invalid tile widths and legacy tier names migrate.
 		{
 			auto &sf = newConfig.streamFrame;
 			auto &g = newConfig.galaxyXr;
@@ -1467,21 +1464,10 @@ void ConfigLoader::ParseConfig(){
 			bool nvencMigrated = false;
 			if(sf.nvencSettingsVersion < 3){
 				nvencMigrated = true;
-				const StreamFrameConfig d = {};
-				bool hadAq = sf.nvencAqStrength > 0;
-				// 2026-09-25: parsed booleans already contain defaults for absent
-				// keys. Preserve explicit OFF instead of enabling old experiments.
-				sf.nvencVbvFrames = d.nvencVbvFrames; sf.nvencLowDelayKfScale = d.nvencLowDelayKfScale;
-				sf.nvencMaxBitrateHeadroomPct = d.nvencMaxBitrateHeadroomPct; sf.nvencForceFps = d.nvencForceFps;
-				sf.nvencSplitMode = d.nvencSplitMode; sf.nvencPreset = d.nvencPreset;
-				sf.nvencAqStrength = 0; sf.nvencMinQp = 0; sf.nvencMinQpIntra = 0; sf.nvencMaxQp = 0;
-				sf.nvencVuiFullRange = -1; sf.nvencVuiMatrix = -1; sf.nvencVuiPrimaries = -1; sf.nvencVuiTransfer = -1;
-				sf.nvencBitrateMbit = 0; sf.nvencBandwidthOverrideMbit = 0;
 				if(g.customStreamFormatWidth > 2048 || g.customStreamFormatWidth < 512){ g.customStreamFormatWidth = 1536; }
 				g.force10bit = false; // profile and capability toggles retain the user's choice
 				sf.nvencSettingsVersion = 3;
-				DriverLog("Config: NVENC settings migrated to v3 defaults (toggles preserved, P auto, VBV 2, KF 2, headroom 0, fps 90, split auto, AQ/floors/VUI cleared%s); tier '%s'",
-					hadAq ? " - spatial AQ was set and is now OFF: it serialized the encoder" : "", g.streamQuality.c_str());
+				DriverLog("Config: NVENC settings migrated to v3 (encoder tuning and toggles preserved); tier '%s'", g.streamQuality.c_str());
 			}
 			// v4: post-pack CAS replaces the pre-encode CAS when the tap is on
 			if(sf.nvencSettingsVersion < 4){
@@ -1534,9 +1520,11 @@ void ConfigLoader::ParseConfig(){
 					jsf["nvencMaxBitrateHeadroomPct"] = sf.nvencMaxBitrateHeadroomPct; jsf["nvencForceFps"] = sf.nvencForceFps;
 					jsf["nvencBitrateScale"] = sf.nvencBitrateScale; jsf["nvencPresetMerge"] = sf.nvencPresetMerge;
 					jsf["nvencSplitMode"] = sf.nvencSplitMode; jsf["nvencPreset"] = sf.nvencPreset;
-					jsf["nvencAqStrength"] = 0; jsf["nvencMinQp"] = 0; jsf["nvencMinQpIntra"] = 0; jsf["nvencMaxQp"] = 0;
-					jsf["nvencVuiFullRange"] = -1; jsf["nvencVuiMatrix"] = -1; jsf["nvencVuiPrimaries"] = -1; jsf["nvencVuiTransfer"] = -1;
-					jsf["nvencBitrateMbit"] = 0; jsf["nvencBandwidthOverrideMbit"] = 0;
+					// 2026-09-26: v3 -> v4 also enters this writeback. Literal
+					// defaults here erased valid tuning on the following reload.
+					jsf["nvencAqStrength"] = sf.nvencAqStrength; jsf["nvencMinQp"] = sf.nvencMinQp; jsf["nvencMinQpIntra"] = sf.nvencMinQpIntra; jsf["nvencMaxQp"] = sf.nvencMaxQp;
+					jsf["nvencVuiFullRange"] = sf.nvencVuiFullRange; jsf["nvencVuiMatrix"] = sf.nvencVuiMatrix; jsf["nvencVuiPrimaries"] = sf.nvencVuiPrimaries; jsf["nvencVuiTransfer"] = sf.nvencVuiTransfer;
+					jsf["nvencBitrateMbit"] = sf.nvencBitrateMbit; jsf["nvencBandwidthOverrideMbit"] = sf.nvencBandwidthOverrideMbit;
 					if(!jsf["cas"].is_object()){ jsf["cas"] = json::object(); }
 					jsf["cas"]["enable"] = sf.cas.enable;
 					jsf["postPack"] = {

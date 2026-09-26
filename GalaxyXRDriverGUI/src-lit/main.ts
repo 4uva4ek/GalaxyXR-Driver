@@ -2,7 +2,7 @@
 // Replaces src/main.ts (Angular bootstrapApplication + appInitializer). Order:
 //   1. register every custom element (see ./register.ts — keeps the element
 //      modules in the bundle and defines the Fluent elements)
-//   2. ensure the config directories exist (Angular appInitializer parity)
+//   2. resolve config paths without recreating an uninstalled driver's data
 //   3. build the shared service composition root
 //   4. detect the locale from the page path and load ./locale.json
 //   5. mount the shell
@@ -44,11 +44,10 @@ async function boot(): Promise<void> {
   // production bundle.
   void appCustomElements;
 
-  // appInitializer parity: create the config directories before the services
-  // start writing settings (the services also self-create, this just mirrors
-  // the old Angular startup order and warms the directories).
+  // 2026-09-26: opening Companion must not recreate data removed by Uninstall.
+  // Installation and deliberate preference saves create directories on demand.
   const paths = new PathsService();
-  await paths.ensureAllDirCreated();
+  await paths.initialize();
   const ctx = createAppContext(paths);
   // Read preferences before mounting; avoid a flash of the wrong theme.
   await ctx.appSetting.initTask;

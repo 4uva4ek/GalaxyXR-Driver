@@ -96,6 +96,33 @@ describe('vendor defaults before info.json exists', () => {
     expect(service.values()?.streamFrame).toMatchObject(stock);
   });
 
+  it.each([0, 2, 3, 4])('retains schema %s custom encoder tuning through migration, sparse save and reopening', async version => {
+    const chosen = {
+      nvencTap: false, nvencVbvFrames: 5, nvencLowDelayKfScale: 4,
+      nvencMaxBitrateHeadroomPct: 20, nvencForceFps: 72, nvencSplitMode: 3,
+      nvencPreset: 7, nvencAqStrength: 4, nvencMinQp: 5, nvencMinQpIntra: 7,
+      nvencMaxQp: 31, nvencVuiFullRange: 1, nvencVuiMatrix: 1,
+      nvencVuiPrimaries: 1, nvencVuiTransfer: 1,
+      nvencBitrateMbit: 123, nvencBandwidthOverrideMbit: 234,
+    };
+    const service = await load('galaxyxr', {
+      galaxyXr: { sdr10SettingsVersion: 2, customStreamFormatWidth: 1856 },
+      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: version, ...chosen },
+    });
+    const state = new GalaxySettingsBase({ values: () => ({}) } as any, service, { values: () => undefined } as any);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await service.flush();
+    expect(state.settings).toMatchObject({ ...chosen, nvencSettingsVersion: 4 });
+    expect(await service.save(service.values()!)).toBe(true);
+    const persisted = JSON.parse(storage.files.get(filePath)!);
+    expect(persisted.streamFrame).toMatchObject({ ...chosen, nvencSettingsVersion: 4 });
+    expect(persisted.galaxyXr.customStreamFormatWidth).toBe(1856);
+    service.dispose();
+    const reopened = await load('galaxyxr', persisted);
+    expect(reopened.values()?.streamFrame).toMatchObject({ ...chosen, nvencSettingsVersion: 4 });
+    expect(reopened.values()?.galaxyXr?.customStreamFormatWidth).toBe(1856);
+  });
+
   it.each(['', 'galaxyxr'])('resets %s encoder controls through GalaxySettingsBase using package defaults', async vendor => {
     const old = {
       nvencTap: false, nvencFixLevel: false, nvencForceCbr: false, nvencPresetMerge: false,
@@ -121,7 +148,7 @@ describe('vendor defaults before info.json exists', () => {
     expect(service.values()?.streamFrame?.postPack).toMatchObject({ enable: true, casEnable: true, limitedRange: true });
   });
 
-  it('keeps the cleaned stock encoder profile through GUI migrations, sparse saves and reloads', async () => {
+  it('preserves a saved legacy encoder-off profile through migrations, sparse saves and reloads', async () => {
     const stock = {
       nvencSettingsVersion: 4, nvencTap: false, nvencFixLevel: false,
       nvencForceCbr: false, nvencBitrateScale: false, nvencPresetMerge: false,

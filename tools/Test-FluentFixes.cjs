@@ -24,7 +24,7 @@ function harness(vendor = 'galaxyxr') {
   const modules = new Map(), locks = new Map();
   const sandbox = {
     console: { ...console, warn() {}, log() {} }, structuredClone, queueMicrotask,
-    setTimeout, clearTimeout, setInterval, clearInterval, performance, URL,
+    setTimeout, clearTimeout, setInterval, clearInterval, performance, URL, URLSearchParams,
     TextEncoder, TextDecoder, AbortController, Promise, crypto: require('node:crypto').webcrypto,
     addEventListener() {}, removeEventListener() {},
     fetch: async () => { throw new TypeError('Network disabled in regression tests'); },
@@ -59,6 +59,10 @@ function harness(vendor = 'galaxyxr') {
     const paths = new (source('services/paths').PathsService)();
     await paths.ensureAllDirCreated();
     const ctx = source('app-context').createAppContext(paths);
+    // These service tests have no browser. Dialog rendering/focus is tested
+    // separately; preserve the old fixture's affirmative confirmation policy.
+    ctx.dialog.confirm = async (...args) => { (fixture.dialogs ??= []).push({ kind: 'confirm', args }); return true; };
+    ctx.dialog.message = async (...args) => { (fixture.dialogs ??= []).push({ kind: 'message', args }); };
     await Promise.all([ctx.appSetting.initTask, ctx.dss.initTask, ctx.dis.initTask, ctx.sds.initTask]);
     await tick(); await source('platform/writer').flushFileWrites(); await tick();
     return ctx;
@@ -161,6 +165,7 @@ if (require.main === module) {
   });
   await test('Unreadable and malformed settings never overwrite the backing file',async()=>{
     const h=harness(),c=await h.app();h.fixture.put(h.fixture.data+'/settings.json','{"streamFrame":{"enable":"false"}}');const before=h.fixture.calls.length;let r=await c.checks.refresh();assert.ok(r.errors.some(x=>x.includes('JSON boolean')));assert.equal(c.dss.values(),undefined);
+    assert.ok(r.settings.filter(x=>x.id!=='advanceMode').every(x=>x.state==='Unknown'&&x.origin==='unknown'));
     h.fixture.denied.add(h.fixture.data+'/settings.json');r=await c.checks.refresh();assert.ok(r.errors.some(x=>x.includes('Permission denied')));assert.equal(c.dss.values(),undefined);assert.equal(h.fixture.calls.length,before);c.dispose();
   });
   await test('Failed write rolls back a setting and exposes an actionable error',async()=>{
@@ -188,21 +193,22 @@ if (require.main === module) {
   });
   await test('Install, uninstall and reinstall preserve the bundle and rebind readiness',async()=>{
     const h=harness(),c=await h.app(),installed=h.fixture.runtime+'/drivers/GalaxyXRNative',bundle='E:/Portable/GalaxyXRNative';
+    c.dialog.confirm=async()=>true;
     for(const suffix of ['/driver.vrdrivermanifest','/bin/win64/driver_GalaxyXRNative.dll'])h.fixture.put(bundle+suffix,h.fixture.files.get(installed+suffix));
     const originalInvoke=h.api.invoke;
     h.api.invoke=async(name,args)=>{
       if(name==='register_galaxyxr_driver'){for(const suffix of ['/driver.vrdrivermanifest','/bin/win64/driver_GalaxyXRNative.dll'])h.fixture.put(installed+suffix,h.fixture.files.get(bundle+suffix));return{registeredPath:installed};}
-      if(name==='uninstall_galaxyxr_driver'){for(const key of [...h.fixture.files.keys()])if(key.startsWith(installed+'/')||key.startsWith(h.fixture.data+'/'))h.fixture.files.delete(key);return{removedPaths:[installed],restoredSettings:1,legacyReset:false,warnings:[]};}
+      if(name==='uninstall_galaxyxr_driver'){for(const key of [...h.fixture.files.keys()])if(key.startsWith(installed+'/')||key.startsWith(h.fixture.data+'/'))h.fixture.files.delete(key);return{outcome:'complete',preservedPaths:[],unresolvedItems:[],removedPaths:[installed],restoredSettings:1,legacyReset:false,warnings:[]};}
       return originalInvoke(name,args);
     };
     assert.equal(await c.sds.installDriver(),true);assert.equal(c.sds.systemReady(),true);assert.equal(await c.sds.uninstallDriver(),true);assert.equal(c.sds.systemReady(),false);assert.equal(h.fixture.files.has(bundle+'/driver.vrdrivermanifest'),true);assert.equal(await c.sds.installDriver(),true);assert.equal(c.sds.systemReady(),true);c.dispose();
   });
   for(const step of ['package inspection','settings initialization']) await test('Uninstall drains an older '+step+' before removing files',async()=>{
-    const h=harness(),c=await h.app();let entered,release,deleted=false;
+    const h=harness(),c=await h.app();c.dialog.confirm=async()=>true;let entered,release,deleted=false;
     const pause=new Promise(resolve=>entered=resolve),resume=new Promise(resolve=>release=resolve);
     if(step==='package inspection'){const original=c.sds.inspectDriverPackage.bind(c.sds);let once=false;c.sds.inspectDriverPackage=async(p,name)=>{if(!once&&name==='CustomHeadsetOpenVR'){once=true;entered();await resume;}return original(p,name);};}
     else{const original=c.dss.ensureEditableSettings.bind(c.dss);c.dss._values.set(undefined);c.dss.ensureEditableSettings=async()=>{entered();await resume;return original();};}
-    h.api.invoke=async name=>{if(name==='uninstall_galaxyxr_driver'){deleted=true;for(const key of [...h.fixture.files.keys()])if(key.startsWith(h.fixture.data+'/')||key.startsWith(h.fixture.runtime+'/drivers/GalaxyXRNative/'))h.fixture.files.delete(key);return{removedPaths:[],restoredSettings:0,legacyReset:false,warnings:[]};}return true;};
+    h.api.invoke=async name=>{if(name==='uninstall_galaxyxr_driver'){deleted=true;for(const key of [...h.fixture.files.keys()])if(key.startsWith(h.fixture.data+'/')||key.startsWith(h.fixture.runtime+'/drivers/GalaxyXRNative/'))h.fixture.files.delete(key);return{outcome:'complete',preservedPaths:[],unresolvedItems:[],removedPaths:[],restoredSettings:0,legacyReset:false,warnings:[]};}return true;};
     const older=c.sds.checkDriverInstalled();await pause;const uninstall=c.sds.uninstallDriver();await tick();assert.equal(deleted,false);release();assert.equal(await older,false);assert.equal(await uninstall,true);assert.equal(c.sds.systemReady(),false);assert.equal(h.fixture.files.has(h.fixture.data+'/settings.json'),false);c.dispose();
   });
   console.log(`\nFluent regression tests: ${passed}/${results.length} passed.`);

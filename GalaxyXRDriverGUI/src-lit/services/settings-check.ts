@@ -1,6 +1,7 @@
 import { signal } from '../reactive';
 import { inspectBooleanSettings, type BooleanSettingCheck } from '../domain/settings-inspection';
-import { galaxyXRDriverName } from '../environment';
+import { galaxyXRDriverName, vendor } from '../environment';
+import { presentSettings, type PresentedSettingCheck } from '../domain/settings-presentation';
 import { flushFileWrites } from '../platform/writer';
 import type { AppSettingService } from './app-setting';
 import type { DriverSettingService } from './driver-setting';
@@ -10,6 +11,7 @@ import type { SystemDiagnosticService } from './system-diagnostic';
 export interface SettingsCheckReport {
   checkedAt: string;
   checks: BooleanSettingCheck[];
+  settings: PresentedSettingCheck[];
   errors: string[];
   warnings: string[];
   driverEnabled: boolean | undefined;
@@ -46,9 +48,11 @@ export class SettingsCheckService {
 
   private async inspect(): Promise<SettingsCheckReport> {
     const report: SettingsCheckReport = {
-      checkedAt: new Date().toISOString(), checks: [], errors: [], warnings: [],
+      checkedAt: new Date().toISOString(), checks: [], settings: [], errors: [], warnings: [],
       driverEnabled: undefined, driverInstalled: false,
     };
+    let appKnown = false;
+    let driverKnown = false;
     try {
       if (this.system.installingDriver()) throw new Error('Wait for the driver installation change to finish before checking settings.');
       await Promise.all([this.app.initTask, this.driver.initTask, this.info.initTask, this.system.initTask]);
@@ -65,12 +69,14 @@ export class SettingsCheckService {
       // Refresh runtime-published defaults before interpreting omitted keys.
       if (!await this.info.loadSetting()) report.warnings.push('Runtime information is unavailable. Missing settings use bundled defaults.');
       if (await this.app.loadSetting()) {
+        appKnown = true;
         // driverVerified is the Setup page's verification latch, not a user
         // setting, so it stays out of the settings report (2026-09-23).
         report.checks.push(...inspectBooleanSettings(this.app.values(), this.app.storedValues(), 'gui-settings.json')
           .filter(check => check.key !== 'driverVerified'));
       } else report.errors.push(`gui-settings.json: ${this.app.readFileError()?.message ?? this.app.readFileError()?.reason}`);
       if (await this.driver.loadSetting()) {
+        driverKnown = true;
         report.checks.push(...inspectBooleanSettings(this.driver.values(), this.driver.storedValues(), 'settings.json'));
       } else report.errors.push(`settings.json: ${this.driver.readFileError()?.message ?? this.driver.readFileError()?.reason}`);
       if (await this.system.refreshSteamVRSettings()) {
@@ -84,6 +90,11 @@ export class SettingsCheckService {
     } finally {
       this.driver.inspecting = this.app.inspecting = this.info.inspecting = false;
     }
+    report.settings = presentSettings(report.checks, {
+      settings: driverKnown ? this.driver.values() : undefined,
+      app: appKnown ? this.app.values() : undefined,
+      driverInstalled: report.driverInstalled, vendor: !!vendor,
+    });
     report.checkedAt = new Date().toISOString();
     this._report.set(report);
     return report;

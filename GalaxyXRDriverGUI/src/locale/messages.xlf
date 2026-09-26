@@ -1703,13 +1703,693 @@ The reset covers color/brightness, sharpening, FXAA, dither, black-floor correct
         <source>Accept the image-quality warning before enabling Image Enhancements with SDR 10-bit baseline.</source>
       </trans-unit>
       <trans-unit id="encoder-cleanup-stock-20260926" datatype="html">
-        <source>Clean Settings leaves NVENC Tap and encoder overrides off for stock NVIDIA encoding. Other driver settings return to their defaults. Enable NVENC Tap and reset the encoder controls to use the installation defaults again.</source>
+        <source>Clean Settings restores the same driver defaults as a fresh installation, including Native Identity and NVENC Tap on. Direct upgrades preserve saved choices. App preferences and saved profile files are kept.</source>
       </trans-unit>
       <trans-unit id="encoder-cleanup-running-20260926" datatype="html">
         <source>SteamVR is running. Close it completely before cleaning settings or uninstalling the driver.</source>
       </trans-unit>
       <trans-unit id="encoder-cleanup-unknown-20260926" datatype="html">
         <source>Cleanup is unavailable until SteamVR is confirmed stopped. Use Check installation to retry.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-dcf72ae8e10c0fb1" datatype="html">
+        <source>1. Install the driver</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0a815a620a51d950" datatype="html">
+        <source>2. Connect and verify</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-64cff1319d2fd2cb" datatype="html">
+        <source>Action</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1475d9143d0dd80a" datatype="html">
+        <source>Advanced controls are temporarily visible for this setting. Advanced Mode has not changed.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ccd2feae8fb99d22" datatype="html">
+        <source>After changing headset or controller identity.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-478ae5dc4cf3bb8d" datatype="html">
+        <source>After changing stream quality.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0220717148162ab0" datatype="html">
+        <source>After verification, check the picture and controller tracking in your headset.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a49aae3f209dec10" datatype="html">
+        <source>Angular grid and warped overlays are active. World-Locked Grid remains independent.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8c29e04a04829bd6" datatype="html">
+        <source>Another driver is active</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-6408c83ebddcf561" datatype="html">
+        <source>App preferences could not be read</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e9e33d66d490b750" datatype="html">
+        <source>App preferences could not be read. Check installation to retry.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-b53c67111796bebf" datatype="html">
+        <source>Appearance and advanced controls.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d5c0e299f863cfb1" datatype="html">
+        <source>Appearance and advanced preferences are available now.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a7599c9c74dd6e78" datatype="html">
+        <source>Application preferences</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0f2b373c4e8314a7" datatype="html">
+        <source>Built on CustomHeadsetOpenVR by sboys3, with Galaxy XR driver work by timkhronos and compdoge.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-2abec979de906176" datatype="html">
+        <source>Calibration grid is forced on</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ced0c42bb1c27fe8" datatype="html">
+        <source>Calibration guide</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a9ab5f6314383c8d" datatype="html">
+        <source>Calibration is active</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fb7099ad8e818d42" datatype="html">
+        <source>Check again</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5798b9ce1f1f6051" datatype="html">
+        <source>Check complete</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c590a1ef71c66207" datatype="html">
+        <source>Check driver now</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e1d4c81d3a0de7e7" datatype="html">
+        <source>Check file permissions, then use Check Settings on Setup.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-4f39240d3eb657f9" datatype="html">
+        <source>Check settings</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-13144cfb1213115d" datatype="html">
+        <source>Check the installation again to retry.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-b6f55094264973c9" datatype="html">
+        <source>Check the items below, then verify the driver on Setup.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-53b276ad798ce2cd" datatype="html">
+        <source>Checking for updates</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e0a4247cd392d77d" datatype="html">
+        <source>Checking installation…</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-626f33651366e55c" datatype="html">
+        <source>Close SteamVR first</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-88f2b69280f6d529" datatype="html">
+        <source>Close help</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5ae782dbeb576e13" datatype="html">
+        <source>Color matrix could not be applied</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5edefb5903f1b8fd" datatype="html">
+        <source>Complete setup to use these controls</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a6b42f7a968ebe65" datatype="html">
+        <source>Confirm that SteamVR is stopped before changing the installation.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-474e27f6dcc7d339" datatype="html">
+        <source>Controller settings are unavailable in this configuration.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-2a6b24ad28722034" datatype="html">
+        <source>Credits</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-84f928aa4acbe8ae" datatype="html">
+        <source>Custom shader conflicts with the baseline</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0a4a35c29cf4306f" datatype="html">
+        <source>Defaults restored</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-bbd3df26a877d5cd" datatype="html">
+        <source>Defaults restored with notices</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-45989de49fb7f66d" datatype="html">
+        <source>Details</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-75081b593d15cf6e" datatype="html">
+        <source>Disabled</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c3bf7c4eed5a87c3" datatype="html">
+        <source>Driver files installed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-33775fff4b8a03cd" datatype="html">
+        <source>Driver initialization is verified in the current SteamVR session. Connect the headset through Steam Link, then check the picture and controller tracking.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-625b308443ecbbb8" datatype="html">
+        <source>Driver initialization verified in SteamVR.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e6ee6db45aa56674" datatype="html">
+        <source>Driver removed with notices</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fa136e6868a797ef" datatype="html">
+        <source>Driver settings could not be read</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-511dad50a47772fe" datatype="html">
+        <source>Driver status is unknown</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c8a04a7b538d1ab6" datatype="html">
+        <source>Driver tuning and app preferences were reset. The installed driver, saved profiles, and backups were kept. Start SteamVR to apply driver defaults.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1ed9c8ab0ea43468" datatype="html">
+        <source>Enable NVENC Tap in Encoder, or choose Pre-encode sharpening.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-199d3d2c12055a26" datatype="html">
+        <source>Enable color, sharpening, and lens correction. Turn this off before enabling the SDR 10-bit baseline, which resets picture adjustments.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-11bb299c113d47ca" datatype="html">
+        <source>Enable it in App Settings and accept the quality warning to adjust the SDR 10-bit picture.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-b998ec35b3380b17" datatype="html">
+        <source>Enable it in App Settings to adjust color and sharpening.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0be0149f3735d1c6" datatype="html">
+        <source>Enable it in App Settings to use lens correction and profile sharing.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fc2df4c28dcebb9d" datatype="html">
+        <source>Enable this driver and restart SteamVR to apply your settings.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-92c1cdfdf4cb9cf6" datatype="html">
+        <source>Enabled</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8da0b9a57062a18a" datatype="html">
+        <source>Enabling enhancements requires accepting an image-quality warning.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0be1a6b1046ef46a" datatype="html">
+        <source>Enabling the baseline resets picture adjustments. Back up custom settings first; turning it off does not restore them.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8da1ae4f24f99743" datatype="html">
+        <source>Export .json</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-34cddbd5be184a99" datatype="html">
+        <source>Export current</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-719f5e3f3a2a4892" datatype="html">
+        <source>Export current copies the active curves, mode, and center offsets into the text box. Export .json saves them as a file.
+
+To import, paste a profile and choose Import from text, or choose Import .json. Profiles saved by the in-headset tuner use the same format. Export your current profile first if you want to keep it.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7bb342894787e283" datatype="html">
+        <source>Files reset</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7c25f054e50ef0bf" datatype="html">
+        <source>Force Calibration Grid controls these overlays while the tuner is active.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d54b0ee053859e14" datatype="html">
+        <source>Galaxy XR icons</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-b1a8a6c4cc7d4d81" datatype="html">
+        <source>Galaxy XR icons by Vilkka. Based on Quest Pro icons by Lux / Hekky.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a4006ba1d0f7a93f" datatype="html">
+        <source>Headset identity and controller tracking.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-47e623e45703c3b4" datatype="html">
+        <source>Image Enhancements can cause banding, artifacts, or color changes with SDR 10-bit. The 10-bit request stays enabled, but processing may not preserve its precision.
+
+Continue only if you accept this image-quality tradeoff. Turn enhancements off to return to the neutral baseline.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-3ea37af9c4bbf298" datatype="html">
+        <source>Image Enhancements is off</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d4d505db1f9ae837" datatype="html">
+        <source>Image Enhancements is off. Its saved adjustments are kept.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-25069a7d4cb4be88" datatype="html">
+        <source>Image Enhancements is on</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c8a5185bfc197ae7" datatype="html">
+        <source>Image Settings</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-162d7a912df5dce6" datatype="html">
+        <source>Image mode could not be changed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0b6ebccfcad5b040" datatype="html">
+        <source>Image processing may reduce quality.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-aed1c9b68cd8f676" datatype="html">
+        <source>Image processing may reduce quality. Restart SteamVR and reconnect to apply the 10-bit request.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-6357c134ef0814f2" datatype="html">
+        <source>Image processing may reduce quality. Turn enhancements off to use the neutral baseline; your adjustments are kept.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0c8ea28c1bf25964" datatype="html">
+        <source>Import .json</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a2e88e4c759c0eaf" datatype="html">
+        <source>Import and export</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f82f8569b4dcbab1" datatype="html">
+        <source>Import from text</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a0aadbad7cad949d" datatype="html">
+        <source>Install the driver first.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0f1308a7046a4ac7" datatype="html">
+        <source>Install the driver to enable image controls</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-6b88c2034edb8097" datatype="html">
+        <source>Install the driver to show this control.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a073c5cefe9d40bb" datatype="html">
+        <source>Install the driver to unlock headset and image settings.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-04dafdb72f1b651a" datatype="html">
+        <source>Installation could not be checked</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0433f511f7df6929" datatype="html">
+        <source>Installation could not be verified</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f8b32f4e92bd84ce" datatype="html">
+        <source>Installed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d936c25e55fcd96a" datatype="html">
+        <source>Interactive Tuner is off. Its saved adjustments are kept.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fb09db220f636745" datatype="html">
+        <source>Keep Galaxy XR recognition enabled</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c3717a65d9be6fcc" datatype="html">
+        <source>Kept locations</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a9519a95ba4e1ed5" datatype="html">
+        <source>Last reported driver version (not live verification)</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c34463c9cd0dfe54" datatype="html">
+        <source>Lens correction and profile sharing.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-15b61974b2707a7b" datatype="html">
+        <source>Location</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-627f6c92dade0e6b" datatype="html">
+        <source>Locations removed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-2fbfc5facbd8868a" datatype="html">
+        <source>NVENC Tap is off. Its saved adjustments are kept.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c1ebc7817870e5be" datatype="html">
+        <source>Needs attention</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-15133907259330da" datatype="html">
+        <source>Not verified</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-39452a74667ef074" datatype="html">
+        <source>Official Controller Input Profile is off. Its saved adjustments are kept.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1bcddc4b9a965a6f" datatype="html">
+        <source>Open App Settings</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1a03ba26f466243c" datatype="html">
+        <source>Open Setup</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f04f591ce22fb502" datatype="html">
+        <source>Open Technical details to review unreadable settings and other notices.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-619f8f821183742c" datatype="html">
+        <source>Paste a profile or choose Export current</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-76f7477529ac5bdd" datatype="html">
+        <source>Per-hand trims add to the shared offsets. Enable Mirror Offsets to use one set for both hands.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e637b22ec7475374" datatype="html">
+        <source>Picture adjustments are reset. Restart SteamVR and reconnect to apply the 10-bit request.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-09444a99f0f3b374" datatype="html">
+        <source>Post-pack</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7243f5ef86a4d6ec" datatype="html">
+        <source>Post-pack sharpening needs NVENC Tap</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-2c20b4ac0c5524dc" datatype="html">
+        <source>Pre-encode</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7223099ca00344f3" datatype="html">
+        <source>Previously verified. Current SteamVR status is unknown.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f73473a8cafa437a" datatype="html">
+        <source>Previously verified. SteamVR is not running.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-556db51dab35134e" datatype="html">
+        <source>Profile text</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f6039081d5e1bb3e" datatype="html">
+        <source>Profile transfer</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7a8a6161959bce57" datatype="html">
+        <source>Read back saved settings and locate each control.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5fa7aac5375c5815" datatype="html">
+        <source>Ready</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-424cf5a13fc6b7e6" datatype="html">
+        <source>Recovery backup</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-58a34498afc2c656" datatype="html">
+        <source>Reduce image rippling during head turns with small lens corrections.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fa1b6d62f8dad7fc" datatype="html">
+        <source>Reinstall driver</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-98025cb4ac4fee30" datatype="html">
+        <source>Remove the driver and active settings. Keep saved profiles and backups for later use.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a37773b2ac5d752e" datatype="html">
+        <source>Remove the driver and all active driver and app settings? Recorded SteamVR changes will be restored and verified historical leftovers removed. Saved profiles, recovery backups and other drivers are kept. Original values that were never recorded cannot be recovered. Close SteamVR first.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-756a327c5dd2965b" datatype="html">
+        <source>Report issues to this fork and attach the SteamVR server log.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ac43ed19a931d7c9" datatype="html">
+        <source>Reset and enable</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e2c8e4a7b71f91c7" datatype="html">
+        <source>Reset driver tuning and app preferences. Keep the installation, saved profiles, and backups.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-089cb45b70a09491" datatype="html">
+        <source>Reset failed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1ec443807c41f34d" datatype="html">
+        <source>Reset picture adjustments and enable the baseline?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ce5762f3504848ef" datatype="html">
+        <source>Restart SteamVR to load the installed driver version.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5e2a158d41816e30" datatype="html">
+        <source>Restart SteamVR's display process to try to fix display problems without closing the game. Your headset view may briefly disappear; save anything important first.
+
+Restarting the compositor can fix some issues and allows changing various settings like refresh rate without restarting SteamVR or the game.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-43bf51cbce0d2313" datatype="html">
+        <source>Restart-required settings may not be active in the headset yet.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-bf5c00240e2ff9d8" datatype="html">
+        <source>Restore all defaults?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-602f8e637002a585" datatype="html">
+        <source>Restore defaults</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-09aa9d716f73e42b" datatype="html">
+        <source>Restore defaults and uninstall are available when SteamVR is closed.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5eb34e93cc7b1220" datatype="html">
+        <source>Restore every driver and app setting to its default? Unsaved edits will be discarded. The driver stays installed. Saved profiles and recovery backups are kept. Close SteamVR first.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e692a4a914011006" datatype="html">
+        <source>Restore or remove</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f776eea7755f2746" datatype="html">
+        <source>Retired experiments are hidden. Showing a setting will not enable them.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d6cf81efce3ad621" datatype="html">
+        <source>Runtime tools and details</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8eaf6380b90431f2" datatype="html">
+        <source>SDR 10-bit baseline is on</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-3d84cb4e40066e18" datatype="html">
+        <source>SDR 10-bit with Image Enhancements</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-38562715222ede33" datatype="html">
+        <source>Save your current profile or import a shared one.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7bae2223f7797929" datatype="html">
+        <source>Saved and default values</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e47f453d10bd1255" datatype="html">
+        <source>Saved configuration does not verify live hardware behavior.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-acde56756810e53d" datatype="html">
+        <source>Saved driver settings could not be read. Check installation to retry.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-9e023db243ab0b7e" datatype="html">
+        <source>Saved state</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-317725b37c8af683" datatype="html">
+        <source>Set up Galaxy XR for SteamVR, tune tracking, and adjust the streamed image.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-dd3f9e99e5f63b7d" datatype="html">
+        <source>Set up your headset</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-27b73f336580e1f5" datatype="html">
+        <source>Setting help</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f1b473b1f1f77178" datatype="html">
+        <source>Settings are missing or could not be loaded.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7d0a2d38d137a15e" datatype="html">
+        <source>Settings check</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ee06d9245a9e1ec1" datatype="html">
+        <source>Settings could not be saved.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-0acfb49909115d10" datatype="html">
+        <source>Show encoder, controller, calibration, and diagnostic controls. Hiding them keeps their values.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a5ce2024d01fecb3" datatype="html">
+        <source>Show setting</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-97544bbeb837a505" datatype="html">
+        <source>Some checks need attention</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8891566f257a954a" datatype="html">
+        <source>Some items could not be removed. Recovery information was kept. Review Details, resolve the problem, and retry uninstall.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-abcf55a86ea8f6e8" datatype="html">
+        <source>Start SteamVR</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5d174654428bff02" datatype="html">
+        <source>Start SteamVR and connect your headset through Steam Link to verify the driver.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e3c16929810f5183" datatype="html">
+        <source>Start SteamVR to continue</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7539689aa0f121fe" datatype="html">
+        <source>Start SteamVR to initialize the driver and verify that it is running. Installation alone does not complete this step.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-adbdb636e370d1bb" datatype="html">
+        <source>Start SteamVR, then connect your headset through Steam Link.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-4bd4673b78eb5ea0" datatype="html">
+        <source>Start with small corrections and compare slow head turns. A curve value of 1.0 leaves the image unchanged; higher values pull content inward and lower values push it outward. Corrections are usually within one percent of 1.0.
+
+Use the calibration grid to inspect alignment, then turn calibration off before playing. Force Calibration Grid also enables the angular grid and warped overlays; World-Locked Grid remains independent.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-613cd2a9867a655a" datatype="html">
+        <source>Starting SteamVR…</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-573c56cd0685c256" datatype="html">
+        <source>SteamVR could not start</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-b6741920743b9500" datatype="html">
+        <source>SteamVR is running. Connect the headset through Steam Link and wait for the driver to initialize.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-53797debae904543" datatype="html">
+        <source>SteamVR loaded a different driver version. Close SteamVR, reinstall the driver from this package, and start it again.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-903225e7924ac582" datatype="html">
+        <source>SteamVR restart required</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-3d5e26740fa30010" datatype="html">
+        <source>SteamVR settings restored</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-03814851ce32eb2d" datatype="html">
+        <source>Stop calibration before playing.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c0d620a3fc8ce587" datatype="html">
+        <source>Stream quality, color, and sharpening.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ac5215110749d3c2" datatype="html">
+        <source>Support sboys3, creator of the original project.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5ea9e6623052ea1b" datatype="html">
+        <source>Switch from CustomHeadsetOpenVR to apply these settings, then restart SteamVR. You can switch back from its app.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-890ab358a55d7fce" datatype="html">
+        <source>Technical details</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-89d90a09aad34698" datatype="html">
+        <source>The controls have been restored to the last verified values.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-84d3fc53ddb094b7" datatype="html">
+        <source>The driver and active settings were removed. Saved profiles and backups were kept. Your next installation will start with defaults.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-935a55c90e697c73" datatype="html">
+        <source>The driver folder was not found next to the app. Extract the complete portable package and try again, or choose the driver folder containing driver.vrdrivermanifest (GalaxyXRNative for the Galaxy XR package).</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1ccf46d1ec55809c" datatype="html">
+        <source>The driver is initialized in the current SteamVR session and reports a connected headset. Check the picture and controller tracking in the headset to finish setup.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-907b922c80bf90be" datatype="html">
+        <source>The driver loaded but is inactive because the other driver is enabled. Close SteamVR, use Switch to this driver, and start SteamVR again.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-7a991bf40b8dea69" datatype="html">
+        <source>This control is available in the Galaxy XR build.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-6f356506ec360ff8" datatype="html">
+        <source>This control is available when CAS Sharpening uses Post-pack.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1d31f076f980f3df" datatype="html">
+        <source>This control is available when CAS Sharpening uses Pre-encode.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f2045ceece9aa8a5" datatype="html">
+        <source>This control is available with a Kalman CA controller mode.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-3a78d3c584168329" datatype="html">
+        <source>This control is available with a Kalman controller mode.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-1ea267beded7e7b2" datatype="html">
+        <source>This control is available with the camera calibration pattern.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-81c5e27fb0693a08" datatype="html">
+        <source>This control is hidden by the current mode. No settings were changed.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e1de94a3738ba342" datatype="html">
+        <source>This driver is disabled</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-fe787b47b82b1794" datatype="html">
+        <source>This resets color, sharpening, lens correction and other image-processing adjustments to their defaults. It also turns off the custom shader for this headset. Your controller, tracking and stream-quality settings are kept. Turning the baseline off later will not restore the previous picture adjustments. Back up your settings or export your lens profile first. Continue?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e88d83f957e7b451" datatype="html">
+        <source>This setting is normally left on. Turning it off can make SteamVR show Unknown or the headset identity supplied by a patched Steam Link app instead of Galaxy XR. Restart SteamVR afterwards. Continue?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ed3caf4b478c27ea" datatype="html">
+        <source>This setting is not available in this version.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-361179827799084f" datatype="html">
+        <source>Try again when your connection is available.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-9aa338628929b5fe" datatype="html">
+        <source>Turn it off before enabling the baseline. Enabling the baseline resets picture adjustments.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-06f0e210b27d4d62" datatype="html">
+        <source>Turn off</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-5d36cfa41975d725" datatype="html">
+        <source>Turn off Galaxy XR recognition?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-54b4c322cca45e41" datatype="html">
+        <source>Turn the baseline off and on to reset picture adjustments and clear the conflict.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-21b1809c910fb75a" datatype="html">
+        <source>Turning off either identity option can make SteamVR show another headset or Unknown. Restart SteamVR after a change.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ca184496974204a0" datatype="html">
+        <source>Unavailable</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8e637ab4c70866fd" datatype="html">
+        <source>Uninstall and clear settings</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-03247924902ccfd1" datatype="html">
+        <source>Uninstall driver</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e68366feae014e2f" datatype="html">
+        <source>Uninstall driver and clear settings?</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ecbcb52b2b41ea46" datatype="html">
+        <source>Uninstall failed</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e0917dfb3cc8499d" datatype="html">
+        <source>Uninstall needs another step</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ce29b7f85b9eaf7d" datatype="html">
+        <source>Up to date</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-c1c1009d3f37ec05" datatype="html">
+        <source>Update</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-ff8b555d818f0b25" datatype="html">
+        <source>Update available</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-82eaeb1f5cdd1d29" datatype="html">
+        <source>Update check unavailable</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e80db49c249e49bb" datatype="html">
+        <source>Updates keep your saved settings.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e3e14674e9e5c373" datatype="html">
+        <source>Updating driver or settings. Please wait…</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-e926bf8033702577" datatype="html">
+        <source>Use Check Settings on Setup to try again.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-8e9cc0fe20d90068" datatype="html">
+        <source>Use the Galaxy XR build to reset Galaxy XR settings. No files were changed.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-f5162206318ee964" datatype="html">
+        <source>Valid</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-4f7838402f37674e" datatype="html">
+        <source>Verified</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-d2626aa7832fce00" datatype="html">
+        <source>Version and updates</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-9dcb9145095763be" datatype="html">
+        <source>Version mismatch</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-20e6a8075c4e35bf" datatype="html">
+        <source>Version, updates, and project information.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-db51f7282b31d547" datatype="html">
+        <source>View release</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-a0f718d887e46ed4" datatype="html">
+        <source>Waiting for driver initialization</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-772301aef4b143ab" datatype="html">
+        <source>Waiting for readable driver runtime information. Connect Steam Link. If this continues, close SteamVR, reinstall the driver, and start SteamVR again.</source>
+      </trans-unit>
+      <trans-unit id="companion-20260926-3bf3ef799ee0eedc" datatype="html">
+        <source>Waiting for this installation to publish information for the current SteamVR session. Old runtime files do not count as verification.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-dfa30a8fb0fac063" datatype="html">
+        <source>Could not open link</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-d6a521de4b6ee6b8" datatype="html">
+        <source>Try again, or copy the address into your browser.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-17c33c8bc9ec9d42" datatype="html">
+        <source>Opens in your browser</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-dd247c478fda1063" datatype="html">
+        <source>Updates, guides, and the people behind the project.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-67a0d2e0dab41fca" datatype="html">
+        <source>Open source</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-ba3bbbe10d8bef66" datatype="html">
+        <source>Loading…</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-c85595391ab4a17e" datatype="html">
+        <source>GitHub project</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-32251e7ea4f525e3" datatype="html">
+        <source>Explore the code and follow development.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-4c2167a1891be6c8" datatype="html">
+        <source>Get the latest release and see what changed.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-5638b3ec76df5740" datatype="html">
+        <source>Connect your headset and tune the picture.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-5b743812ac7c52d9" datatype="html">
+        <source>Calibrate your view with the in-headset tuner.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-53de38dec81e7ec0" datatype="html">
+        <source>Report a problem</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-f9f88b86955f5a11" datatype="html">
+        <source>Open an issue and attach your SteamVR server log.</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-617ad8562908ed7a" datatype="html">
+        <source>Built together</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-ec80f90598843693" datatype="html">
+        <source>sboys3 / CustomHeadsetOpenVR</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-e219f23e1b8df99f" datatype="html">
+        <source>timkhronos / CustomHeadsetOpenVrGxR</source>
+      </trans-unit>
+      <trans-unit id="about-20260926-5fa27952799cf546" datatype="html">
+        <source>Support the original project</source>
       </trans-unit>
     </body>
   </file>

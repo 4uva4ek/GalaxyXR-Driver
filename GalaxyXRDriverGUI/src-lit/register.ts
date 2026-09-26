@@ -17,6 +17,14 @@ import {
   DropdownOption, DropdownOptionDefinition,
   Listbox, ListboxDefinition,
   Slider, SliderDefinition,
+  Button, ButtonDefinition,
+  Badge, BadgeDefinition,
+  MessageBar, MessageBarDefinition,
+  Dialog, DialogDefinition,
+  DialogBody, DialogBodyDefinition,
+  Accordion, AccordionDefinition,
+  AccordionItem, AccordionItemDefinition,
+  Spinner, SpinnerDefinition,
 } from '@fluentui/web-components';
 import { DriverEnableBanner } from './features/driver-banner';
 import { DriverTroubleshooter, SystemReady } from './features/system-ready';
@@ -53,6 +61,14 @@ DropdownOption.define(DropdownOptionDefinition);
 // element (slotchangeHandler) to drive selection, so it must be defined too.
 Listbox.define(ListboxDefinition);
 Slider.define(SliderDefinition);
+Button.define(ButtonDefinition);
+Badge.define(BadgeDefinition);
+MessageBar.define(MessageBarDefinition);
+Dialog.define(DialogDefinition);
+DialogBody.define(DialogBodyDefinition);
+Accordion.define(AccordionDefinition);
+AccordionItem.define(AccordionItemDefinition);
+Spinner.define(SpinnerDefinition);
 
 // Referencing every app element class keeps its defining module (and its
 // @customElement registration) in the bundle.
@@ -65,6 +81,14 @@ export const appCustomElements = {
   DropdownOption, DropdownOptionDefinition,
   Listbox, ListboxDefinition,
   Slider, SliderDefinition,
+  Button, ButtonDefinition,
+  Badge, BadgeDefinition,
+  MessageBar, MessageBarDefinition,
+  Dialog, DialogDefinition,
+  DialogBody, DialogBodyDefinition,
+  Accordion, AccordionDefinition,
+  AccordionItem, AccordionItemDefinition,
+  Spinner, SpinnerDefinition,
   // App shell + pages
   AppShell,
   DriverSettingsPage,

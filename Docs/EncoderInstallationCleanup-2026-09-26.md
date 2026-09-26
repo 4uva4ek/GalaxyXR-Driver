@@ -2,7 +2,9 @@
 
 Fresh installation uses the same 26 NVENC defaults as the local
 `CustomHeadsetOpenVrGxR/CustomHeadsetOpenVR/src/Config/Config.h` reference.
-Existing explicit choices survive reinstall. Stale runtime `info.json` defaults
+Existing explicit choices survive direct upgrades. A completed uninstall or
+Clean Settings starts again from defaults, with native identity on.
+Stale runtime `info.json` defaults
 no longer override packaged NVENC/post-pack defaults in toggles, sparse saves,
 or reset buttons. Other runtime defaults retain their existing behavior.
 
@@ -11,15 +13,33 @@ stopped. Detection includes vrserver, vrmonitor and vrcompositor, even before
 driver installation or without a registered SteamVR path. Click handlers refresh
 the status, and native commands independently reject running SteamVR.
 
-Clean Settings writes explicit encoder-off choices and the current NVENC
-migration stamp, so later GUI saves and driver starts preserve stock encoder
-passthrough. Post-pack processing is also off. Other settings use driver defaults.
+Clean Settings now uses the same configuration as fresh installation, with
+native identity on and all other keys resolved from the packaged defaults.
+It backs up and removes old runtime telemetry and the encoder migration marker.
+The earlier special encoder-off reset profile was removed: it made cleanup
+differ from fresh installation and caused later installs to retain those Off
+choices. Saved user-selected Off values still survive direct upgrades.
 Uninstall removes the installed hook/configuration and restores journaled SteamVR
 settings. Exact saved legacy extras are cleaned across mirrored profiles as well
 as driver_vrlink; external edits and journal-protected originals are preserved.
 Neither action changes NVIDIA Control Panel settings.
 
-Verified locally:
+Fresh-default reset correction verified locally:
+
+- 185 GUI tests; 74 Rust installation/cleanup tests; 323 native parser checks
+  across 16 scenarios; 27 Setup service, 54 Setup layout, 36 readiness and
+  19 SteamVR settings-diff checks passed.
+- Dirty configuration and stale telemetry reset to the same effective settings
+  as fresh installation, including after save/reopen. Direct upgrades retain
+  explicit Off choices and custom tuning. Reset backs up and removes the old
+  migration marker; cancellation and failures preserve the original files.
+- Full Galaxy XR and neutral driver + GUI builds passed. Packages:
+  `output/GalaxyXRDriver-Test-20260926-202921` and
+  `output/CustomHeadset-Neutral-Test-20260926-clean-defaults`.
+- No live reset or deployment was performed. These are unreleased local
+  packages retaining the checkout's 1.2.13 version label.
+
+Earlier validation (before the reset-contract correction above):
 
 - GUI Vitest: 172/172 tests.
 - Native Rust installation, cleanup and process-status tests: 72/72.

@@ -85,7 +85,40 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
      assert.equal(state[key],!initial);
    }
  });
+ // Real BasePage target method with inert DOM endpoints. No settings service
+ // write is provided: revealing a destination must only touch presentation.
+ {
+   const defaults=load(root+'/src-lit/domain/driver-defaults.ts').driverDefaults;
+   const snapshot=JSON.stringify(defaults);let state={encoderAdv:false},focused='',scrolled=false,updates=0;
+   const page={
+     ctx:{dss:{values:()=>defaults},appSetting:{values:()=>({advanceMode:false}),readFileError:()=>undefined},sds:{driverInstalled:()=> '1.2.3'},
+       galaxy:{vendor:'galaxyxr',sections:Object.assign(()=>state,{set:next=>{state=next;updates++;}})}},
+     revealAdvanced:false,requestUpdate:()=>{},updateComplete:Promise.resolve(),isConnected:true,
+     shadowRoot:{getElementById:id=>({focus:()=>{focused=id;},scrollIntoView:()=>{scrolled=true;}})},
+   };
+   const reason=await h.BasePage.prototype.showSetting.call(page,'streamFrame.nvencForceCbr');
+   test('Show setting expands stable ancestors and focuses the field without saving',()=>{
+     assert.equal(reason,undefined);assert.equal(state['heading:encoder'],true);assert.equal(state.encoderAdv,true);
+     assert.equal(focused,'setting-streamFrame.nvencForceCbr');assert.equal(scrolled,true);assert.equal(page.revealAdvanced,true);
+     assert.equal(page.ctx.appSetting.values().advanceMode,false);assert.equal(JSON.stringify(defaults),snapshot);
+   });
+   h.BasePage.prototype.clearSettingTarget.call(page);
+   const countBefore=updates;
+   const blocked=await h.BasePage.prototype.showSetting.call(page,'streamFrame.dither');
+   test('Leaving a target removes temporary visibility and hidden features stay off',()=>{
+     assert.equal(page.revealAdvanced,false);assert.match(blocked,/Image Enhancements is off/);assert.equal(updates,countBefore);
+     assert.equal(defaults.streamFrame.enable,false);assert.equal(JSON.stringify(defaults),snapshot);
+   });
+ }
+ test('Checker fields share their catalog label and stable focus ID',()=>{
+   const row=flatten(h.settingFieldRow('streamFrame.nvencForceCbr',html`<input type="checkbox">`));
+   assert.match(row,/setting-streamFrame.nvencForceCbr/);assert.match(row,/Force CBR/);assert.match(row,/tabindex=-1/);
+ });
+ test('Explicit heading keys survive localized label changes',()=>{
+   const cards=h.sectionCards([h.sectionHeading('Translated encoder',0,'encoder'),imageRow],{sections:{'heading:encoder':false},onToggle:()=>{}});
+   assert.match(flatten(cards),/aria-expanded=false/);assert.doesNotMatch(flatten(cards),/Brightness/);
+ });
  test('Shared styles indent complete child cards and collapse cleanly on narrow screens',()=>{assert.match(h.fieldStyles.cssText,/\.section-body\s*\{[^}]*padding: 4px 16px 12px 22px/);assert.match(h.fieldStyles.cssText,/\.section-body > \.section-card\s*\{[^}]*margin: 12px 0 8px 12px/);assert.match(h.fieldStyles.cssText,/\.section-card \.field \.title::after \{ display: none/);});
- console.log(`${count}/14 section-card checks passed using ${mode}.`);
+ console.log(`${count} section-card checks passed using ${mode}.`);
  if(process.env.SECTION_CARD_FIXTURE){let markup=flatten(cards).replace(/\?hidden=false/g,'').replace(/\?hidden=true/g,'hidden').replace(/@click=\s*/g,'');fs.writeFileSync(process.env.SECTION_CARD_FIXTURE,`<!doctype html><html><head><meta charset="utf-8"><style>:root{--colorNeutralForeground1:#242424;--colorNeutralBackground1:#fff;--colorNeutralBackground2:#fafafa;--colorNeutralBackground3:#f5f5f5;--colorNeutralStroke2:#d1d1d1;--colorNeutralStroke1:#c7c7c7;--colorBrandStroke1:#0f6cbd;--colorNeutralStrokeAccessible:#616161;}body{margin:0;padding:16px;font:16px system-ui;background:var(--colorNeutralBackground2);color:var(--colorNeutralForeground1)}input{max-width:140px} ${h.fieldStyles.cssText}</style></head><body><p>Layout-only fixture: production grouping helper and CSS; native controls substitute for Fluent controls.</p>${markup}</body></html>`);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

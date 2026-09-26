@@ -10,9 +10,16 @@ Image processing settings apply live within about a second. Identity, input prof
 
 Saved settings and their defaults apply on the first driver start after installation; no toggle cycle is needed. Missing JSON keys use the driver's defaults. Encoder options are published before the first encoder is created, and explicit advanced VRLink overrides are reapplied after profile, stream and resolution settings. Opening a GUI page preserves saved tuning, including values that fall between slider steps. Image processing still follows the Image Enhancements master and SDR10 consent rules below.
 
-Setup encoder lifecycle (2026-09-26): a fresh installation uses the reference NVENC defaults: Tap, automatic HEVC level, CBR, bitrate scaling and preset merge on; preset Auto, two-frame VBV, keyframe scale 2, 90 fps budgeting and automatic split. Reinstall preserves saved choices. Encoder toggles and reset arrows use this package's defaults even when an older `info.json` remains.
+Setup encoder lifecycle (2026-09-26): first installation and installation after a completed uninstall use the reference NVENC defaults: Tap, automatic HEVC level, CBR, bitrate scaling and preset merge on; preset Auto, two-frame VBV, keyframe scale 2, 90 fps budgeting and automatic split. Native identity starts on. Direct upgrades preserve saved choices, including native identity off and custom encoder values. Hitch diagnostics remain off and the SDR 10-bit baseline keeps its current opt-in behavior. Encoder toggles and reset arrows use this package's defaults even when an older `info.json` remains. A file read started before a newer save cannot replace that edit with stale settings.
 
-**Clean Settings** and **Uninstall Driver** are available only after SteamVR is confirmed stopped, including its monitor and compositor processes. Clean Settings restores recorded SteamVR changes and explicitly leaves NVENC Tap, encoder override switches and post-pack processing off; restarting SteamVR keeps stock encoder passthrough. Other driver settings return to their defaults. Enable Tap and reset the individual encoder controls to restore the installation tuning. Uninstall removes the hook and driver configuration and restores recorded SteamVR values (or removes app-added keys). Later external edits are preserved. These operations do not edit NVIDIA Control Panel settings.
+In **Setup → Restore or remove**, both actions require SteamVR to be confirmed stopped, including its monitor and compositor processes:
+
+- **Restore defaults** resets all driver tuning and app preferences, including appearance, Advanced Mode, and setup verification. Native Identity and NVENC Tap return to their defaults. The reset clears stale telemetry and migration state, restores unchanged journal-owned SteamVR tuning, and makes a recovery backup. The installed driver, registration, saved profiles, and backups stay in place. Start SteamVR afterwards to apply the driver defaults.
+- **Uninstall driver** opens a warning with a red confirmation button. It unregisters and removes owned driver packages, clears active driver and app data, and restores recorded SteamVR values or removes app-added keys. Saved distortion profiles, recovery backups, downloaded source packages, unrelated drivers, and later external edits are preserved. Verified historical identity leftovers may be removed; original values that were never recorded cannot be reconstructed. A completed uninstall lets the next installation, including the same version, start with fresh defaults without automatically selecting a saved profile.
+
+An incomplete operation keeps recovery information and shows the remaining work in **Details**. Resolve the reported issue and retry uninstall; its button remains available even when the driver is no longer detected. Opening Companion after uninstall does not recreate active settings. Direct upgrades continue to preserve saved choices. These operations do not edit NVIDIA Control Panel settings. See [maintenance behavior and validation](CompanionMaintenance-2026-09-26.md).
+
+**Check settings** reads saved configuration and displays each control as **Tab → Container → Setting**, with its value source and a **Show setting** link. Links can reveal advanced controls temporarily without changing Advanced Mode or enabling a prerequisite. Raw file names and keys remain in **Technical details**. The check does not verify the live picture or controller behavior.
 
 Toggle corrections (2026-09-25):
 
@@ -27,9 +34,9 @@ Toggle corrections (2026-09-25):
 ## Install
 
 1. Unpack the entire release zip. The GUI folder and the `GalaxyXRNative` folder must stay next to each other.
-2. Run `Galaxy XR Companion.exe`, go to About, press Install.
+2. Run `Galaxy XR Companion.exe`, open **Setup**, and press **Install Driver**.
 3. Older copies of this fork are removed automatically on the first install. If the stock CustomHeadsetOpenVR driver is also enabled, the GUI shows a notice and a "Switch to this driver" button, press it, two drivers must not claim the headset at once.
-4. Restart SteamVR. The Galaxy XR page in the GUI has everything.
+4. Use **Start SteamVR** on Setup and connect through Steam Link. Wait for driver initialization to be verified, then check the picture and controller tracking in the headset.
 
 Settings live in `%APPDATA%\GalaxyXR\CustomHeadset\settings.json`, separate from the stock driver's `%APPDATA%\CustomHeadset\` so the two never share state.
 

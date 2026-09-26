@@ -3,12 +3,13 @@
 // Lit to re-render on change — the same coarse change-detection the Angular
 // templates had, without per-binding subscriptions. Services live for the
 // application (composition root in main.ts); pages only borrow them.
-import { LitElement, html, type TemplateResult } from 'lit';
+import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { css } from 'lit';
 import type { AppContext } from '../app-context';
 import { t } from '../locale/i18n';
 import { interactiveStyles } from '../ui/shared-styles';
+import { settingPresentation, settingUnavailable } from '../domain/settings-presentation';
 
 /**
  * Shared .field grid + color helpers, ported from src/simple-form.scss.
@@ -28,6 +29,7 @@ export const fieldStyles = css`
     border-bottom: 1px solid var(--colorNeutralStroke1, rgba(0, 0, 0, 0.15));
   }
   .field:last-child { border-bottom: none; }
+  .field[data-setting-id]:focus { outline: 2px solid var(--colorBrandStroke1); outline-offset: 3px; border-radius: 4px; background: var(--colorNeutralBackground3); }
   .field .title {
     display: flex;
     align-items: center;
@@ -122,6 +124,34 @@ export class BasePage extends LitElement {
   @property({ attribute: false }) ctx!: AppContext;
 
   private _unsubs: Array<() => void> = [];
+  /** Temporary inspection visibility. Never saved as the Advanced Mode setting. */
+  protected revealAdvanced = false;
+
+  clearSettingTarget(): void {
+    if (this.revealAdvanced) { this.revealAdvanced = false; this.requestUpdate(); }
+  }
+
+  async showSetting(id: string): Promise<string | undefined> {
+    const setting = settingPresentation(id);
+    if (!setting) return 'This setting is not available in this version.';
+    const unavailable = settingUnavailable(setting, {
+      settings: this.ctx.dss.values(), app: this.ctx.appSetting.readFileError() ? undefined : this.ctx.appSetting.values(),
+      driverInstalled: !!this.ctx.sds.driverInstalled(), vendor: !!this.ctx.galaxy.vendor,
+    });
+    if (unavailable) return unavailable;
+    this.revealAdvanced = setting.advanced;
+    const sections = { ...this.ctx.galaxy.sections() } as Record<string, boolean>;
+    for (const key of setting.sections) sections[key] = true;
+    this.ctx.galaxy.sections.set(sections as unknown as ReturnType<typeof this.ctx.galaxy.sections>);
+    this.requestUpdate();
+    await this.updateComplete;
+    if (!this.isConnected) return undefined;
+    const field = this.shadowRoot?.getElementById(`setting-${id}`);
+    if (!field) return 'This control is hidden by the current mode. No settings were changed.';
+    field.focus({ preventScroll: true });
+    field.scrollIntoView({ block: 'center', behavior: 'auto' });
+    return undefined;
+  }
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -202,9 +232,10 @@ export interface FieldReset {
 export function fieldRow(
   title: string | TemplateResult,
   control: TemplateResult,
-  opts?: { tip?: string; reset?: FieldReset; wide?: boolean }
+  opts?: { tip?: string; reset?: FieldReset; wide?: boolean; settingId?: string }
 ): TemplateResult {
-  return html`<div class="field">
+  return html`<div class="field" id=${opts?.settingId ? `setting-${opts.settingId}` : nothing}
+    data-setting-id=${opts?.settingId ?? nothing} tabindex=${opts?.settingId ? '-1' : nothing}>
     <div class="title">
       <span>${title}</span>
       ${opts?.tip ? html`<app-field-tip .info=${opts.tip} .label=${typeof title === 'string' ? title : ''}></app-field-tip>` : html``}
@@ -212,6 +243,14 @@ export function fieldRow(
     </div>
     <div class="control ${opts?.wide ? 'wide' : ''}">${control}</div>
   </div>`;
+}
+
+/** One catalog label is used by the rendered control and its check result. */
+export function settingFieldRow(id: string, control: TemplateResult,
+  opts?: { tip?: string; reset?: FieldReset; wide?: boolean }): TemplateResult {
+  const setting = settingPresentation(id);
+  if (!setting) throw new Error(`Unknown setting presentation: ${id}`);
+  return fieldRow(t(setting.label), control, { ...opts, settingId: id });
 }
 
 export function noteRow(text: string | TemplateResult): TemplateResult {
@@ -226,9 +265,9 @@ const sectionSpecs = new WeakMap<TemplateResult, SectionSpec>();
 /** Top-level container heading. Collapsible like every other section card:
  * its open/closed state lives in the shared section state under a derived
  * key (open by default), wired in by BasePage.sectionCardsFor (2026-09-22). */
-export function sectionHeading(title: string, level = 0): TemplateResult {
+export function sectionHeading(title: string, level = 0, id?: string): TemplateResult {
   const result = html`<h2 class="section-title">${title}</h2>`;
-  sectionSpecs.set(result, { title, depth: Math.max(0, Math.min(3, level)), open: true, key: `heading:${title}` });
+  sectionSpecs.set(result, { title, depth: Math.max(0, Math.min(3, level)), open: true, key: `heading:${id ?? title}` });
   return result;
 }
 

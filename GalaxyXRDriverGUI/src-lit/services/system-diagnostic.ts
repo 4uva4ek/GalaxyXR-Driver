@@ -34,6 +34,7 @@ export class SystemDiagnosticService {
   public readonly installingDriver = this._installingDriver.asReadonly()
   public lastUninstallReport: DriverUninstallReport | undefined;
   private driverDataRemoved = false;
+  private completedRemoval = false;
   private _steamVRinstalled = signal<string | undefined>(undefined);
   public readonly steamVRinstalled = this._steamVRinstalled.asReadonly();
   private _driverInstalled = signal<string | undefined>(undefined);
@@ -68,7 +69,7 @@ export class SystemDiagnosticService {
   // driver install check now runs only on demand: app start (initTask below),
   // the "Check installation" button (settings-check.ts), and the install /
   // clean-settings / uninstall flows in this file.
-  constructor(public dss: DriverSettingService, public dis: DriverInfoService, private dialog: DialogService, private paths: PathsService) {
+  constructor(public dss: DriverSettingService, public dis: DriverInfoService, private dialog: DialogService, private paths: PathsService, private app?: AppSettingService) {
     this._initTask = (async () => {
       await Promise.all([dss.initTask, dis.initTask]);
       await this.checkDriverInstalled();
@@ -318,6 +319,8 @@ export class SystemDiagnosticService {
     }
     this._installingDriver.set(true);
     this.installing = true
+    const restoreAppEditsOnFailure = this.driverDataRemoved && this.completedRemoval;
+    let nativeCompleted = false;
     let installedSuccessfully = false;
     try {
       await this.drainDriverChecks();
@@ -340,8 +343,10 @@ export class SystemDiagnosticService {
           // paths. Uninstalling first would erase recovery data and the source.
           await suspendFileWrites();
           await register_galaxyxr_driver(steamVrPath, driverDir);
-          await this.paths.ensureAllDirCreated();
+          nativeCompleted = true;
           this.driverDataRemoved = false;
+          this.completedRemoval = false;
+          await this.paths.ensureAllDirCreated();
           resumeFileWrites();
           await this.dss.ensureEditableSettings();
           await this.dis.refreshWatch();
@@ -394,6 +399,7 @@ export class SystemDiagnosticService {
       }
     } catch (e) {
       if (!this.driverDataRemoved) resumeFileWrites();
+      else if (!nativeCompleted && restoreAppEditsOnFailure) this.app?.allowEditsAfterUninstall();
       await this.dialog.message(t('Install Failed'), `${e}`);
       return false;
     } finally {
@@ -408,21 +414,23 @@ export class SystemDiagnosticService {
   async cleanSettings(app: AppSettingService): Promise<CleanSettingsReport | undefined> {
     if (this.installing || this.dss.inspecting || app.inspecting) return undefined;
     if (vendor !== 'galaxyxr') {
-      await this.dialog.message(t('Clean Settings'), t('Use the Galaxy XR build to clean Galaxy XR settings. No files were changed.'));
+      await this.dialog.message(t('Restore defaults'), t('Use the Galaxy XR build to reset Galaxy XR settings. No files were changed.'));
       return undefined;
     }
     this.installing = true;
-    this._installingDriver.set(true);
+    const restoreAppEditsOnFailure = this.driverDataRemoved && this.completedRemoval;
     let suspended = false;
     let completed: CleanSettingsReport | undefined;
     try {
-      if (!await this.dialog.confirm(t('Clean Settings?'), t('Close SteamVR completely first. This resets all Companion-controlled driver settings to their defaults: headset and controller tuning, color, image enhancements, encoder overrides, and active distortion/calibration choices. Unsaved edits are discarded. App preferences, such as the color scheme, are kept.\n\nRecorded SteamVR changes are restored to their previous values (or removed to use SteamVR defaults). Recognized old identity settings are cleaned. Other SteamVR settings, room setup, game bindings, installed drivers and saved profile files are kept. Driver enable/block choices are not changed.\n\nA recovery backup is created before any file is changed. You can clean before installing. After installing or cleaning, start SteamVR from Setup to initialize and verify the driver.') + '\n\n' + t('Clean Settings leaves NVENC Tap and encoder overrides off for stock NVIDIA encoding. Other driver settings return to their defaults. Enable NVENC Tap and reset the encoder controls to use the installation defaults again.'), t('Clean Settings'), 'danger')) return undefined;
+      if (!await this.dialog.confirm(t('Restore all defaults?'), t('Restore every driver and app setting to its default? Unsaved edits will be discarded. The driver stays installed. Saved profiles and recovery backups are kept. Close SteamVR first.'), t('Restore defaults'), 'primary')) return undefined;
+      this._installingDriver.set(true);
       await this.drainDriverChecks();
       app.inspecting = this.dss.inspecting = this.dis.inspecting = true;
       suspended = true;
       await suspendFileWrites();
       const report = completed = await clean_galaxyxr_settings(this.steamVRinstalled());
       this.driverDataRemoved = false;
+      this.completedRemoval = false;
       // Clear old runtime defaults first, then reload the reset configuration.
       await this.dis.loadSetting();
       const appLoaded = await app.reloadAfterReset();
@@ -433,10 +441,16 @@ export class SystemDiagnosticService {
       // Keep installation detection separate from the fact that defaults exist.
       await this.checkDriverInstalled(true, true);
       await Promise.resolve();
+      if (report.warnings.length) {
+        report.outcome = 'attention-required';
+        report.unresolvedItems = [...new Set([...(report.unresolvedItems ?? []), ...report.warnings])];
+      }
       return report;
     } catch (error) {
       if (completed) {
         completed.warnings.push(`The reset completed, but automatic UI refresh failed: ${String(error)}. Use Check installation, or reopen the application.`);
+        completed.outcome = 'attention-required';
+        completed.unresolvedItems = [...new Set([...(completed.unresolvedItems ?? []), ...completed.warnings])];
         return completed;
       }
       if (suspended) {
@@ -445,11 +459,12 @@ export class SystemDiagnosticService {
         await this.dis.loadSetting();
         await Promise.allSettled([app.loadSetting(), this.dss.loadSetting()]);
       }
-      await this.dialog.message(t('Clean Settings failed'), String(error));
+      await this.dialog.message(t('Reset failed'), String(error));
       return undefined;
     } finally {
       app.inspecting = this.dss.inspecting = this.dis.inspecting = false;
       if (suspended && !this.driverDataRemoved) resumeFileWrites();
+      else if (suspended && !completed && restoreAppEditsOnFailure) app.allowEditsAfterUninstall();
       this.installing = false;
       this._installingDriver.set(false);
     }
@@ -475,30 +490,51 @@ export class SystemDiagnosticService {
     }
   }
 
-  async uninstallDriver() {
-    if (this.installing) return false;
-    const steamVrPath = this.steamVRinstalled();
-    if (!steamVrPath) return false;
+  async uninstallDriver(app: AppSettingService | undefined = this.app) {
+    if (this.installing || this.dss.inspecting || app?.inspecting) return false;
     this.installing = true;
-    this._installingDriver.set(true);
-    this.lastUninstallReport = undefined;
+    const restoreAppEditsOnFailure = this.driverDataRemoved && this.completedRemoval;
+    let suspended = false;
+    let nativeCompleted = false;
     try {
+      if (!await this.dialog.confirm(t('Uninstall driver and clear settings?'), t('Remove the driver and all active driver and app settings? Recorded SteamVR changes will be restored and verified historical leftovers removed. Saved profiles, recovery backups and other drivers are kept. Original values that were never recorded cannot be recovered. Close SteamVR first.'), t('Uninstall and clear settings'), 'danger')) return false;
+      this._installingDriver.set(true);
       await this.drainDriverChecks();
+      this.lastUninstallReport = undefined;
+      const steamVrPath = this.steamVRinstalled();
       if (vendor === 'galaxyxr') {
-        await suspendFileWrites();
+        this.dss.inspecting = this.dis.inspecting = true;
+        if (app) app.inspecting = true;
+        await suspendFileWrites(); suspended = true;
         this.lastUninstallReport = await uninstall_galaxyxr_driver(steamVrPath);
+        nativeCompleted = true;
         this.driverDataRemoved = true;
+        this.completedRemoval = this.lastUninstallReport.outcome !== 'incomplete';
         this._driverInstalled.set(undefined);
-        await this.dss.loadSetting();
-        await this.dis.loadSetting();
+        this._driverState.set(this.lastUninstallReport.outcome === 'incomplete' ? 'unknown' : 'not-installed');
+        this._driverCheckError.set(this.lastUninstallReport.outcome === 'incomplete'
+          ? this.lastUninstallReport.unresolvedItems.join('\n') : undefined);
+        // Clear telemetry before defaults, including stale optimistic edits.
+        this.dis.clearAfterUninstall();
+        this.dss.clearAfterUninstall();
+        app?.clearAfterUninstall();
+        if (this.completedRemoval) app?.allowEditsAfterUninstall();
+        await this.refreshSteamVRSettings();
         return true;
       }
-      return await this.uninstallLegacyDriver(steamVrPath);
+      return steamVrPath ? await this.uninstallLegacyDriver(steamVrPath) : false;
     } catch (e) {
-      if (!this.driverDataRemoved) resumeFileWrites();
-      await this.dialog.message(t('Uninstall Failed'), `${e}`);
+      if (!this.driverDataRemoved && suspended) {
+        await this.dis.reloadAfterReset();
+        await Promise.allSettled([this.dss.reloadAfterReset(), app?.reloadAfterReset()]);
+        resumeFileWrites();
+      }
+      else if (suspended && !nativeCompleted && restoreAppEditsOnFailure) app?.allowEditsAfterUninstall();
+      await this.dialog.message(t('Uninstall failed'), `${e}`);
       return false;
     } finally {
+      this.dss.inspecting = this.dis.inspecting = false;
+      if (app) app.inspecting = false;
       this.installing = false;
       this._installingDriver.set(false);
     }

@@ -30,6 +30,9 @@ pub struct SettingChange {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UninstallReport {
+    outcome: &'static str,
+    preserved_paths: Vec<String>,
+    unresolved_items: Vec<String>,
     removed_paths: Vec<String>,
     restored_settings: usize,
     legacy_reset: bool,
@@ -458,7 +461,12 @@ fn candidate_packages(ctx: &Context, receipt: Option<&Value>) -> Result<Vec<Path
     let mut owned = vec![];
     for path in paths {
         if !seen.insert(normalized(&path)) { continue; }
-        if path.exists() && (fork_kind(&path)?.is_some() || cleanup_pending(receipt, &path)) { owned.push(path); }
+        // Neutral packages can share the old fork's shaders. Only a receipt
+        // proves that this installation owns a neutral-name registration.
+        let kind = if path.exists() { fork_kind(&path)? } else { None };
+        let recorded = contains_path(&receipt_paths(receipt,"packages"), &path)
+            || contains_path(&receipt_paths(receipt,"sourcePaths"), &path);
+        if path.exists() && (kind == Some(false) || (kind == Some(true) && recorded) || cleanup_pending(receipt, &path)) { owned.push(path); }
         else if owned_package(ctx,receipt,&path) && path.exists() {
             return Err(error(&path, "Recorded package identity changed; refusing deletion"));
         }
@@ -502,7 +510,8 @@ fn owned_package(ctx: &Context, receipt: Option<&Value>, path: &Path) -> bool {
     // A registered manifest establishes identity, never ownership of files.
     // v1 registered the user's bundle in place; those paths are source-only.
     if contains_path(&receipt_paths(receipt,"sourcePaths"),path) { return false; }
-    legacy_install_location(ctx,path)
+    (legacy_install_location(ctx,path) && (path.file_name().and_then(|p|p.to_str()).map(|p|p.eq_ignore_ascii_case(DRIVER)).unwrap_or(false)
+        || contains_path(&receipt_paths(receipt,"packages"),path)))
         || (receipt.map(|r|r["schema"]==2).unwrap_or(false)
             && managed_location(ctx,path) && contains_path(&receipt_paths(receipt,"packages"),path))
 }
@@ -546,10 +555,12 @@ fn restore_file(path:&Path,bytes:&Option<Vec<u8>>)->Result<()> {
     if let Some(bytes)=bytes { atomic_bytes(path,bytes) }
     else if path.exists() { fs::remove_file(path).map_err(|e|error(path,e)) } else { Ok(()) }
 }
-fn enable_native_identity(config:&mut Value)->Result<()> {
+fn default_native_identity(config:&mut Value)->Result<()> {
     let root=config.as_object_mut().ok_or("Driver settings must be an object")?;
     let galaxy=root.entry("galaxyXr").or_insert_with(||json!({})).as_object_mut().ok_or("galaxyXr settings must be an object")?;
-    galaxy.insert("nativeIdentity".into(),json!(true));
+    // 2026-09-26: first install defaults On; an upgrade must retain a saved
+    // Off. Uninstall removes driver settings, so reinstall gets On again.
+    galaxy.entry("nativeIdentity").or_insert(json!(true));
     Ok(())
 }
 
@@ -585,7 +596,7 @@ fn install_driver(ctx:&Context,source:&Path,exe:&Path,mut register:impl FnMut(&P
     if legacy && journal.get("legacyKeys").is_none() {
         record_legacy_keys(&mut journal,&read_settings(&ctx.settings)?,&config,previous.iter().any(|p|fork_kind(p).ok().flatten()==Some(true)))?;
     }
-    enable_native_identity(&mut config)?;
+    default_native_identity(&mut config)?;
     let snapshots=[ctx.settings.clone(),ctx.journal(),config_path.clone(),ctx.receipt()].into_iter()
         .map(|path|snapshot_file(&path).map(|bytes|(path,bytes))).collect::<Result<Vec<_>>>()?;
     let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
@@ -678,12 +689,22 @@ fn cleanup_retirement_parents(ctx:&Context,packages:&[PathBuf],warnings:&mut Vec
 
 fn restore_settings(settings: &mut Value, journal: &Value, warnings: &mut Vec<String>) -> Result<usize> {
     let mut count = 0;
+    // Older legacyKeys markers were inferred from generic names. Revalidate
+    // their original values as a complete Galaxy XR identity before deletion.
+    let mut baseline = json!({});
+    for (section, entries) in journal["entries"].as_object().ok_or("Invalid journal entries")? {
+        for (key, entry) in entries.as_object().ok_or("Invalid journal section")? {
+            if entry["present"] == true { baseline[section][key] = entry["value"].clone(); }
+        }
+    }
+    let mut verified = IdentityCleanupReport { removed_keys: vec![], removed_sections: vec![], warnings: vec![], backup_path: None };
+    plan_identity_cleanup(&mut baseline, None, &mut verified)?;
     for (section, entries) in journal["entries"].as_object().ok_or("Invalid journal entries")? {
         for (key, entry) in entries.as_object().ok_or("Invalid journal section")? {
             let current = settings.get(section).and_then(|s| s.get(key)).cloned();
             let last = entry["lastPresent"].as_bool().ok_or("Invalid journal entry")?.then(|| entry["lastValue"].clone());
             let baseline = entry["present"].as_bool().ok_or("Invalid journal entry")?.then(|| entry["value"].clone());
-            let legacy_key=journal["legacyKeys"][section][key]==true;
+            let legacy_key=journal["legacyKeys"][section][key]==true && verified.removed_keys.contains(&format!("{section}.{key}"));
             let original = if legacy_key { None } else { baseline.clone() };
             if setting_equal(current.as_ref(),original.as_ref()) { continue; }
             if !setting_equal(current.as_ref(),last.as_ref()) && !(legacy_key && setting_equal(current.as_ref(),baseline.as_ref())) { warnings.push(format!("Preserved later external change to {section}.{key}")); continue; }
@@ -734,49 +755,25 @@ fn record_legacy_keys(journal:&mut Value,current:&Value,config:&Value,legacy_for
 }
 
 fn legacy_reset(settings: &mut Value, journal: &Value) -> Result<usize> {
-    let mut count = 0;
-    let sections: Vec<String> = settings.as_object().ok_or("Invalid settings")?.keys().cloned().collect();
-    for section in sections {
-        let keys: Vec<String> = settings[&section].as_object().map(|s| s.keys().cloned().collect()).unwrap_or_default();
-        for key in keys {
-            if journal["entries"].get(&section).and_then(|s| s.get(&key)).is_some() { continue; }
-            let owned = section == "driver_GalaxyXRNative" ||
-                (section == "driver_vrlink" && ["encodeWidth", "streamFormatWidth", "automaticStreamFormatWidth", "automaticBandwidth", "recommendedBandwidthMbit", "targetBandwidth", "renderWidth", "renderHeight", "overrideRenderWidth", "overrideRenderHeight", "displayFrequency", "force10bit", "debugRegionColoring", "showAdvancedGraphs", "maxVideoQueueLatencyUs", "backoffRecoveryCoefficient"].contains(&key.as_str())) ||
-                (section == "steamvr" && key == "preferredRefreshRate" && settings[&section][&key] == 90) ||
-                (["vrlink_xrvst2", "vrlink_xrvst2ue", "vrlink_Galaxy XR"].contains(&section.as_str()) && ["recommendedRenderWidth", "recommendedRenderHeight", "supports10bit", "minStreamFormatWidth", "maxStreamFormatWidth", "minNonFoveatedStreamFormatWidth", "maxNonFoveatedStreamFormatWidth"].contains(&key.as_str()));
-            if owned { set_value(settings, &section, &key, None)?; count += 1; }
-        }
-    }
-    Ok(count)
+    // 2026-09-26: generic key names and common values (including 90 Hz) are
+    // not ownership evidence. Only the Galaxy XR identity fingerprint is
+    // strong enough for cleanup without a recorded write.
+    let mut report = IdentityCleanupReport { removed_keys: vec![], removed_sections: vec![], warnings: vec![], backup_path: None };
+    plan_identity_cleanup(settings, Some(journal), &mut report)?;
+    Ok(report.removed_keys.len())
 }
 
-fn legacy_config_reset(settings:&mut Value,journal:&Value,config:&Value,legacy_fork:bool,warnings:&mut Vec<String>) -> Result<usize> {
-    let mut count=0;
+fn legacy_config_reset(settings:&mut Value,journal:&Value,config:&Value,_legacy_fork:bool,warnings:&mut Vec<String>) -> Result<usize> {
     if let Some(extra)=config["galaxyXr"]["vrlinkExtraKeys"].as_object() {
-        // 2026-09-26: older installs mirrored encoder extras to each profile.
-        // Restore/remove them with the same exact-value ownership rule.
         for section in std::iter::once("driver_vrlink").chain(COMPANION_PROFILE_SECTIONS.iter().copied()) {
-        for (key,raw) in extra {
-            if journal["entries"][section].get(key).is_some() { continue; }
-            let expected=if raw.is_boolean() || raw.is_number() { Some(raw.clone()) }
-                else if let Some(value)=raw.get("i").and_then(Value::as_i64) { Some(json!(value)) }
-                else if let Some(value)=raw.get("f").and_then(Value::as_f64) { Some(json!(value as f32)) }
-                else { raw.get("b").and_then(Value::as_bool).map(|v|json!(v)) };
-            let current=settings[section].get(key);
-            if let Some(expected)=expected {
-                let matches=setting_equal(current,Some(&expected));
-                if matches { set_value(settings,section,key,None)?;count+=1; }
-                else if current.is_some() { warnings.push(format!("Preserved differing legacy custom setting {section}.{key}")); }
-            } else if current.is_some() { warnings.push(format!("Preserved ambiguous legacy custom setting {section}.{key}")); }
-        }
+            for key in extra.keys() {
+                if journal["entries"][section].get(key).is_none() && settings[section].get(key).is_some() {
+                    warnings.push(format!("Preserved unrecorded historical setting {section}.{key}: its original value and ownership cannot be verified."));
+                }
+            }
         }
     }
-    // Older fork installs disabled their old neutral driver section. Only
-    // remove a matching false marker when a fork package was fingerprinted.
-    if legacy_fork && settings["driver_CustomHeadsetOpenVR"]["enable"]==false && journal["entries"]["driver_CustomHeadsetOpenVR"].get("enable").is_none() {
-        set_value(settings,"driver_CustomHeadsetOpenVR","enable",None)?;count+=1;
-    }
-    Ok(count)
+    Ok(0)
 }
 
 fn rollback_staged(staged: &[(PathBuf, PathBuf)]) -> Vec<String> {
@@ -812,15 +809,60 @@ fn prepare_uninstall_receipt(ctx:&Context,packages:&[PathBuf],legacy:bool)->Resu
 }
 
 #[tauri::command]
-pub fn uninstall_galaxyxr_driver(steamvr_path: String) -> Result<UninstallReport> {
+pub fn uninstall_galaxyxr_driver(steamvr_path: Option<String>) -> Result<UninstallReport> {
     let _guard = platform::Lock::acquire()?;
     require_stopped()?;
+    let Some(steamvr_path) = steamvr_path.filter(|p| !p.trim().is_empty()) else {
+        let data = PathBuf::from(std::env::var_os("APPDATA").ok_or("APPDATA unavailable")?).join("GalaxyXR/CustomHeadset");
+        let managed = PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA unavailable")?).join("GalaxyXR/Drivers");
+        return uninstall_local_settings(&data, &managed);
+    };
     let ctx = Context::live(steamvr_path)?;
     uninstall_driver(&ctx,&std::env::current_exe().map_err(|e|e.to_string())?,|path,add|run_registration(&ctx,path,add))
 }
+
+fn preserved_data_paths(data: &Path) -> Vec<String> {
+    [Some(data.join("Distortion")), data.parent().map(|p|p.join("Backups"))].into_iter().flatten()
+        .filter(|p|p.exists()).map(|p|p.to_string_lossy().into_owned()).collect()
+}
+
+fn remove_driver_data(data: &Path, removed: &mut Vec<String>) -> Result<()> {
+    if !data.exists() { return Ok(()); }
+    safe_tree(data)?;
+    for entry in fs::read_dir(data).map_err(|e|error(data,e))? {
+        let entry = entry.map_err(|e|error(data,e))?;
+        if entry.file_name().eq_ignore_ascii_case("Distortion") { continue; }
+        let path = entry.path();
+        let result = if entry.file_type().map_err(|e|error(&path,e))?.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
+        result.map_err(|e|error(&path,e))?;
+        removed.push(path.to_string_lossy().into_owned());
+    }
+    if fs::read_dir(data).map_err(|e|error(data,e))?.next().is_none() {
+        fs::remove_dir(data).map_err(|e|error(data,e))?;
+        removed.push(data.to_string_lossy().into_owned());
+    }
+    Ok(())
+}
+
+fn uninstall_local_settings(data: &Path, managed: &Path) -> Result<UninstallReport> {
+    safe_chain(data)?; safe_chain(managed)?;
+    if data.join("steamvr-changes.json").exists() || data.join("installation.json").exists()
+        || data.join("info.json").exists() || (managed.exists() && fs::read_dir(managed).map_err(|e|error(managed,e))?.next().is_some()) {
+        return Err("SteamVR cannot be located, but installation or recovery records remain. Locate SteamVR and retry; recovery records and settings were preserved.".into());
+    }
+    let preserved_paths = preserved_data_paths(data);
+    let mut removed_paths = vec![];
+    let result = remove_driver_data(data, &mut removed_paths);
+    let mut unresolved_items = vec!["SteamVR could not be located. Driver registration and historical SteamVR changes could not be verified.".into()];
+    if let Err(error) = &result { unresolved_items.push(format!("Local settings removal is incomplete: {error}. Retry Uninstall.")); }
+    Ok(UninstallReport { outcome:if result.is_ok() { "attention-required" } else { "incomplete" }, preserved_paths, warnings:unresolved_items.clone(), unresolved_items,
+        removed_paths, restored_settings:0, legacy_reset:false })
+}
+
 fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->Result<()>)->Result<UninstallReport> {
     let receipt = ctx.receipt_value()?;
     let journal_existed = ctx.journal().exists();
+    if journal_existed && !ctx.settings.is_file() { return Err("The recorded SteamVR settings file is missing. Restore or locate it before uninstalling; recovery records were preserved.".into()); }
     let mut journal = load_journal(&ctx)?; // Corruption never becomes legacy cleanup.
     let candidates = candidate_packages(&ctx, receipt.as_ref())?;
     let sources=source_paths(ctx,receipt.as_ref(),&candidates);
@@ -835,10 +877,23 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
             let checked = validate_package_path(&path, &exe)?;
             if checked.join("driver.vrdrivermanifest").exists() && fork_kind(&checked)?.is_none() { return Err(error(&checked,"Recovery package identity changed")); }
             packages.push(checked);
+        } else if receipt.as_ref().map(|r|r["schema"] == 2).unwrap_or(false)
+            && managed_location(ctx,path) && contains_path(&receipt_paths(receipt.as_ref(),"packages"),path) {
+            // 2026-09-26: a damaged owned installation still needs removal.
+            // Its exact managed receipt plus unchanged manifest proves identity;
+            // a runnable DLL is an install prerequisite, not an uninstall one.
+            let checked=validate_package_path(path,exe)?;
+            if fork_kind(&checked)? != Some(false) { return Err(error(&checked,"Recorded package identity changed; refusing deletion")); }
+            packages.push(checked);
         } else { packages.push(validate_package(&path, &exe)?); }
     }
     safe_tree(&ctx.data)?;
-    let original_settings = read_settings(&ctx.settings)?;
+    let original_settings_bytes = snapshot_file(&ctx.settings)?;
+    let original_settings = match &original_settings_bytes {
+        Some(bytes) => parse_json_bytes(&ctx.settings, bytes)?,
+        None => json!({}),
+    };
+    if !original_settings.is_object() { return Err(error(&ctx.settings,"Expected JSON object")); }
     let mut settings = original_settings.clone();
     let mut warnings = vec![];
     let legacy = journal["legacy"].as_bool().unwrap_or(false) || receipt.as_ref().and_then(|r| r["legacyDetected"].as_bool()).unwrap_or(false) || (!journal_existed && (!candidates.is_empty() || settings.get("driver_GalaxyXRNative").is_some()));
@@ -846,19 +901,28 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
     let config=if legacy && ctx.data.join("settings.json").exists() {read_json(&ctx.data.join("settings.json"))?}else{json!({})};
     if legacy && journal.get("legacyKeys").is_none() {record_legacy_keys(&mut journal,&settings,&config,legacy_fork)?;}
     let mut restored = restore_settings(&mut settings, &journal, &mut warnings)?;
+    // 2026-09-26: older identity residue may coexist with a modern journal.
+    // Keep recorded originals protected after restore, and remove only the
+    // untracked Galaxy XR fingerprint. External changes are reported above;
+    // protected originals need no standalone cleanup advice during uninstall.
+    let historical_removed = legacy_reset(&mut settings, &journal)?;
+    restored += historical_removed;
     if legacy {
-        restored += legacy_reset(&mut settings, &journal)?;
         restored += legacy_config_reset(&mut settings,&journal,&config,legacy_fork,&mut warnings)?;
-        warnings.push("Legacy installation: removed known Galaxy XR overrides; pre-install values were not recorded and cannot be reconstructed. Unrecognized historical custom overrides are preserved.".into());
+        warnings.push("Historical installation: only verified Galaxy XR identity settings were removed. Unrecorded shared settings were preserved because their original values cannot be reconstructed.".into());
     }
-    // Owned status markers can be emitted by SteamVR after our last write.
+    // Status markers belong to this driver only when its installation is proved.
     if let Some(section) = settings.get_mut("driver_GalaxyXRNative").and_then(Value::as_object_mut) {
         for key in ["enable", "blocked_by_safe_mode", "hasBeenRun"] {
-            if journal["entries"]["driver_GalaxyXRNative"].get(key).is_none() { section.remove(key); }
+            if (receipt.is_some() || !candidates.is_empty()) && journal["entries"]["driver_GalaxyXRNative"].get(key).is_none() { section.remove(key); }
         }
         if section.is_empty() && (legacy || journal["sectionPresence"]["driver_GalaxyXRNative"] != true) { settings.as_object_mut().unwrap().remove("driver_GalaxyXRNative"); }
     }
     let registered = ctx.registrations()?;
+    let mut preserved_neutral = vec![];
+    for path in &registered {
+        if fork_kind(path)? == Some(true) && !contains_path(&registration_paths,path) { preserved_neutral.push(path.clone()); }
+    }
     let registrations: Vec<PathBuf> = registered.into_iter().filter(|p|contains_path(&registration_paths,p)).collect();
     let mut removed_registrations = vec![];
     let mut staged: Vec<(PathBuf, PathBuf)> = vec![];
@@ -869,6 +933,9 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
         for (path,tombstone) in &planned {
             fs::rename(path, tombstone).map_err(|e| error(path, e))?;
             staged.push((path.clone(), tombstone.clone()));
+        }
+        if snapshot_file(&ctx.settings)? != original_settings_bytes {
+            return Err("SteamVR settings changed during uninstall. The external edit was preserved; retry after closing other settings editors.".into());
         }
         atomic_json(&ctx.settings, &settings)?;
         Ok(())
@@ -881,48 +948,40 @@ fn uninstall_driver(ctx:&Context,exe:&Path,mut register:impl FnMut(&Path,bool)->
     }
     // Commit: deletion errors are surfaced, with settings restored and receipt
     // retained. Never report success after a partial filesystem cleanup.
-    let mut removed_paths = vec![];
-    for (original, tombstone) in &staged {
-        if let Err(e) = fs::remove_dir_all(tombstone) {
-            let mut errors = vec![format!("Partial uninstall: settings restored, registration removed, but deleting {} failed: {e}. Recovery receipt retained.", tombstone.display())];
-            errors.extend(rollback_staged(&staged));
-            return Err(errors.join("; "));
+    let mut report = UninstallReport { outcome: "complete", preserved_paths: preserved_data_paths(&ctx.data),
+        unresolved_items: vec![], removed_paths: vec![], restored_settings: restored, legacy_reset: legacy || historical_removed > 0, warnings };
+    for source in sources.iter().filter(|p|p.exists()) { report.preserved_paths.push(source.to_string_lossy().into_owned()); }
+    for path in preserved_neutral {
+        report.preserved_paths.push(path.to_string_lossy().into_owned());
+        report.warnings.push(format!("Preserved neutral driver {}: no installation ownership record.", path.display()));
+    }
+    let cleanup = (|| {
+        for (original, tombstone) in &staged {
+            fs::remove_dir_all(tombstone).map_err(|e|error(tombstone,e))?;
+            report.removed_paths.push(original.to_string_lossy().into_owned());
         }
-        removed_paths.push(original.to_string_lossy().into_owned());
-    }
-    let mut retirement_paths=packages.clone();
-    if let Some(receipt)=&receipt {
-        for path in receipt["packages"].as_array().unwrap() { if let Some(path)=path.as_str() { retirement_paths.push(PathBuf::from(path)); } }
-    }
-    cleanup_retirement_parents(&ctx,&retirement_paths,&mut warnings);
-    if ctx.managed.exists() && fs::read_dir(&ctx.managed).map(|mut d|d.next().is_none()).unwrap_or(false) {
-        safe_chain(&ctx.managed)?;
-        fs::remove_dir(&ctx.managed).map_err(|e|error(&ctx.managed,e))?;
-    }
-    if ctx.data.exists() {
-        // App preferences (gui-settings.json: color scheme, update mode,
-        // advanced mode) must survive driver removal (2026-09-22).
-        let gui_settings=ctx.data.join("gui-settings.json");
-        let gui_bytes=match fs::symlink_metadata(&gui_settings) {
-            Ok(meta) if meta.is_file() => Some(fs::read(&gui_settings).map_err(|e| error(&gui_settings, e))?),
-            _ => None,
-        };
-        if let Err(e)=fs::remove_dir_all(&ctx.data) {
-            let mut errors=vec![format!("Driver removed and settings restored, but config cleanup failed: {}. Retry uninstall.",error(&ctx.data,e))];
-            // Retain original recovery information even if recursive deletion
-            // already removed the journal before encountering a locked file.
-            if let Err(e)=atomic_json(&ctx.journal(),&journal) { errors.push(format!("Recovery journal save failed: {e}")); }
-            if let Err(e)=atomic_json(&ctx.receipt(),&recovery_receipt) { errors.push(format!("Recovery receipt save failed: {e}")); }
-            return Err(errors.join("; "));
+        let mut retirement_paths=packages.clone();
+        if let Some(receipt)=&receipt {
+            for path in receipt_paths(Some(receipt),"packages") { push_path(&mut retirement_paths,path); }
         }
-        if let Some(bytes)=gui_bytes {
-            fs::create_dir_all(&ctx.data).map_err(|e|error(&ctx.data,e))?;
-            fs::write(&gui_settings,bytes).map_err(|e|error(&gui_settings,e))?;
+        cleanup_retirement_parents(&ctx,&retirement_paths,&mut report.warnings);
+        if ctx.managed.exists() && fs::read_dir(&ctx.managed).map(|mut d|d.next().is_none()).unwrap_or(false) {
+            safe_chain(&ctx.managed)?;
+            fs::remove_dir(&ctx.managed).map_err(|e|error(&ctx.managed,e))?;
         }
-        removed_paths.push(ctx.data.to_string_lossy().into_owned());
-    }
-    // Never remove the shared APPDATA/CustomHeadset directory or GalaxyXR parent.
-    Ok(UninstallReport { removed_paths, restored_settings: restored, legacy_reset: legacy, warnings })
+        remove_driver_data(&ctx.data, &mut report.removed_paths)
+    })();
+    if let Err(e) = cleanup {
+        // Registration/settings have committed. Keep recovery evidence and
+        // report partial removal so the GUI never resumes stale settings writes.
+        report.outcome = "incomplete";
+        report.unresolved_items.push(format!("Removal is incomplete: {e}. Retry Uninstall to finish."));
+        if let Err(e)=atomic_json(&ctx.journal(),&journal) { report.unresolved_items.push(format!("Recovery journal save failed: {e}")); }
+        if let Err(e)=atomic_json(&ctx.receipt(),&recovery_receipt) { report.unresolved_items.push(format!("Recovery receipt save failed: {e}")); }
+        report.preserved_paths.push(ctx.data.to_string_lossy().into_owned());
+    } else if !report.warnings.is_empty() { report.outcome = "attention-required"; }
+    report.unresolved_items.extend(report.warnings.iter().cloned());
+    Ok(report)
 }
 
 #[cfg(test)]
@@ -1037,6 +1096,30 @@ mod tests {
         assert_eq!(settings,original);
     }
     #[test]
+    fn modern_uninstall_cleans_untracked_identity_but_preserves_recorded_originals() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("gui.exe");
+        let original=legacy_identity();
+        atomic_json(&f.ctx.settings,&json!({"vrlink_Oculus Quest Pro":original,"vrlink_xrvst2":{}})).unwrap();
+        install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let mut changes=original.as_object().unwrap().keys()
+            .map(|key|change("vrlink_Oculus Quest Pro",key,None)).collect::<Vec<_>>();
+        changes.push(change("vrlink_xrvst2","resourceRoot",Some(json!(DRIVER))));
+        apply_changes(&f.ctx,changes).unwrap();
+        assert_eq!(load_journal(&f.ctx).unwrap()["legacy"],false);
+        assert_eq!(f.ctx.receipt_value().unwrap().unwrap()["legacyDetected"],false);
+        let mut settings=read_settings(&f.ctx.settings).unwrap();
+        settings["vrlink_PICO 4 Pro"]=legacy_identity();
+        settings["vrlink_PICO 4 Pro"]["supports10bit"]=json!(true);
+        settings["vrlink_PICO 4 Pro"]["targetBandwidth"]=json!(80);
+        settings["vrlink_Galaxy XR"]=json!({"enable":true,"supportsEyeTracking":true,"preferredRefreshRate":90});
+        atomic_json(&f.ctx.settings,&settings).unwrap();
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert!(report.legacy_reset);assert_eq!(report.outcome,"complete");assert!(report.warnings.is_empty());
+        assert_eq!(read_settings(&f.ctx.settings).unwrap(),json!({"vrlink_Oculus Quest Pro":original,"vrlink_xrvst2":{},
+            "vrlink_PICO 4 Pro":{"supports10bit":true,"targetBandwidth":80},
+            "vrlink_Galaxy XR":{"enable":true,"supportsEyeTracking":true,"preferredRefreshRate":90}}));
+    }
+    #[test]
     fn identity_cleanup_preserves_journal_entries_and_legacy_baselines() {
         let f=Fixture::new();atomic_json(&f.ctx.settings,&json!({"vrlink_xrvst2ue":legacy_identity()})).unwrap();
         let journal=json!({"schema":1,"driver":DRIVER,"settingsPath":f.ctx.settings,"sectionPresence":{"vrlink_xrvst2ue":true},
@@ -1095,7 +1178,7 @@ mod tests {
         assert_eq!(fs::read(installed.join("resources/nested/profile.json")).unwrap(),b"original bundle");
         assert_eq!(f.ctx.registrations().unwrap(),vec![installed.clone()]);
         let config=read_json(&f.ctx.data.join("settings.json")).unwrap();
-        assert_eq!(config,json!({"other":17,"galaxyXr":{"nativeIdentity":true,"bandwidth":123}}));
+        assert_eq!(config,json!({"other":17,"galaxyXr":{"nativeIdentity":false,"bandwidth":123}}));
         let receipt=f.ctx.receipt_value().unwrap().unwrap();
         assert_eq!(receipt["schema"],2);assert!(contains_path(&receipt_paths(Some(&receipt),"sourcePaths"),&source));
         assert!(!contains_path(&receipt_paths(Some(&receipt),"packages"),&source));
@@ -1106,6 +1189,20 @@ mod tests {
         assert!(f.ctx.registrations().unwrap().is_empty());assert_eq!(read_settings(&f.ctx.settings).unwrap(),baseline);
         let second=install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
         assert!(Path::new(&second.registered_path).join("driver.vrdrivermanifest").exists());assert!(source.exists());
+        assert_eq!(read_json(&f.ctx.data.join("settings.json")).unwrap(),json!({"galaxyXr":{"nativeIdentity":true}}));
+    }
+    #[test]
+    fn direct_upgrade_preserves_all_saved_settings() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("gui.exe");
+        install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let choices=json!({"galaxyXr":{"nativeIdentity":false,"nativeResolution":false,
+            "vrlinkHeadsetProfile":false,"streamQuality":"custom","customStreamFormatWidth":1856,
+            "vrlinkExtraKeys":{"targetBandwidth":{"i":125}}},
+            "streamFrame":{"nvencSettingsVersion":4,"nvencTap":false,"nvencPreset":3,
+                "nvencVbvFrames":3.5,"hitchDiag":false},"unknownFutureSetting":{"keep":17}});
+        atomic_json(&f.ctx.data.join("settings.json"),&choices).unwrap();
+        install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(read_json(&f.ctx.data.join("settings.json")).unwrap(),choices);
     }
     #[test]
     fn install_preserves_encoder_opt_out_and_uninstall_restores_encoder_settings() {
@@ -1128,7 +1225,7 @@ mod tests {
         assert!(f.ctx.registrations().unwrap().is_empty());
     }
     #[test]
-    fn legacy_encoder_extras_restore_all_profiles_without_claiming_external_edits() {
+    fn legacy_encoder_extras_need_recorded_ownership_not_just_matching_values() {
         let mut settings=json!({});
         for section in std::iter::once("driver_vrlink").chain(COMPANION_PROFILE_SECTIONS.iter().copied()) {
             settings[section]=json!({"encoderExtra":12,"changed":99,"journaled":8,"unrelated":42});
@@ -1140,9 +1237,9 @@ mod tests {
         let config=json!({"galaxyXr":{"vrlinkExtraKeys":{"encoderExtra":{"i":12},"changed":4,"journaled":8}}});
         let mut warnings=vec![];
         let restored=legacy_config_reset(&mut settings,&journal,&config,false,&mut warnings).unwrap();
-        assert_eq!(restored,COMPANION_PROFILE_SECTIONS.len()+2);
+        assert_eq!(restored,0);assert!(!warnings.is_empty());
         for section in std::iter::once("driver_vrlink").chain(COMPANION_PROFILE_SECTIONS.iter().copied()) {
-            assert!(settings[section].get("encoderExtra").is_none());
+            assert_eq!(settings[section]["encoderExtra"],12);
             assert_eq!(settings[section]["changed"],99);
             assert_eq!(settings[section]["unrelated"],42);
         }
@@ -1346,23 +1443,23 @@ mod tests {
         assert_eq!(candidate_packages(&f.ctx,Some(&receipt)).unwrap(),vec![planned[0].1.clone()]);
     }
     #[test]
-    fn legacy_custom_settings_only_reset_matching_values_and_fork_markers() {
+    fn legacy_custom_settings_and_neutral_markers_need_recorded_ownership() {
         let mut settings=json!({"driver_vrlink":{"custom":12,"changed":99,"journaled":7},"driver_CustomHeadsetOpenVR":{"enable":false,"other":42}});
         let journal=json!({"entries":{"driver_vrlink":{"journaled":{}}}});
         let config=json!({"galaxyXr":{"vrlinkExtraKeys":{"custom":{"i":12},"changed":5,"journaled":7}}});
         let mut warnings=vec![];
-        assert_eq!(legacy_config_reset(&mut settings,&journal,&config,true,&mut warnings).unwrap(),2);
-        assert_eq!(settings,json!({"driver_vrlink":{"changed":99,"journaled":7},"driver_CustomHeadsetOpenVR":{"other":42}}));
-        assert_eq!(warnings.len(),1);
+        assert_eq!(legacy_config_reset(&mut settings,&journal,&config,true,&mut warnings).unwrap(),0);
+        assert_eq!(settings,json!({"driver_vrlink":{"custom":12,"changed":99,"journaled":7},"driver_CustomHeadsetOpenVR":{"enable":false,"other":42}}));
+        assert_eq!(warnings.len(),2);
     }
     #[test]
-    fn upgrade_baseline_overrides_are_removed_after_new_journaled_change() {
+    fn upgrade_preserves_unproven_baseline_overrides_after_new_journaled_change() {
         let f=Fixture::new();atomic_json(&f.ctx.settings,&json!({"driver_vrlink":{"targetBandwidth":200,"enableHandTracking":true}})).unwrap();
         apply_changes(&f.ctx,vec![change("driver_vrlink","targetBandwidth",Some(json!(300)))]).unwrap();
         let mut journal=load_journal(&f.ctx).unwrap();journal["legacy"]=json!(true);
         let mut settings=read_settings(&f.ctx.settings).unwrap();record_legacy_keys(&mut journal,&settings,&json!({}),false).unwrap();
         restore_settings(&mut settings,&journal,&mut vec![]).unwrap();legacy_reset(&mut settings,&journal).unwrap();
-        assert_eq!(settings,json!({"driver_vrlink":{"enableHandTracking":true}}));
+        assert_eq!(settings,json!({"driver_vrlink":{"targetBandwidth":200,"enableHandTracking":true}}));
         settings["driver_vrlink"]["targetBandwidth"]=json!(99);let mut warnings=vec![];
         restore_settings(&mut settings,&journal,&mut warnings).unwrap();assert_eq!(settings["driver_vrlink"]["targetBandwidth"],99);assert_eq!(warnings.len(),1);
     }
@@ -1433,7 +1530,7 @@ mod tests {
         let mut settings=json!({"driver_GalaxyXRNative":{"enable":true},"driver_vrlink":{"targetBandwidth":75,"encodeWidth":4096,"enableHandTracking":true,"shareEyeTracking":true},"driver_other":{"enable":true}});
         let journal=json!({"entries":{"driver_vrlink":{"targetBandwidth":{"present":true,"value":75,"lastPresent":true,"lastValue":200}}}});
         legacy_reset(&mut settings,&journal).unwrap();
-        assert_eq!(settings,json!({"driver_vrlink":{"targetBandwidth":75,"enableHandTracking":true,"shareEyeTracking":true},"driver_other":{"enable":true}}));
+        assert_eq!(settings,json!({"driver_GalaxyXRNative":{"enable":true},"driver_vrlink":{"targetBandwidth":75,"encodeWidth":4096,"enableHandTracking":true,"shareEyeTracking":true},"driver_other":{"enable":true}}));
     }
     #[test]
     fn staged_rename_rollback_restores_files_and_reports_collision() {
@@ -1458,7 +1555,7 @@ mod tests {
         assert!(result.status.success()); assert!(validate_package(&link,&f.root.join("gui.exe")).is_err()); fs::remove_dir(&link).unwrap();
     }
     #[test]
-    fn uninstall_preserves_app_preferences_and_removes_driver_data() {
+    fn uninstall_removes_app_preferences_and_driver_data() {
         let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/GalaxyXRDriverGUI/gui.exe");
         atomic_json(&f.ctx.data.join("settings.json"),&json!({"other":17})).unwrap();
         atomic_json(&f.ctx.data.join("gui-settings.json"),&json!({"colorScheme":"light","updateMode":"rewrite","advanceMode":true})).unwrap();
@@ -1467,8 +1564,124 @@ mod tests {
         uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
         assert!(!Path::new(&installed.registered_path).exists());
         assert!(!f.ctx.data.join("settings.json").exists());
-        let gui=read_json(&f.ctx.data.join("gui-settings.json")).unwrap();
-        assert_eq!(gui["colorScheme"],"light");assert_eq!(gui["advanceMode"],true);
+        assert!(!f.ctx.data.join("gui-settings.json").exists());
         assert!(source.exists());
+    }
+
+    #[test]
+    fn uninstall_keeps_profiles_backups_and_same_version_reinstall_uses_defaults() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/gui.exe");
+        let profile=f.ctx.data.join("Distortion/custom.json");let backup=f.ctx.data.parent().unwrap().join("Backups/old/settings.before");
+        atomic_bytes(&profile,b"saved profile bytes").unwrap();atomic_bytes(&backup,b"saved backup bytes").unwrap();
+        atomic_json(&f.ctx.data.join("settings.json"),&json!({"galaxyXr":{"nativeIdentity":false},"streamFrame":{"nvencTap":false},"distortionProfile":"custom"})).unwrap();
+        let installed=install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_ne!(report.outcome,"incomplete");assert!(!Path::new(&installed.registered_path).exists());
+        assert_eq!(fs::read(&profile).unwrap(),b"saved profile bytes");assert_eq!(fs::read(&backup).unwrap(),b"saved backup bytes");
+        assert!(report.preserved_paths.contains(&profile.parent().unwrap().to_string_lossy().into_owned()));
+        assert!(!f.ctx.data.join("settings.json").exists());assert!(!f.ctx.journal().exists());assert!(!f.ctx.receipt().exists());
+        install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(read_json(&f.ctx.data.join("settings.json")).unwrap(),json!({"galaxyXr":{"nativeIdentity":true}}));
+        assert_eq!(fs::read(&profile).unwrap(),b"saved profile bytes");
+    }
+
+    #[test]
+    fn neutral_shader_fingerprint_without_receipt_never_authorizes_retirement_or_unregister() {
+        let f=Fixture::new();let neutral=f.package("steamvr/drivers/CustomHeadsetOpenVR");let source=f.package("bundle/GalaxyXRNative");
+        atomic_json(&neutral.join("driver.vrdrivermanifest"),&json!({"name":LEGACY})).unwrap();
+        atomic_bytes(&neutral.join("bin/win64/driver_CustomHeadsetOpenVR.dll"),b"neutral").unwrap();
+        for name in ["vrlink_layer_ps.hlsl","vrlink_fxaa_ps.hlsl"] { atomic_bytes(&neutral.join("resources/shaders/d3d11").join(name),b"shared shader").unwrap(); }
+        fake_registration(&f.ctx,&neutral,true).unwrap();
+        assert!(!owned_package(&f.ctx,None,&neutral));assert!(candidate_packages(&f.ctx,None).unwrap().is_empty());
+        let exe=f.root.join("bundle/gui.exe");install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(f.ctx.registrations().unwrap(),vec![neutral.clone()]);assert!(neutral.exists());
+        assert!(report.preserved_paths.contains(&neutral.to_string_lossy().into_owned()));
+    }
+
+    #[test]
+    fn unrecorded_generic_names_and_common_values_survive_historical_cleanup() {
+        let mut settings=json!({"steamvr":{"preferredRefreshRate":90},"driver_vrlink":{"targetBandwidth":200,"encodeWidth":4096},"vrlink_xrvst2ue":{"supports10bit":true}});
+        let before=settings.clone();assert_eq!(legacy_reset(&mut settings,&json!({"entries":{}})).unwrap(),0);assert_eq!(settings,before);
+        // A flag produced by an older heuristic cannot convert a common value
+        // into proof that the pre-upgrade baseline belonged to this app.
+        let journal=json!({"entries":{"driver_vrlink":{"targetBandwidth":{"present":true,"value":200,"lastPresent":true,"lastValue":350}}},"legacyKeys":{"driver_vrlink":{"targetBandwidth":true}}});
+        settings["driver_vrlink"]["targetBandwidth"]=json!(350);
+        restore_settings(&mut settings,&journal,&mut vec![]).unwrap();assert_eq!(settings,before);
+    }
+
+    #[test]
+    fn orphan_settings_can_be_removed_without_a_driver_package() {
+        let f=Fixture::new();atomic_json(&f.ctx.data.join("settings.json"),&json!({"old":true})).unwrap();
+        atomic_json(&f.ctx.data.join("gui-settings.json"),&json!({"advanceMode":true})).unwrap();
+        let report=uninstall_driver(&f.ctx,&f.root.join("gui.exe"),|_,_|panic!("No registration expected")).unwrap();
+        assert_eq!(report.outcome,"complete");assert!(!f.ctx.data.exists());
+    }
+
+    #[test]
+    fn missing_recovery_target_prevents_uninstall_without_losing_evidence() {
+        let f=Fixture::new();apply_changes(&f.ctx,vec![change("s","a",Some(json!(2)))]).unwrap();
+        let journal=fs::read(f.ctx.journal()).unwrap();fs::remove_file(&f.ctx.settings).unwrap();
+        assert!(uninstall_driver(&f.ctx,&f.root.join("gui.exe"),|_,_|panic!("No mutation expected")).is_err());
+        assert_eq!(fs::read(f.ctx.journal()).unwrap(),journal);
+    }
+
+    #[test]
+    fn missing_steamvr_allows_only_local_cleanup_without_recovery_records() {
+        let f=Fixture::new();atomic_json(&f.ctx.data.join("settings.json"),&json!({"old":true})).unwrap();
+        atomic_bytes(&f.ctx.data.join("Distortion/profile.json"),b"profile").unwrap();
+        atomic_json(&f.ctx.receipt(),&json!({"unreadable":"receipt"})).unwrap();
+        assert!(uninstall_local_settings(&f.ctx.data,&f.ctx.managed).is_err());assert!(f.ctx.data.join("settings.json").exists());
+        fs::remove_file(f.ctx.receipt()).unwrap();let report=uninstall_local_settings(&f.ctx.data,&f.ctx.managed).unwrap();
+        assert_eq!(report.outcome,"attention-required");assert!(!f.ctx.data.join("settings.json").exists());assert!(f.ctx.data.join("Distortion/profile.json").exists());
+    }
+
+    #[test]
+    fn external_settings_edit_during_unregister_is_preserved_and_installation_rolls_back() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/gui.exe");
+        let installed=install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let result=uninstall_driver(&f.ctx,&exe,|p,add| {
+            fake_registration(&f.ctx,p,add)?;
+            if !add {
+                let mut external=read_settings(&f.ctx.settings)?;external["steamvr"]["externalPreference"]=json!(123);
+                atomic_json(&f.ctx.settings,&external)?;
+            }
+            Ok(())
+        });
+        assert!(result.err().unwrap().contains("changed during uninstall"));
+        assert!(Path::new(&installed.registered_path).exists());
+        assert!(contains_path(&f.ctx.registrations().unwrap(),Path::new(&installed.registered_path)));
+        assert_eq!(read_settings(&f.ctx.settings).unwrap()["steamvr"]["externalPreference"],123);
+        uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(read_settings(&f.ctx.settings).unwrap()["steamvr"]["externalPreference"],123);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn locked_app_preferences_report_incomplete_then_retry_preserves_profiles() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/gui.exe");
+        install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        let preferences=f.ctx.data.join("gui-settings.json");atomic_json(&preferences,&json!({"advanceMode":true})).unwrap();
+        atomic_bytes(&f.ctx.data.join("Distortion/profile.json"),b"profile").unwrap();
+        let locked=fs::OpenOptions::new().read(true).share_mode(1).open(&preferences).unwrap();
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(report.outcome,"incomplete");assert!(!report.unresolved_items.is_empty());assert!(f.ctx.receipt().exists());assert!(f.ctx.journal().exists());
+        drop(locked);
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_ne!(report.outcome,"incomplete");assert!(!preferences.exists());assert!(!f.ctx.receipt().exists());assert!(!f.ctx.journal().exists());
+        assert_eq!(fs::read(f.ctx.data.join("Distortion/profile.json")).unwrap(),b"profile");
+    }
+
+    #[test]
+    fn receipt_owned_managed_installation_can_be_uninstalled_after_its_dll_is_missing() {
+        let f=Fixture::new();let source=f.package("bundle/GalaxyXRNative");let exe=f.root.join("bundle/gui.exe");
+        let baseline=json!({"steamvr":{"unrelated":42}});atomic_json(&f.ctx.settings,&baseline).unwrap();
+        let installed=install_driver(&f.ctx,&source,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        fs::remove_file(Path::new(&installed.registered_path).join("bin/win64/driver_GalaxyXRNative.dll")).unwrap();
+        let report=uninstall_driver(&f.ctx,&exe,|p,a|fake_registration(&f.ctx,p,a)).unwrap();
+        assert_eq!(report.outcome,"complete");assert!(!Path::new(&installed.registered_path).exists());
+        assert!(f.ctx.registrations().unwrap().is_empty());assert_eq!(read_settings(&f.ctx.settings).unwrap(),baseline);
+        assert!(source.join("bin/win64/driver_GalaxyXRNative.dll").exists());assert!(!f.ctx.data.exists());
     }
 }

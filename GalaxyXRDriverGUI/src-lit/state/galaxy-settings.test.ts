@@ -141,20 +141,29 @@ describe('schema migrations', () => {
     }
   });
 
-  it('retains intentional pre-v3 scalar resets to the shipped v3 defaults', async () => {
-    const d: any = driverDefaults.streamFrame;
+  it.each([0, 2, 3, 4])('preserves explicit encoder tuning when upgrading schema %s', async version => {
+    const chosen = {
+      nvencVbvFrames: 5, nvencLowDelayKfScale: 4, nvencMaxBitrateHeadroomPct: 20,
+      nvencForceFps: 72, nvencSplitMode: 3, nvencPreset: 7, nvencAqStrength: 4,
+      nvencMinQp: 5, nvencMinQpIntra: 7, nvencMaxQp: 31, nvencVuiFullRange: 1,
+      nvencVuiMatrix: 1, nvencVuiPrimaries: 1, nvencVuiTransfer: 1,
+      nvencBitrateMbit: 123, nvencBandwidthOverrideMbit: 234,
+    };
     const stored: any = {
+      galaxyXr: { sdr10SettingsVersion: 2, customStreamFormatWidth: 1856 },
       streamFrame: {
-        streamFrameSchema: 4, nvencSettingsVersion: 2,
-        nvencPreset: 'custom', nvencBitrateMbit: 123, nvencMinQp: 5,
+        streamFrameSchema: 4, nvencSettingsVersion: version,
+        postPack: { enable: false, casEnable: false }, ...chosen,
       },
     };
     const { flush } = buildHarness(stored);
     await flush();
-    expect(stored.streamFrame.nvencPreset).toBe(d.nvencPreset);
-    expect(stored.streamFrame.nvencBitrateMbit).toBe(d.nvencBitrateMbit);
-    expect(stored.streamFrame.nvencMinQp).toBe(d.nvencMinQp);
-    expect(stored.streamFrame.nvencSettingsVersion).toBe(4);
+    expect(stored.streamFrame).toMatchObject({ ...chosen, nvencSettingsVersion: 4 });
+    expect(stored.galaxyXr.customStreamFormatWidth).toBe(1856);
+    const reopened = buildHarness(structuredClone(stored));
+    await reopened.flush();
+    expect(reopened.saved).toHaveLength(0);
+    expect(reopened.gs.settings).toMatchObject(chosen);
   });
 
   it('preserves explicit pre-v3 encoder and headset-profile Off choices', async () => {

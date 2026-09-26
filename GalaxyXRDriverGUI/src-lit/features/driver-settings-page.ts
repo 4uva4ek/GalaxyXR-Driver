@@ -5,8 +5,9 @@
 import { html, LitElement, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
+import { BasePage, settingFieldRow, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
 import { t, tHtml } from '../locale/i18n';
+import { pageIntro, statusMessage } from '../ui/presentation';
 import '../ui/controls';
 import './driver-banner';
 import './system-ready';
@@ -14,7 +15,6 @@ import './system-ready';
 export class DriverSettingsPage extends BasePage {
   static styles = [fieldStyles, css`
     :host { display: block; padding: 0 1rem 2rem 1rem; }
-    .calibration-banner { background: #4a3b00; border: 1px solid #a08500; color: #ffe97a; border-radius: 6px; padding: 8px 14px; margin: 8px 0; }
     .rgb-control { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
     .rgb-control span { opacity: 0.75; font-size: 90%; }
     .note-inline { opacity: 0.75; font-size: 0.9rem; }
@@ -59,18 +59,18 @@ export class DriverSettingsPage extends BasePage {
     if (!galaxy.settings) return html``;
     const settings = galaxy.settings;
     const defaults = galaxy.defaults;
-    const advanced = galaxy.advancedMode;
+    const advanced = galaxy.advancedMode || this.revealAdvanced;
     const vendor = galaxy.vendor;
     const c = this.ctx;
     const save = () => { galaxy.save(); this.requestUpdate(); };
 
     const body: TemplateResult[] = [html`
+      ${pageIntro(t('Driver Settings'), t('Headset identity and controller tracking.'))}
       <app-driver-enable-banner .ctx=${this.ctx}></app-driver-enable-banner>
-      ${galaxy.calibrationActive() ? html`<div class="calibration-banner">
-        Calibration modes are active. Turn them off before normal play, or use Advanced Mode to adjust them.
-        <button type="button" @click=${() => { galaxy.stopCalibration(); this.requestUpdate(); }}>${t('Stop calibration')}</button>
-      </div>` : html``}
-      ${noteRow(t('Headset and controller identity changes apply after restarting SteamVR.'))}
+      ${galaxy.calibrationActive() ? statusMessage('warning', t('Calibration is active'), t('Stop calibration before playing.'),
+        html`<fluent-button appearance="outline" @click=${() => { galaxy.stopCalibration(); this.requestUpdate(); }}>${t('Stop calibration')}</fluent-button>`) : html``}
+      <div class="status-badge-row"><fluent-badge appearance="tint" color="informative">${t('SteamVR restart required')}</fluent-badge>
+        <span>${t('After changing headset or controller identity.')}</span></div>
     `];
 
     // ---------------- Headset ----------------
@@ -80,21 +80,21 @@ export class DriverSettingsPage extends BasePage {
     if (this.section('headset')) {
       const gx = galaxy.galaxyXr;
       body.push(
-        ...(advanced ? [fieldRow(t('Galaxy XR Native Identity'), html`<app-switch .checked=${!!gx.nativeIdentity} @change=${(e: CustomEvent) => { void this.changeIdentitySetting('nativeIdentity', e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
+        ...(advanced ? [settingFieldRow('galaxyXr.nativeIdentity', html`<app-switch .checked=${!!gx.nativeIdentity} @change=${(e: CustomEvent) => { void this.changeIdentitySetting('nativeIdentity', e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
           tip: "Keep this on so SteamVR identifies the headset as Galaxy XR and uses its device icons. Turning it off can show Unknown or the identity provided by a patched Steam Link app instead. Restart SteamVR after changing it.\n\nEnabled by default. Sets OpenVR model/manufacturer and named device-icon properties to the Galaxy XR identity and resources. With this disabled the native identity shim does not replace the identity reported by Steam Link; a patched APK may report a different headset. The vrlink Headset Profile is a separate switch. Explicit saved Off values are preserved. Restart SteamVR after changing identity.",
         })] : []),
-        fieldRow(t('Native Render Resolution'), html`<app-switch .checked=${!!gx.nativeResolution} @change=${(e: CustomEvent) => { gx.nativeResolution = e.detail; save(); }}></app-switch>`, {
+        settingFieldRow('galaxyXr.nativeResolution', html`<app-switch .checked=${!!gx.nativeResolution} @change=${(e: CustomEvent) => { gx.nativeResolution = e.detail; save(); }}></app-switch>`, {
           tip: t("Ask SteamVR to render at the Galaxy XR's native per-eye size. This improves the requested resolution but can increase GPU load. Restart SteamVR to apply it.\n\nRequests 3552 × 3840 per eye without forcing a refresh rate. Your selected refresh rate, including 75 Hz, is preserved. renderWidth, renderHeight, overrideRenderWidth, and overrideRenderHeight are written to driver_vrlink, where VRLink reads the tuning settings. With vrlink Headset Profile On, the same values are also copied to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro. Previous refresh-rate overrides are restored only when still journal-owned and unchanged; explicit displayFrequency extra keys remain under your control. Each section's original values are journaled independently. Turning this off restores only unchanged journal-owned resolution values; external edits are preserved."),
         }),
-        ...(advanced ? [fieldRow(t('vrlink Headset Profile'), html`<app-switch .checked=${!!gx.vrlinkHeadsetProfile} @change=${(e: CustomEvent) => { void this.changeIdentitySetting('vrlinkHeadsetProfile', e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
+        ...(advanced ? [settingFieldRow('galaxyXr.vrlinkHeadsetProfile', html`<app-switch .checked=${!!gx.vrlinkHeadsetProfile} @change=${(e: CustomEvent) => { void this.changeIdentitySetting('vrlinkHeadsetProfile', e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
           tip: t("Keep this on to keep settings copies under the supported Steam Link headset identities. Stream tuning is written to driver_vrlink with this switch on or off. Requires a SteamVR restart.\n\nEnabled by default. Stream size and bandwidth, render overrides, diagnostics, and supported extra vrlink keys always use driver_vrlink. On also mirrors those settings and capability requests to vrlink_xrvst2ue, vrlink_Oculus Quest Pro and vrlink_PICO 4 Pro before connection. Recognized Quest Pro and PICO 4 Pro identities select VRLink's built-in capabilities; this SteamVR build bypasses their per-model capability sections. Profile copies alone therefore do not prove that capability requests were consumed. Off releases journal-owned tuning copies and preserves the original-model capability destination (xrvst2ue fallback); an active SDR 10-bit baseline can still request capabilities there. Each destination keeps its own recovery record. Driver enable/block keys and SteamVR global settings retain their required sections. Restart/reconnect and inspect driver_vrlink.txt to verify effective settings."),
         })] : []),
       );
       if (advanced || !gx.nativeIdentity || !gx.vrlinkHeadsetProfile) {
-        body.push(noteRow(html`<span class="warn-color" role="note">${t('Keep Galaxy XR Native Identity and vrlink Headset Profile enabled for normal use. Turning either off can stop SteamVR recognizing the headset as Galaxy XR: it may show Unknown or the identity supplied by your patched Steam Link app. Restart SteamVR after changing either setting.')}</span>`));
+        body.push(statusMessage('warning', t('Keep Galaxy XR recognition enabled'), t('Turning off either identity option can make SteamVR show another headset or Unknown. Restart SteamVR after a change.')));
       }
       body.push(
-        fieldRow(t('SDR 10-bit baseline'), html`<app-switch
+        settingFieldRow('galaxyXr.sdr10Baseline', html`<app-switch
           .checked=${galaxy.baselineRequested}
           .disabled=${galaxy.imageModeChanging() || (!galaxy.baselineRequested && galaxy.imageEnhancementsEnabled)}
           @change=${(e: CustomEvent<boolean>) => { void this.changeBaseline(e.detail, e.currentTarget as HTMLElement & { checked: boolean }); }}></app-switch>`, {
@@ -102,20 +102,20 @@ export class DriverSettingsPage extends BasePage {
         }),
       );
       if (galaxy.baselineRequested) {
-        body.push(noteRow(html`<strong>${galaxy.imageEnhancementsEnabled ? t('SDR 10-bit and Image Enhancements are both on. Image quality may be reduced.') : t('SDR 10-bit baseline is on. Image Enhancements is off by default.')}</strong>
-          ${t('Enable Image Enhancements in App Settings if you accept the risk of reduced image quality. Picture adjustments reset when the baseline is enabled; switching it off does not restore them.')}
-          ${t('Restart SteamVR and reconnect to apply the 10-bit request.')}`));
+        body.push(statusMessage(galaxy.imageEnhancementsEnabled ? 'warning' : 'info',
+          galaxy.imageEnhancementsEnabled ? t('SDR 10-bit with Image Enhancements') : t('SDR 10-bit baseline is on'),
+          galaxy.imageEnhancementsEnabled ? t('Image processing may reduce quality. Restart SteamVR and reconnect to apply the 10-bit request.')
+            : t('Picture adjustments are reset. Restart SteamVR and reconnect to apply the 10-bit request.')));
         if (galaxy.sdr10BaselineConflict()) {
-          body.push(noteRow(html`<span class="warn-color" role="alert">${t('An external setting has enabled a custom shader for this headset, so the neutral baseline is not active. Turn the baseline off and on to reset picture adjustments and clear this conflict.')}</span>`));
+          body.push(statusMessage('warning', t('Custom shader conflicts with the baseline'), t('Turn the baseline off and on to reset picture adjustments and clear the conflict.')));
         }
       } else if (galaxy.imageEnhancementsEnabled) {
-        body.push(noteRow(html`<strong>${t('Turn Image Enhancements off before enabling SDR 10-bit baseline.')}</strong>
-          <a href="#/app-settings">${t('Open App Settings')}</a>
-          ${t('Enabling the baseline resets picture adjustments to their defaults.')}`));
+        body.push(statusMessage('info', t('Image Enhancements is on'), t('Turn it off before enabling the baseline. Enabling the baseline resets picture adjustments.'),
+          html`<a href="#/app-settings">${t('Open App Settings')}</a>`));
       } else {
-        body.push(noteRow(t('Enabling SDR 10-bit baseline resets image-processing adjustments to their defaults and keeps Image Enhancements off. Back up custom picture settings first.')));
+        body.push(noteRow(t('Enabling the baseline resets picture adjustments. Back up custom settings first; turning it off does not restore them.')));
       }
-      if (galaxy.imageModeError()) body.push(noteRow(html`<span class="mode-error" role="alert">${galaxy.imageModeError()}</span>`));
+      if (galaxy.imageModeError()) body.push(statusMessage('error', t('Image mode could not be changed'), galaxy.imageModeError()!));
     }
 
     // ---------------- Controllers ----------------
@@ -126,13 +126,13 @@ export class DriverSettingsPage extends BasePage {
       const gx = galaxy.galaxyXr;
       if (vendor) {
         body.push(
-          fieldRow(t('Official Controller Input Profile'), html`<app-switch .checked=${!!gx.nativeInputProfile} @change=${(e: CustomEvent) => { gx.nativeInputProfile = e.detail; save(); }}></app-switch>`, {
+          settingFieldRow('galaxyXr.nativeInputProfile', html`<app-switch .checked=${!!gx.nativeInputProfile} @change=${(e: CustomEvent) => { gx.nativeInputProfile = e.detail; save(); }}></app-switch>`, {
             tip: "Use the Galaxy XR controller button layout and default game bindings. Restart SteamVR after changing it; some games still use a compatible fallback layout.\n\nUses the official Steam Link Galaxy XR input profile: real button layout in the bindings UI, official default and per-app bindings, and correct grip/aim/tip poses for held items. Games without a native Galaxy XR binding see the controllers as Index controllers. Requires a SteamVR restart.",
           }),
         );
         if (gx.nativeInputProfile) {
           body.push(
-            fieldRow(t('Grip Touch From Grip Pressure'), html`
+            settingFieldRow('galaxyXr.synthesizeGripTouch', html`
               <app-switch .checked=${!!gx.synthesizeGripTouch} @change=${(e: CustomEvent) => { gx.synthesizeGripTouch = e.detail; save(); }}></app-switch>
               <app-number .value=${gx.gripTouchThreshold ?? 0.03} min="0.005" max="0.5" step="0.005" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.gripTouchThreshold = e.detail; save(); } }}></app-number>
             `, {
@@ -148,7 +148,7 @@ export class DriverSettingsPage extends BasePage {
           fieldRow(t('Controller Model Size'), html`<app-number .value=${gx.renderModelScale ?? 1.15} min="0.5" max="2" step="0.01" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.renderModelScale = e.detail; save(); } }}></app-number>`, {
             tip: "Change the size of the controller model shown in VR. This affects its appearance, not tracking scale or the size of your hands.\n\nUniform scale for the controller models. The official assets measure about 124x63mm while the physical controller is about 145x70mm; 1.15 (default) overlays the real shell in SteamVR Home. Scales the visible model only (geometry, button and stick pivots). Pose anchors, hand skeleton and game hand meshes are never scaled, so this cannot change hand size in games. Applied live within about a second. 1.0 = stock assets.",
           }),
-          fieldRow(t('Official Pose Components'), html`<app-switch .checked=${!!gx.officialComponents} @change=${(e: CustomEvent) => { gx.officialComponents = e.detail; save(); }}></app-switch>`, {
+          settingFieldRow('galaxyXr.officialComponents', html`<app-switch .checked=${!!gx.officialComponents} @change=${(e: CustomEvent) => { gx.officialComponents = e.detail; save(); }}></app-switch>`, {
             tip: "Use the official controller grip, aim, and tip positions. This changes how held objects and pointing rays line up with the controller.\n\nUse Samsung's official pose points (Game Link's render model: OpenXR grip/aim, dashboard laser tip, handgrip, base), rebased into our grip-convention frame so each named pose lands on the same physical spot as under Game Link. Only affects bindings that select a named pose (OpenXR games, the dashboard laser, /pose/handgrip bindings) - never raw, so SteamVR Home keeps the stock behavior.",
           }),
         );
@@ -161,7 +161,7 @@ export class DriverSettingsPage extends BasePage {
       if (this.section('ctrlFix')) {
         if (vendor && galaxy.rootSetting?.galaxyXr) {
           body.push(
-            fieldRow(t('Grip Convention'), html`
+            settingFieldRow('galaxyXr.gripConvention', html`
               <app-switch .checked=${!!gx.gripConvention} ?disabled=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.gripConvention = e.detail; save(); }}></app-switch>
               ${gx.controllerBypass ? html`<span class="note-inline">controller bypass is on</span>` : html``}
             `, {
@@ -279,7 +279,7 @@ export class DriverSettingsPage extends BasePage {
             }
             if (advanced && (settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAM')) {
               body.push(
-                fieldRow(t('Exact Covariance Transition (A/B)'), html`<app-switch .checked=${!!settings.kalmanCaExactCov} @change=${(e: CustomEvent) => { settings.kalmanCaExactCov = e.detail; save(); }}></app-switch>`, {
+                settingFieldRow('streamFrame.kalmanCaExactCov', html`<app-switch .checked=${!!settings.kalmanCaExactCov} @change=${(e: CustomEvent) => { settings.kalmanCaExactCov = e.detail; save(); }}></app-switch>`, {
                   tip: "Try an experimental acceleration model with a matching noise calculation. Leave it off unless you are comparing filter behavior deliberately.\n\nExperiment: propagate the filter's uncertainty with the same Singer transition the state prediction actually uses, instead of the simpler approximation. Makes the filter's self-model consistent, which matters most at low Accel Decay tau values (in CA-Magnitude mode it applies to the fast magnitude channel). Changes effective gains slightly, so NIS and the J/P/O tuning shift a little; off reproduces the previously tuned behavior exactly.",
                   reset: { can: settings.kalmanCaExactCov != defaults.kalmanCaExactCov, on: () => galaxy.reset('kalmanCaExactCov') },
                 }),
@@ -316,11 +316,11 @@ export class DriverSettingsPage extends BasePage {
                 tip: "Set how little the filter trusts a repeated tracking sample. Larger values make duplicate samples have less influence.\n\nOnly used when duplicate handling is Soft. A repeated sample is a true position of unknown age, so its honest uncertainty at hand speed is far above the sensor floor; this multiplies the measurement noise for detected repeats. 1 behaves exactly like Off; the default of 3 halves motion jitter with no measured cost; 6 and above re-create Coast's rejected snap character. Repeats sustained past the run cap are always accepted at full weight.",
                 reset: { can: settings.kalmanDupRScale != defaults.kalmanDupRScale, on: () => galaxy.reset('kalmanDupRScale') },
               }),
-              fieldRow(t('Kalman Device-Time Measurements'), html`<app-switch .checked=${!!settings.kalmanDeviceTime} @change=${(e: CustomEvent) => { settings.kalmanDeviceTime = e.detail; save(); }}></app-switch>`, {
+              settingFieldRow('streamFrame.kalmanDeviceTime', html`<app-switch .checked=${!!settings.kalmanDeviceTime} @change=${(e: CustomEvent) => { settings.kalmanDeviceTime = e.detail; save(); }}></app-switch>`, {
                 tip: "Use timestamps supplied with controller tracking rather than assuming every update is new. This can improve timing when sample delivery is uneven.\n\nThe streamer stamps every hand pose with WHEN it was actually true (poseTimeOffset). When this is on, the filter uses the device's own timestamps for its time steps and quietly discards out-of-order samples. Leave on.",
                 reset: { can: settings.kalmanDeviceTime != defaults.kalmanDeviceTime, on: () => galaxy.reset('kalmanDeviceTime') },
               }),
-              fieldRow(t('Position-Freeze Protection (3dof Fallback)'), html`<app-switch .checked=${!!settings.kalmanPosFreeze3dof} @change=${(e: CustomEvent) => { settings.kalmanPosFreeze3dof = e.detail; save(); }}></app-switch>`, {
+              settingFieldRow('streamFrame.kalmanPosFreeze3dof', html`<app-switch .checked=${!!settings.kalmanPosFreeze3dof} @change=${(e: CustomEvent) => { settings.kalmanPosFreeze3dof = e.detail; save(); }}></app-switch>`, {
                 tip: "Detect when controller position has stopped updating even if other tracking data still changes. This helps avoid treating a tracking freeze as real stillness.\n\nDetects the tracker's position-only loss: the position payload freezes while the quaternion keeps moving (fast or occluded hand falling back to IMU orientation). When detected, the stale position stays distrusted for the whole freeze instead of being adopted after the duplicate-run cap, and orientation keeps tracking live in every duplicate-handling mode. Fixes the hand parking a meter away while still rotating with the wrist, then teleporting back.",
                 reset: { can: settings.kalmanPosFreeze3dof != defaults.kalmanPosFreeze3dof, on: () => galaxy.reset('kalmanPosFreeze3dof') },
               }),
@@ -337,7 +337,7 @@ export class DriverSettingsPage extends BasePage {
         if (this.section('ctrlAdv')) {
           if (vendor) {
             body.push(
-              fieldRow(t('Controller Bypass'), html`<app-switch .checked=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.controllerBypass = e.detail; save(); }}></app-switch>`, {
+              settingFieldRow('galaxyXr.controllerBypass', html`<app-switch .checked=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.controllerBypass = e.detail; save(); }}></app-switch>`, {
                 tip: "Bypass this driver's controller adjustments while leaving the headset path active. Use this to compare with Steam Link's controller behavior.\n\nLeave the streamed controllers exactly as vrlink presents them: no Galaxy XR identity, models or icons, no official input profile or pose components, no grip convention, no offsets. Kalman is not part of the bypass; use Controller Fix Mode to turn it off. For A/B tests against stock, or if you only want the image processing. Identity and input profile changes take effect after a SteamVR restart.",
                 reset: { can: !!gx.controllerBypass, on: () => { gx.controllerBypass = false; save(); } },
               }),
@@ -373,13 +373,13 @@ export class DriverSettingsPage extends BasePage {
                     on: () => galaxy.resetControllers('positionOffsetCm'),
                   },
                 }),
-                fieldRow(t('Mirror Offsets For Right Hand'), html`<app-switch .checked=${!!cs.mirrorOffsetsForRightHand} @change=${(e: CustomEvent) => { cs.mirrorOffsetsForRightHand = e.detail; save(); }}></app-switch>`, {
+                settingFieldRow('controllers.mirrorOffsetsForRightHand', html`<app-switch .checked=${!!cs.mirrorOffsetsForRightHand} @change=${(e: CustomEvent) => { cs.mirrorOffsetsForRightHand = e.detail; save(); }}></app-switch>`, {
                   tip: "Apply one controller alignment to both hands with left/right mirroring. Turn this off to tune each hand independently.\n\nAuthor the offsets above for the LEFT controller and mirror them for the right hand. Position X and rotations Y/Z flip sign. Pitch and position Y/Z stay the same. Turn it off if the hands need different corrections.",
                 }),
               );
               if (!cs.mirrorOffsetsForRightHand && cs.left && cs.right) {
                 body.push(
-                  noteRow(t('Per-hand trims are added on top of the shared offsets above, unmirrored. Turn Mirror Offsets on to hide them and drive both hands from one set.')),
+                  noteRow(t('Per-hand trims add to the shared offsets. Enable Mirror Offsets to use one set for both hands.')),
                   fieldRow(t('Left Hand Rotation Offset (deg)'), html`
                     <span>X</span><app-number .value=${cs.left!.rotationOffsetDeg.x} step="1" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { cs.left!.rotationOffsetDeg.x = e.detail; save(); } }}></app-number>
                     <span>Y</span><app-number .value=${cs.left!.rotationOffsetDeg.y} step="1" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { cs.left!.rotationOffsetDeg.y = e.detail; save(); } }}></app-number>

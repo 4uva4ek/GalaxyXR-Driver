@@ -6,7 +6,6 @@
 // through SystemDiagnosticService.updateSteamVRSettings, i.e. the native
 // settings journal on Galaxy builds.
 import { html, LitElement } from 'lit';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
 import { interactiveStyles } from '../ui/shared-styles';
@@ -14,24 +13,13 @@ import { signal } from '../reactive';
 import { BasePage } from './page-base';
 import { galaxyXRDriverName, vendor } from '../environment';
 import { t } from '../locale/i18n';
+import { statusMessage } from '../ui/presentation';
 
 @customElement('app-driver-enable-banner')
 export class DriverEnableBanner extends BasePage {
   static styles = css`
     ${interactiveStyles}
     :host { display: block; }
-    .driver-banner {
-      background: var(--colorPaletteYellowBackground1);
-      border: 1px solid var(--colorPaletteYellowBorder2);
-      color: var(--colorNeutralForeground1);
-      border-radius: 6px;
-      padding: 8px 14px;
-      margin: 8px 0;
-    }
-    .driver-banner-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0; flex-wrap: wrap; }
-    .warn { color: var(--colorPaletteDarkOrangeForeground1); }
-    .note { opacity: 0.85; font-size: 0.9rem; }
-    button { height: 2rem; }
   `;
 
   readonly isVendor = !!vendor;
@@ -62,28 +50,20 @@ export class DriverEnableBanner extends BasePage {
     const sds = this.ctx.sds;
     const settings = sds.steamVrConfig();
     if (!settings) return sds.steamVRsettingsError()
-      ? html`<div class="driver-banner" role="status">${t('Driver enablement is unknown. Run the installation and settings check on the Setup page.')} ${sds.steamVRsettingsError()}</div>`
+      ? statusMessage('warning', t('Driver status is unknown'), t('Use Check Settings on Setup to try again.'),
+        html`<a href="#/setup">${t('Open Setup')}</a>`)
       : html``;
     const neutral = this.isVendor && sds.getNeutralDriverEnabled(settings);
     const blocked = sds.isDriverBlocked(settings, galaxyXRDriverName);
     if (sds.getSteamVRDriverEnableState(settings, galaxyXRDriverName) && !neutral) return html``;
-    return html`<div class="driver-banner">
-      <div class="driver-banner-row">
-        <span class="warn">⚠</span>
+    return statusMessage('warning', neutral ? t('Another driver is active') : t('This driver is disabled'),
+      neutral ? t('Switch from CustomHeadsetOpenVR to apply these settings, then restart SteamVR. You can switch back from its app.')
+        : t('Enable this driver and restart SteamVR to apply your settings.'), html`
         ${neutral
-          ? html`<span>${unsafeHTML(t('The stock CustomHeadsetOpenVR driver currently has the headset.'))} ${unsafeHTML(t('Both drivers are installed, and SteamVR only lets one of them run. Nothing on this page takes effect until you switch.'))}</span>`
-          : this.isVendor
-            ? html`<span>${unsafeHTML(t('The Galaxy XR driver is disabled in SteamVR.'))} ${unsafeHTML(t('Nothing on this page takes effect until it is enabled.'))}</span>`
-            : html`<span>${t("Galaxy XR Companion's driver is disabled")}</span>`}
-      </div>
-      <div class="driver-banner-row">
-        ${neutral
-          ? html`<button type="button" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} class="primary" @click=${() => this.enableDriver()}>${t('Switch to the Galaxy XR driver')}</button>
-            <span class="note">${t('Disables CustomHeadsetOpenVR and enables this driver. Restart SteamVR afterwards. You can switch back from the other GUI at any time.')}</span>`
-          : html`<button type="button" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} class="primary" @click=${() => this.enableDriver()}>${t('Enable')}</button>`}
-        ${blocked ? html`<button type="button" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} @click=${() => this.unblockAllDrivers()}>${t('Unblock All')}</button>` : html``}
-      </div>
-    </div>`;
+          ? html`<fluent-button appearance="primary" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} @click=${() => this.enableDriver()}>${t('Switch to the Galaxy XR driver')}</fluent-button>`
+          : html`<fluent-button appearance="primary" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} @click=${() => this.enableDriver()}>${t('Enable')}</fluent-button>`}
+        ${blocked ? html`<fluent-button appearance="outline" ?disabled=${this.busy || sds.installingDriver() || this.ctx.checks.checking()} @click=${() => this.unblockAllDrivers()}>${t('Unblock All')}</fluent-button>` : html``}
+      `);
   }
 }
 

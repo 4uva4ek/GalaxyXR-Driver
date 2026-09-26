@@ -217,21 +217,11 @@ export class GalaxySettingsBase {
           rawSf.streamFrameSchema = 4;
           queueMicrotask(() => this.save());
         }
-        // NVENC settings v3 (2026-09-05): one measured configuration replaces
-        // the per-experiment values. mirrors ConfigLoader's migration: the
-        // v3 encoder defaults go over any pre-v3 file, spatial AQ is forced
-        // off (it serializes NVENC submission), floors/VUI cleared. Explicit
-        // toggle choices are preserved by the 2026-09-25 correction below.
+        // NVENC settings v3 (2026-09-05), preservation fix (2026-09-26):
+        // absent keys receive defaults through normal loading/fillDefaults.
+        // Direct upgrades retain supported scalar tuning and toggle choices;
+        // only the retired force10bit field and invalid tile widths migrate.
         if (rawSf && canMigrate && (rawSf.nvencSettingsVersion ?? 0) < 3) {
-          const d = defaultStreamFrame();
-          // 2026-09-25: preserve explicit toggle choices; absent keys still
-          // receive normal defaults. Mirror the native legacy-import fix.
-          for (const k of ['nvencVbvFrames', 'nvencLowDelayKfScale',
-            'nvencMaxBitrateHeadroomPct', 'nvencForceFps', 'nvencSplitMode',
-            'nvencPreset', 'nvencAqStrength', 'nvencMinQp', 'nvencMinQpIntra', 'nvencMaxQp', 'nvencVuiFullRange',
-            'nvencVuiMatrix', 'nvencVuiPrimaries', 'nvencVuiTransfer', 'nvencBitrateMbit', 'nvencBandwidthOverrideMbit']) {
-            (rawSf as any)[k] = (d as any)[k];
-          }
           rawSf.nvencSettingsVersion = 3;
           const g = this.rootSetting.galaxyXr as any;
           if (g) {

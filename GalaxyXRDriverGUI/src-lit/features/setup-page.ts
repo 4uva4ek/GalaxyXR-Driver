@@ -1,35 +1,45 @@
-// Headset installation, runtime verification, and cleanup (2026-09-22).
-// Always available, including before installation and after uninstall. These
-// thin views retain the existing safe service actions and mounted-only polling.
+// Setup, read-back checks, and maintenance (2026-09-26).
 import { html, nothing, type TemplateResult, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
-import { BasePage, fieldRow, noteRow, sectionHeading, fieldStyles } from './page-base';
+import { BasePage, fieldRow, sectionHeading, fieldStyles } from './page-base';
+import { pageIntro, statusIcon, statusMessage } from '../ui/presentation';
 import { t } from '../locale/i18n';
 import { galaxyXRDriverName } from '../environment';
 import '../ui/controls';
 import './system-ready';
 import './driver-banner';
 
-// Keep the existing locale-specific inline version placeholder intact.
 const INSTALL_KEY = 'Install <x id="INTERPOLATION" equiv-text="{{updateInfo.currentVersion}}"/>';
 
 @customElement('app-setup-page')
 export class SetupPage extends BasePage {
   static styles = [fieldStyles, css`
-    :host { display: block; padding: 0 1rem 2rem 1rem; }
-    .setup-content h3 { margin: 14px 0 6px; font-size: 1rem; }
-    .setup-content p { margin: 8px 0; overflow-wrap: anywhere; }
-    .complete { color: var(--colorPaletteGreenForeground1); }
-    .required, .check-warning { color: var(--colorPaletteDarkOrangeForeground1); }
-    .setup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-    .check-result, .check-details { margin: 12px 0; padding: 12px 16px; border: 1px solid var(--colorNeutralStroke2); border-radius: 6px; background: var(--colorNeutralBackground1); }
-    .check-result p { margin: 6px 0; overflow-wrap: anywhere; }
-    .check-error { color: var(--colorPaletteRedForeground1); overflow-wrap: anywhere; }
-    .check-table-scroll { overflow: auto; max-height: 26rem; }
-    summary { cursor: pointer; padding: 4px 0; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.9em; }
-    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--colorNeutralStroke2); }
-    th { position: sticky; top: 0; background: var(--colorNeutralBackground2); }
+    :host { display: block; padding: 0 1rem 2rem; }
+    .step-grid, .maintenance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .step-card, .action-card { border: 1px solid var(--colorNeutralStroke2); border-radius: 8px; padding: 20px; background: var(--colorNeutralBackground1); min-width: 0; }
+    .step-card h3, .action-card h3 { margin: 0; font-size: 16px; }
+    .step-card p, .action-card p { color: var(--colorNeutralForeground2); line-height: 1.5; }
+    .step-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+    .setup-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+    .check-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .check-toolbar p { margin: 4px 0; color: var(--colorNeutralForeground2); }
+    .check-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+    .secondary { color: var(--colorNeutralForeground2); font-size: 13px; }
+    .check-table-scroll { overflow: auto; max-height: 32rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--colorNeutralStroke2); vertical-align: top; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--colorNeutralBackground2); font-weight: 600; }
+    .location { min-width: 15rem; line-height: 1.7; }
+    .location span { color: var(--colorNeutralForeground2); }
+    .location .leaf { color: var(--colorNeutralForeground1); font-weight: 600; }
+    .location .separator { padding: 0 6px; }
+    .location small { display: block; color: var(--colorNeutralForeground2); }
+    .technical { overflow-wrap: anywhere; white-space: pre-wrap; }
+    .check-details { margin-top: 12px; }
+    .action-card.danger-zone { border-color: var(--colorPaletteRedBorder1, var(--colorNeutralStroke2)); }
+    .action-card h3 { display: flex; align-items: center; gap: 8px; }
+    .action-card .status-icon { width: 20px; height: 20px; }
+    @media (max-width: 850px) { .step-grid, .maintenance-grid { grid-template-columns: 1fr; } }
   `];
 
   private async checkSettings(): Promise<void> {
@@ -46,72 +56,99 @@ export class SetupPage extends BasePage {
     const status = startup.status();
     const config = sds.steamVrConfig();
     const enabled = config ? sds.getSteamVRDriverEnableState(config, galaxyXRDriverName) : undefined;
-    // Verification latch (2026-09-23): once SteamVR has confirmed the driver
-    // initialized, the check stays verified until the next install or
-    // uninstall clears the flag — closing SteamVR or restarting the app must
-    // not force a re-verification.
     const verified = this.ctx.appSetting.values()?.driverVerified === true;
     const initialized = installed && enabled !== false && (verified || status?.driverInitialized === true);
     const installLabel = !installed ? t('Install Driver') : updateInfo?.installAvailable
-      ? this.installText(updateInfo.currentVersion) : t('Re-Install Driver');
-    return html`<div class="setup-content">
-      <h3 class=${installed ? 'complete' : 'required'}>${installed ? '✓' : '1.'} ${t('Install the driver')}</h3>
-      <p>${installed ? t('Driver files are installed. The next step verifies that SteamVR can actually run them.')
-        : t('Install from this page to make the driver settings tabs available. You can use Clean Settings below before installing.')}</p>
-      <p><strong>${t('Installed Driver Version')}:</strong> ${version ?? (sds.driverState() === 'unknown'
-        ? t('Unable to verify installation') : sds.driverState() === 'checking' ? t('Checking…') : t('Not installed'))}</p>
-      ${sds.driverCheckError() ? html`<p class="check-error" role="alert">${sds.driverCheckError()}</p>` : nothing}
-      <div class="setup-actions">
-        <button class="primary" type="button" ?disabled=${busy} @click=${() => this.installDriver()}>${installLabel}</button>
-        ${!installed ? html`<button type="button" ?disabled=${busy}
-          @click=${() => this.checkSettings()}>${t('Check installation')}</button>` : nothing}
+      ? this.installText(updateInfo.currentVersion) : t('Reinstall driver');
+    return html`
+      <div class="step-grid">
+        <article class="step-card">
+          <div class="step-heading"><h3>${t('1. Install the driver')}</h3>
+            <fluent-badge appearance="tint" color=${installed ? 'success' : 'informative'}>
+              ${installed ? t('Installed') : sds.driverState() === 'checking' ? t('Checking…') : sds.driverState() === 'unknown' ? t('Unknown') : t('Not installed')}
+            </fluent-badge>
+          </div>
+          <p>${installed ? t('Updates keep your saved settings.') : t('Install the driver to unlock headset and image settings.')}</p>
+          <p><strong>${t('Installed Driver Version')}:</strong> ${version ?? '—'}</p>
+          ${sds.driverCheckError() ? statusMessage('error', t('Installation could not be verified'), t('Check the installation again to retry.')) : nothing}
+          <div class="setup-actions">
+            <fluent-button appearance="primary" ?disabled=${busy} @click=${() => this.installDriver()}>${installLabel}</fluent-button>
+            <fluent-button ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check installation')}</fluent-button>
+          </div>
+        </article>
+        <article class="step-card">
+          <div class="step-heading"><h3>${t('2. Connect and verify')}</h3>
+            <fluent-badge appearance="tint" color=${initialized ? 'success' : 'informative'}>
+              ${initialized ? t('Verified') : t('Not verified')}
+            </fluent-badge>
+          </div>
+          <p>${t('Start SteamVR, then connect your headset through Steam Link.')}</p>
+          ${statusMessage(initialized ? 'success' : 'info',
+            !installed ? t('Install the driver first.') : initialized ? t('Driver initialization verified in SteamVR.')
+              : status?.steamvrRunning ? t('Waiting for driver initialization') : t('Start SteamVR to continue'),
+            initialized && status?.steamvrRunning === false ? t('Previously verified. SteamVR is not running.')
+              : initialized && !status ? t('Previously verified. Current SteamVR status is unknown.')
+              : installed && status ? t(status.detail) : undefined)}
+          ${startup.error() ? statusMessage('error', t('SteamVR could not start'), startup.error()) : nothing}
+          ${installed ? html`<div class="setup-actions">
+            <fluent-button appearance="primary" ?disabled=${busy || enabled === false || !!status?.steamvrRunning}
+              @click=${() => startup.start()}>${startup.launching() ? t('Starting SteamVR…') : t('Start SteamVR')}</fluent-button>
+            <fluent-button ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check driver now')}</fluent-button>
+          </div>` : nothing}
+        </article>
       </div>
-      <h3 class=${initialized ? 'complete' : 'required'}>${initialized ? '✓' : '2.'} ${t('Start SteamVR and verify the driver')}</h3>
-      <p>${t('Starting SteamVR initializes the driver and its runtime settings. Connect your Galaxy XR through Steam Link, then wait here for initialization to be confirmed. Having the driver files installed is not enough.')}</p>
-      <div role="status" aria-live="polite" class=${initialized ? 'complete' : 'required'}>
-        <strong>${!installed ? t('Install the driver first.') : initialized ? t('Driver initialization verified in SteamVR.')
-          : status?.steamvrRunning ? t('SteamVR is open — driver verification is not complete.') : t('Required next step: Start SteamVR.')}</strong>
-        ${installed && status ? html`<p>${t(status.detail)}</p>` : nothing}
-      </div>
-      ${startup.error() ? html`<p class="check-error" role="alert">${startup.error()}</p>` : nothing}
-      ${installed && enabled === false ? html`<p class="required">${t('This driver is disabled or blocked in SteamVR. Close SteamVR and enable the driver below before starting it again.')}</p>` : nothing}
-      ${installed ? html`<div class="setup-actions">
-        <button class="primary" type="button" ?disabled=${busy || enabled === false || !!status?.steamvrRunning}
-          @click=${() => startup.start()}>${startup.launching() ? t('Starting SteamVR…') : t('Start SteamVR')}</button>
-        <button type="button" ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check driver now')}</button>
-      </div><p class="note">${t('If SteamVR is already open after an install or reset, close it completely and start it again. When initialization is verified, check the picture and controller tracking in the headset; this app cannot verify those visually for you.')}</p>` : nothing}
-      ${fieldRow(t('Restart Compositor'), html`<button type="button" ?disabled=${busy || !installed}
-        @click=${() => sds.restartCompositor()}>${t('Restart Compositor')}</button>`, {
-        tip: t("Restart SteamVR's display process to try to fix display problems without closing the game. Your headset view may briefly disappear; save anything important first.\n\nRestarting the compositor can fix some issues and allows changing various settings like refresh rate without restarting SteamVR or the game."),
-      })}
-      <p class="note"><strong>${t('Last reported driver version (not live verification)')}:</strong>
-        ${dis.values()?.driverVersion ?? t('No runtime information')}
-        ${sds.driverVersionMismatch() ? html`<span class="required" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
-      </p>
+      ${installed ? html`<p class="secondary">${t('After verification, check the picture and controller tracking in your headset.')}</p>` : nothing}
       ${!sds.steamVRinstalled() || (installed && (!sds.systemReady() || enabled === false))
         ? html`<app-driver-troubleshooter .ctx=${this.ctx}></app-driver-troubleshooter>` : nothing}
       ${installed ? html`<app-driver-enable-banner .ctx=${this.ctx}></app-driver-enable-banner>` : nothing}
-    </div>`;
+      <fluent-accordion class="check-details"><fluent-accordion-item>
+        <span slot="heading">${t('Runtime tools and details')}</span>
+        ${fieldRow(t('Restart Compositor'), html`<fluent-button ?disabled=${busy || !installed}
+          @click=${() => sds.restartCompositor()}>${t('Restart Compositor')}</fluent-button>`, {
+          tip: t("Restart SteamVR's display process to try to fix display problems without closing the game. Your headset view may briefly disappear; save anything important first.\n\nRestarting the compositor can fix some issues and allows changing various settings like refresh rate without restarting SteamVR or the game."),
+        })}
+        <p class="secondary"><strong>${t('Last reported driver version (not live verification)')}:</strong> ${dis.values()?.driverVersion ?? t('No runtime information')}</p>
+        ${sds.driverVersionMismatch() ? statusMessage('warning', t('Version mismatch'), t('Restart SteamVR to load the installed driver version.')) : nothing}
+        ${sds.driverCheckError() ? html`<p class="technical">${sds.driverCheckError()}</p>` : nothing}
+      </fluent-accordion-item></fluent-accordion>`;
   }
 
   private renderSettingsCheck(): TemplateResult {
     const report = this.ctx.checks.report();
     const busy = this.ctx.checks.checking() || this.ctx.sds.installingDriver() || this.ctx.startup.launching();
+    const originLabels = { stored: 'Saved value', default: 'Default value', mixed: 'Saved and default values', unknown: 'Unknown' } as const;
     return html`
-      <div class="setup-actions">
-        <button class="btn primary" type="button" ?disabled=${busy} @click=${() => this.checkSettings()}>
-          ${this.ctx.checks.checking() ? t('Checking…') : t('Check installation')}
-        </button></div>
-      <div class="field"><div class="note">${t('Reads the configuration files again and synchronizes every setting toggle, including hidden advanced controls. It does not reset settings or restart SteamVR. Missing keys use their defaults; unreadable files are reported as unknown.')}</div></div>
+      <div class="check-toolbar">
+        <div><p>${t('Read back saved settings and locate each control.')}</p>
+          <p class="secondary">${t('Restart-required settings may not be active in the headset yet.')}</p></div>
+        <fluent-button appearance="primary" ?disabled=${busy} @click=${() => this.checkSettings()}>
+          ${this.ctx.checks.checking() ? html`<fluent-spinner slot="start" size="tiny"></fluent-spinner>` : nothing}
+          ${this.ctx.checks.checking() ? t('Checking…') : t('Check settings')}
+        </fluent-button>
+      </div>
       ${report ? html`
-        <div class="check-result" role="status" aria-live="polite">
-          <p>${t('Last check')}: ${new Date(report.checkedAt).toLocaleString()} · ${report.checks.length} ${t('boolean settings checked')}</p>
-          <p>${t('Driver enabled in SteamVR')}: ${report.driverEnabled === undefined ? t('Unknown') : report.driverEnabled ? t('On') : t('Off')}</p>
-          ${report.errors.map(error => html`<p class="check-error">${error}</p>`)}
-          ${report.warnings.map(warning => html`<p class="check-warning">${warning}</p>`)}
-          <p class="note">${t('This verifies saved configuration, not live hardware behavior. Changes that require a SteamVR restart may not be active yet. Runtime telemetry is the last reported state, not proof that SteamVR is currently running.')}</p>
+        <div class="check-summary" role="status" aria-live="polite">
+          <fluent-badge appearance="tint" color=${report.errors.length ? 'warning' : 'informative'}>${report.errors.length ? t('Needs attention') : t('Check complete')}</fluent-badge>
+          <span class="secondary">${t('Last check')}: ${new Date(report.checkedAt).toLocaleString()}</span>
+          <span class="secondary">${t('Driver enabled in SteamVR')}: ${report.driverEnabled === undefined ? t('Unknown') : report.driverEnabled ? t('On') : t('Off')}</span>
         </div>
-        <details class="check-details"><summary>${t('Show all checked settings')}</summary>
+        ${report.errors.length || report.warnings.length ? statusMessage('warning', t('Some checks need attention'), t('Open Technical details to review unreadable settings and other notices.')) : nothing}
+        <div class="check-table-scroll"><table>
+          <thead><tr><th>${t('Location')}</th><th>${t('Saved state')}</th><th>${t('Value source')}</th><th>${t('Action')}</th></tr></thead>
+          <tbody>${(report.settings ?? []).map(setting => html`<tr>
+            <td class="location">${setting.location.map((part, index) => html`${index ? html`<span class="separator" aria-hidden="true">→</span>` : nothing}<span class=${index === setting.location.length - 1 ? 'leaf' : ''}>${t(part)}</span>`)}
+              ${setting.unavailableReason ? html`<small>${t(setting.unavailableReason)}</small>` : nothing}
+            </td>
+            <td><fluent-badge appearance="outline" color="informative">${t(setting.state)}</fluent-badge></td>
+            <td>${t(originLabels[setting.origin])}</td>
+            <td>${setting.unavailableReason ? html`<span class="secondary">${t('Unavailable')}</span>` : html`<a href=${setting.href}>${t('Show setting')}</a>`}</td>
+          </tr>`)}</tbody>
+        </table></div>
+        <fluent-accordion class="check-details"><fluent-accordion-item>
+          <span slot="heading">${t('Technical details')}</span>
+          <p class="secondary">${report.checks.length} ${t('boolean settings checked')}. ${t('Saved configuration does not verify live hardware behavior.')}</p>
+          ${report.errors.map(error => html`<p class="technical">${error}</p>`)}
+          ${report.warnings.map(warning => html`<p class="technical">${warning}</p>`)}
           <div class="check-table-scroll"><table>
             <thead><tr><th>${t('File')}</th><th>${t('Setting')}</th><th>${t('State')}</th><th>${t('Value source')}</th></tr></thead>
             <tbody>${report.checks.map(check => html`<tr>
@@ -120,13 +157,13 @@ export class SetupPage extends BasePage {
               <td>${check.origin === 'stored' ? t('Saved value') : t('Default value')}</td>
             </tr>`)}</tbody>
           </table></div>
-        </details>
+        </fluent-accordion-item></fluent-accordion>
       ` : nothing}`;
   }
+
   private runtimeUnsubs: Array<() => void> = [];
   private runtimeTimer?: ReturnType<typeof setTimeout>;
   private pollGeneration = 0;
-
   private async pollRuntime(generation: number): Promise<void> {
     if (!this.isConnected || generation !== this.pollGeneration) return;
     if (document.visibilityState !== 'hidden') await this.ctx.startup.refresh();
@@ -134,7 +171,6 @@ export class SetupPage extends BasePage {
       this.runtimeTimer = setTimeout(() => { void this.pollRuntime(generation); }, 2000);
     }
   }
-
   connectedCallback(): void {
     super.connectedCallback();
     this.runtimeUnsubs = [
@@ -144,25 +180,16 @@ export class SetupPage extends BasePage {
     ];
     void this.pollRuntime(++this.pollGeneration);
   }
-
-  /** Persist the verification latch when SteamVR confirms driver
-   * initialization (2026-09-23). Fires from every refresh path that ends in
-   * a status change: Start SteamVR, Check driver now, and the 2s poll. */
   private rememberVerified(): void {
-    if (this.ctx.startup.status()?.driverInitialized !== true) return;
-    const appSetting = this.ctx.appSetting;
-    if (appSetting.values()?.driverVerified === true) return;
-    void appSetting.save({ ...appSetting.values(), driverVerified: true });
+    if (this.ctx.sds.installingDriver() || !this.ctx.sds.driverInstalled()
+        || this.ctx.startup.status()?.driverInitialized !== true) return;
+    const app = this.ctx.appSetting;
+    if (app.values()?.driverVerified !== true) void app.save({ ...app.values(), driverVerified: true });
   }
-
-  /** Clear the latch: a fresh install or an uninstall must be re-verified in
-   * SteamVR (2026-09-23). No-op when already cleared. */
   private async resetVerified(): Promise<void> {
-    const appSetting = this.ctx.appSetting;
-    if (appSetting.values()?.driverVerified !== true) return;
-    await appSetting.save({ ...appSetting.values(), driverVerified: false });
+    const app = this.ctx.appSetting;
+    if (app.values()?.driverVerified === true) await app.save({ ...app.values(), driverVerified: false });
   }
-
   disconnectedCallback(): void {
     ++this.pollGeneration;
     if (this.runtimeTimer !== undefined) clearTimeout(this.runtimeTimer);
@@ -170,20 +197,15 @@ export class SetupPage extends BasePage {
     this.runtimeUnsubs = [];
     super.disconnectedCallback();
   }
-
-  private installText(version: string): string {
-    return t(INSTALL_KEY).replace(/<x[^>]*>/g, version);
-  }
-
+  private installText(version: string): string { return t(INSTALL_KEY).replace(/<x[^>]*>/g, version); }
   private async installDriver(): Promise<void> {
     if (await this.ctx.sds.installDriver()) {
       this.ctx.startup.invalidate();
       this.ctx.checks.clear();
-      await this.resetVerified(); // new install needs a fresh SteamVR verification (2026-09-23)
-      await this.ctx.dialog.message(t('Driver files installed'), t('Next, use Start SteamVR on Setup and connect your headset through Steam Link. Wait for Driver initialization verified in SteamVR before considering setup complete.'));
+      await this.resetVerified();
+      await this.ctx.dialog.message(t('Driver files installed'), t('Start SteamVR and connect your headset through Steam Link to verify the driver.'));
     }
   }
-
   private async cleanSettings(): Promise<void> {
     await this.ctx.startup.refresh();
     if (this.ctx.startup.status()?.steamvrRunning !== false) return;
@@ -191,33 +213,32 @@ export class SetupPage extends BasePage {
     if (!report) return;
     this.ctx.startup.invalidate();
     this.ctx.checks.clear();
-    await this.resetVerified();
     await this.ctx.checks.refresh();
-    const details = `${report.resetFiles.length} files reset or refreshed. ${report.restoredSettings} recorded SteamVR settings restored. ${report.removedIdentityKeys.length} older identity settings removed.`;
-    await this.ctx.dialog.message(t('Settings cleaned'), details
-      + `\nRecovery backup: ${report.backupPath}`
-      + '\nSaved profile files, installed drivers, bindings and room setup were kept. Active profile selections and adjustments were reset.'
-      + '\n' + t('After installation, start SteamVR from Setup to initialize and verify the driver again.')
-      + (report.warnings.length ? `\n\n${report.warnings.join('\n')}` : ''));
+    const needsAttention = report.outcome !== 'complete';
+    await this.ctx.dialog.message(needsAttention ? t('Defaults restored with notices') : t('Defaults restored'),
+      t('Driver tuning and app preferences were reset. The installed driver, saved profiles, and backups were kept. Start SteamVR to apply driver defaults.'),
+      [t('Recovery backup') + ': ' + report.backupPath,
+        t('Files reset') + ': ' + report.resetFiles.length,
+        t('SteamVR settings restored') + ': ' + report.restoredSettings,
+        ...(report.unresolvedItems ?? []), ...report.warnings].join('\n'));
   }
-
   private async uninstallDriver(): Promise<void> {
     await this.ctx.startup.refresh();
     if (this.ctx.startup.status()?.steamvrRunning !== false) return;
-    // A successful uninstall leaves settings writes suspended, so the latch
-    // must be cleared BEFORE it runs; a save afterwards would be rejected
-    // (2026-09-23). gui-settings.json survives uninstall, so this sticks.
-    await this.resetVerified();
-    if (await this.ctx.sds.uninstallDriver()) {
+    // Confirmation and cancellation must precede all settings writes.
+    if (await this.ctx.sds.uninstallDriver(this.ctx.appSetting)) {
       this.ctx.startup.invalidate();
       this.ctx.checks.clear();
       const report = this.ctx.sds.lastUninstallReport;
-      const details = report
-        ? `${report.removedPaths.length} locations removed. ${report.restoredSettings} SteamVR settings restored.`
-          + (report.legacyReset ? '\nOlder settings without an original-value record were reset; exact historical values were unavailable.' : '')
-          + (report.warnings.length ? `\n${report.warnings.join('\n')}` : '')
-        : t('Successfully uninstalled the driver');
-      this.ctx.dialog.message(t('Uninstall complete'), details);
+      const incomplete = report?.outcome === 'incomplete';
+      await this.ctx.dialog.message(incomplete ? t('Uninstall needs another step')
+        : report?.outcome === 'attention-required' ? t('Driver removed with notices') : t('Uninstall complete'),
+        incomplete ? t('Some items could not be removed. Recovery information was kept. Review Details, resolve the problem, and retry uninstall.')
+          : t('The driver and active settings were removed. Saved profiles and backups were kept. Your next installation will start with defaults.'),
+        report ? [t('Locations removed') + ': ' + report.removedPaths.length,
+          t('SteamVR settings restored') + ': ' + report.restoredSettings,
+          ...((report.preservedPaths ?? []).length ? [t('Kept locations') + ':', ...report.preservedPaths] : []),
+          ...(report.unresolvedItems ?? []), ...report.warnings].join('\n') : undefined);
     }
   }
 
@@ -225,26 +246,32 @@ export class SetupPage extends BasePage {
     const { sds, checks, startup } = this.ctx;
     const busy = sds.installingDriver() || checks.checking() || startup.launching();
     const cleanupBlocked = busy || startup.status()?.steamvrRunning !== false;
-    return this.sectionCardsFor([
-      sectionHeading(t('Galaxy XR Companion')),
-      noteRow(t('A standalone SteamVR vendor driver for the Samsung Galaxy XR over Steam Link. It gives the headset and its controllers their native identity, models and bindings in SteamVR, corrects controller tracking and throw velocity, and adds the ability to process the streamed image (color, sharpening, distortion correction) before it is encoded.')),
-      sectionHeading(t('Set up your headset')),
-      this.renderSetup(),
-      sectionHeading(t('Installation and settings check')),
-      this.renderSettingsCheck(),
-      sectionHeading(t('Cleanup')),
-      fieldRow(t('Settings'), html`<button type="button" ?disabled=${cleanupBlocked}
-        @click=${() => this.cleanSettings()}>${t('Clean Settings')}</button>`),
-      noteRow(t('Close SteamVR first. Resets the driver settings of the Driver Settings, Image Settings and Distortion Profile tabs to defaults and cleans recognized old identity settings, including the Quest Pro and PICO 4 Pro profiles used by patched Steam Link. App preferences, such as the color scheme, are kept. Recorded SteamVR overrides are restored safely; unrelated SteamVR preferences, room setup, bindings, driver enable/block choices and saved profile files are kept. A recovery backup is made first. Available even before installing the driver.')),
-      noteRow(t('Clean Settings leaves NVENC Tap and encoder overrides off for stock NVIDIA encoding. Other driver settings return to their defaults. Enable NVENC Tap and reset the encoder controls to use the installation defaults again.')),
-      ...(startup.status()?.steamvrRunning !== false ? [noteRow(startup.status()?.steamvrRunning
-        ? t('SteamVR is running. Close it completely before cleaning settings or uninstalling the driver.')
-        : t('Cleanup is unavailable until SteamVR is confirmed stopped. Use Check installation to retry.'))] : []),
-      ...(sds.driverInstalled() ? [
-        fieldRow(t('Driver'), html`<button type="button" ?disabled=${cleanupBlocked}
-          @click=${() => this.uninstallDriver()}>${t('Uninstall Driver')}</button>`),
-        noteRow(t('Uninstall the driver and restore recorded SteamVR settings. Close SteamVR first.')),
-      ] : []),
-    ]);
+    return html`${pageIntro(t('Setup'), t('Set up Galaxy XR for SteamVR, tune tracking, and adjust the streamed image.'))}
+      ${this.sectionCardsFor([
+        sectionHeading(t('Set up your headset')),
+        this.renderSetup(),
+        sectionHeading(t('Settings check')),
+        this.renderSettingsCheck(),
+        sectionHeading(t('Restore or remove')),
+        ...(startup.status()?.steamvrRunning !== false ? [
+          statusMessage('info', t('Close SteamVR first'), startup.status()?.steamvrRunning
+            ? t('Restore defaults and uninstall are available when SteamVR is closed.')
+            : t('Confirm that SteamVR is stopped before changing the installation.'),
+            html`<fluent-button ?disabled=${busy} @click=${() => this.checkSettings()}>${t('Check again')}</fluent-button>`),
+        ] : []),
+        html`<div class="maintenance-grid">
+          <article class="action-card">
+            <h3>${t('Restore defaults')}</h3>
+            <p>${t('Reset driver tuning and app preferences. Keep the installation, saved profiles, and backups.')}</p>
+            <fluent-button ?disabled=${cleanupBlocked} @click=${() => this.cleanSettings()}>${t('Restore defaults')}</fluent-button>
+          </article>
+          <article class="action-card danger-zone">
+            <h3>${statusIcon('warning')}${t('Uninstall driver')}</h3>
+            <p>${t('Remove the driver and active settings. Keep saved profiles and backups for later use.')}</p>
+            <fluent-button appearance="primary" class="danger" ?disabled=${cleanupBlocked}
+              @click=${() => this.uninstallDriver()}>${t('Uninstall driver')}</fluent-button>
+          </article>
+        </div>`,
+      ])}`;
   }
 }

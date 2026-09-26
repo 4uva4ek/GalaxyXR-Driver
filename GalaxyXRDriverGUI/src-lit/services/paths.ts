@@ -31,13 +31,16 @@ export class PathsService {
   public get diagnosticPath(): string {
     return this._diagnosticPath;
   }
-  async ensureAllDirCreated() {
+  async initialize() {
     this._appDataDirPath = await this.getDriverAppDirPath();
     this._distortionDirPath = await this.getDriverAppDirPath('Distortion');
     this._infoPath = await this.getDriverAppDirPath('info.json');
     this._guiSettingPath = await this.getDriverAppDirPath('gui-settings.json');
     this._settingPath = await this.getDriverAppDirPath('settings.json');
     this._diagnosticPath = await this.getDriverAppDirPath('diagnostic.json');
+  }
+  async ensureAllDirCreated() {
+    await this.initialize();
     if (!await exists(this.appDataDirPath)) {
       await mkdir(this.appDataDirPath, { recursive: true });
     }

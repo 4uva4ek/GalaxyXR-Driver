@@ -1,21 +1,23 @@
-// Dialog service, ported from src/app/services/dialog.service.ts + the
-// Angular Material confirm/message components. Same public API:
-//   confirm(title, message, yesText?, yesClass?): Promise<true | undefined>
-//     resolves `true` on Yes, `undefined` on Cancel/Escape
-//   message(title, message): Promise<void>
-//     resolves on Ok/Escape
-// Implemented with the native <dialog> element (focus trap, Escape ->
-// cancel, backdrop) styled with Fluent tokens; the pinned Fluent v3 dialog
-// wraps HTMLDialogElement internally anyway, so behavior is equivalent.
+// 2026-09-26: Fluent surfaces, with the existing Promise-based call contract.
+// Dialogs are serialized so a background error cannot strand a confirmation.
 import { t } from '../locale/i18n';
 
-interface Pending {
-  resolve: (value: unknown) => void;
+interface FluentDialog extends HTMLElement {
+  show(): void;
+  hide(): void;
+  dialog?: HTMLDialogElement;
+}
+interface Action { label: string; value: unknown; primary?: boolean; danger?: boolean; }
+
+function activeControl(): HTMLElement | null {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  return active instanceof HTMLElement ? active : null;
 }
 
 export class DialogService {
   private host: HTMLElement | null = null;
-  private pending: Pending | null = null;
+  private queue: Promise<unknown> = Promise.resolve();
 
   private ensureHost(): HTMLElement {
     if (this.host && document.body.contains(this.host)) return this.host;
@@ -26,66 +28,84 @@ export class DialogService {
     return host;
   }
 
-  private openDialog(title: string, message: string, actions: { label: string; value: unknown; primary?: boolean; danger?: boolean }[]): Promise<unknown> {
-    return new Promise<unknown>(resolve => {
-      const host = this.ensureHost();
-      const dialog = document.createElement('dialog');
+  private openDialog(title: string, message: string, actions: Action[], details?: string): Promise<unknown> {
+    const open = () => new Promise<unknown>(resolve => {
+      const previousFocus = activeControl();
+      const dialog = document.createElement('fluent-dialog') as FluentDialog;
       dialog.className = 'app-dialog';
-      const h2 = document.createElement('h2');
-      h2.textContent = title;
-      const p = document.createElement('p');
-      p.textContent = message;
-      p.className = 'app-dialog-message';
-      const actionsEl = document.createElement('div');
-      actionsEl.className = 'app-dialog-actions';
-      for (const action of actions) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = action.label;
-        if (action.primary) button.className = 'app-dialog-btn primary';
-        if (action.danger) button.className = 'app-dialog-btn danger';
-        if (!action.primary && !action.danger) button.className = 'app-dialog-btn';
-        button.addEventListener('click', () => this.finish(dialog, resolve, action.value));
-        actionsEl.appendChild(button);
+      dialog.setAttribute('aria-label', title);
+      dialog.setAttribute('type', actions.length > 1 ? 'alert' : 'modal');
+      const body = document.createElement('fluent-dialog-body');
+      const heading = document.createElement('h2');
+      heading.slot = 'title';
+      heading.textContent = title;
+      body.appendChild(heading);
+      const content = document.createElement('p');
+      content.textContent = message;
+      content.className = 'app-dialog-message';
+      if (actions.some(action => action.danger)) {
+        const warning = document.createElement('fluent-message-bar');
+        warning.setAttribute('intent', 'warning');
+        const icon = document.createElement('span');
+        icon.slot = 'icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '⚠';
+        warning.append(icon, content);
+        body.appendChild(warning);
+      } else body.appendChild(content);
+      if (details) {
+        const disclosure = document.createElement('details');
+        disclosure.className = 'app-dialog-details';
+        const summary = document.createElement('summary');
+        summary.textContent = t('Details');
+        const text = document.createElement('pre');
+        text.textContent = details;
+        disclosure.append(summary, text);
+        body.appendChild(disclosure);
       }
-      dialog.append(h2, p, actionsEl);
-      host.appendChild(dialog);
-      this.pending = { resolve };
-      dialog.showModal();
-      dialog.addEventListener('cancel', event => { event.preventDefault(); this.finish(dialog, resolve, undefined); });
-      dialog.addEventListener('close', () => {
-        if (this.pending) {
-          // closed without a button (e.g. external close): resolve like cancel
-          this.finish(dialog, resolve, undefined);
-        }
+      let finished = false;
+      const finish = (value?: unknown) => {
+        if (finished) return;
+        finished = true;
+        if (dialog.dialog?.open) dialog.hide();
+        dialog.remove();
+        if (previousFocus?.isConnected) previousFocus.focus();
+        resolve(value);
+      };
+      actions.forEach((action, index) => {
+        const button = document.createElement('fluent-button');
+        button.slot = 'action';
+        button.textContent = action.label;
+        button.setAttribute('type', 'button');
+        button.setAttribute('appearance', action.primary || action.danger ? 'primary' : 'secondary');
+        if (action.danger) button.className = 'danger';
+        // Fluent show() focuses this after its internal native dialog opens.
+        // First action is Cancel for confirmations and OK for messages.
+        if (index === 0) button.setAttribute('autofocus', '');
+        button.addEventListener('click', () => finish(action.value));
+        body.appendChild(button);
       });
-      // Messages focus OK; confirmations focus Cancel, not the destructive action.
-      ((actionsEl.querySelector('.primary') as HTMLElement | null) ?? (actionsEl.firstElementChild as HTMLElement | null))?.focus();
+      dialog.appendChild(body);
+      dialog.addEventListener('toggle', event => {
+        if ((event as CustomEvent<{ newState: string }>).detail?.newState === 'closed') finish();
+      });
+      this.ensureHost().appendChild(dialog);
+      dialog.show();
     });
-  }
-
-  private finish(dialog: HTMLDialogElement, resolve: (v: unknown) => void, value: unknown) {
-    if (this.pending && this.pending.resolve === resolve) {
-      this.pending = null;
-    }
-    resolve(value);
-    if (dialog.open) dialog.close();
-    dialog.remove();
+    const result = this.queue.then(open, open);
+    this.queue = result.catch(() => undefined);
+    return result;
   }
 
   async confirm(title: string, message: string, yesText?: string, yesClass?: string): Promise<true | undefined> {
-    const yes = yesText ?? t('Yes');
-    const danger = yesClass === 'danger';
     const result = await this.openDialog(title, message, [
       { label: t('Cancel'), value: undefined },
-      { label: yes, value: true, danger },
+      { label: yesText ?? t('Yes'), value: true, primary: yesClass === 'primary', danger: yesClass === 'danger' },
     ]);
     return result === true ? true : undefined;
   }
 
-  async message(title: string, message: string): Promise<void> {
-    await this.openDialog(title, message, [
-      { label: t('Ok'), value: undefined, primary: true },
-    ]);
+  async message(title: string, message: string, details?: string): Promise<void> {
+    await this.openDialog(title, message, [{ label: t('Ok'), value: undefined, primary: true }], details);
   }
 }

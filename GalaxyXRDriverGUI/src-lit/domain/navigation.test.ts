@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { ROUTES, driverAvailable, parseRoute, permittedRoute, visibleRoutes, type InstallationState } from './navigation';
+import { ROUTES, driverAvailable, parseRoute, parseSettingTarget, settingHref, permittedRoute, visibleRoutes, type InstallationState } from './navigation';
 
 describe('stable tab order and the always-visible Setup page', () => {
+  it('round-trips a stable setting target and still enforces installation routes', () => {
+    const hash = settingHref('stream-frame', 'streamFrame.nvencForceCbr');
+    expect(parseRoute(hash, true)).toBe('stream-frame');
+    expect(parseSettingTarget(hash)).toBe('streamFrame.nvencForceCbr');
+    expect(permittedRoute(parseRoute(hash, false), false)).toBe('setup');
+    expect(parseSettingTarget('#/stream-frame')).toBeUndefined();
+    expect(parseSettingTarget('#/stream-frame?setting=%22%3E')).toBeUndefined();
+  });
   it('keeps the canonical tab order', () => {
     expect([...ROUTES]).toEqual(['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings', 'setup', 'about']);
   });

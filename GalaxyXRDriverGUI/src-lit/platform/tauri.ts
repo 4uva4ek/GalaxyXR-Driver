@@ -9,7 +9,13 @@ import { steamVRSettingsDiff, type SteamVRSettingChange } from '../domain/steamv
 export { steamVRSettingsDiff };
 export type { SteamVRSettingChange };
 
-export interface DriverUninstallReport {
+export type MaintenanceOutcome = 'complete' | 'attention-required' | 'incomplete';
+export interface MaintenanceReport {
+    outcome: MaintenanceOutcome;
+    preservedPaths: string[];
+    unresolvedItems: string[];
+}
+export interface DriverUninstallReport extends MaintenanceReport {
     removedPaths: string[];
     restoredSettings: number;
     legacyReset: boolean;
@@ -30,8 +36,8 @@ export async function register_galaxyxr_driver(steamvrPath: string, driverPath: 
 export async function update_galaxyxr_steamvr_settings(steamvrPath: string, changes: SteamVRSettingChange[]) {
     return invoke('update_galaxyxr_steamvr_settings', { steamvrPath, changes });
 }
-export async function uninstall_galaxyxr_driver(steamvrPath: string): Promise<DriverUninstallReport> {
-    return invoke('uninstall_galaxyxr_driver', { steamvrPath });
+export async function uninstall_galaxyxr_driver(steamvrPath?: string): Promise<DriverUninstallReport> {
+    return invoke('uninstall_galaxyxr_driver', { steamvrPath: steamvrPath ?? null });
 }
 
 export async function get_executable_path() {
@@ -55,7 +61,7 @@ export async function run_process_sync(path: string, args: string[]): Promise<nu
     return await invoke('run_process_sync', { path, args }) as number;
 }
 
-export interface CleanSettingsReport {
+export interface CleanSettingsReport extends MaintenanceReport {
     backupPath: string;
     resetFiles: string[];
     restoredSettings: number;

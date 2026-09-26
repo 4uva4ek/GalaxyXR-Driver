@@ -1,6 +1,6 @@
 // A coalescing, awaitable writer. A settings check must wait for the last edit
 // to reach disk; otherwise it can read an older value and undo the user's edit.
-import { copyFile, remove, writeTextFile } from '@tauri-apps/plugin-fs';
+import { copyFile, exists, mkdir, remove, writeTextFile } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 
 export interface DebouncedFileWriter {
@@ -8,6 +8,7 @@ export interface DebouncedFileWriter {
   flush(): Promise<void>;
   isSavingFile(): boolean;
   cancelPending(): void;
+  allowCurrentSuspension(): void;
   dispose(): void;
 }
 interface Waiter { resolve(): void; reject(error: unknown): void; }
@@ -18,7 +19,7 @@ let generation = 0;
 const writers = new Set<DebouncedFileWriter>();
 
 export class FileWritesSuspendedError extends Error {
-  constructor() { super('Settings writes are suspended during installation changes'); }
+  constructor() { super('Settings writes are suspended. Finish the installation or cleanup, or reopen Companion before editing app preferences.'); }
 }
 export function resumeFileWrites(): void { suspended = false; }
 export async function flushFileWrites(): Promise<void> {
@@ -42,6 +43,8 @@ export function debouncedFileWriter(
   let active: Promise<void> | undefined;
   let lastError: unknown;
   let disposed = false;
+  let permittedGeneration = -1;
+  const blocked = () => disposed || (suspended && permittedGeneration !== generation);
 
   const clearTimer = () => { if (timer !== undefined) clearTimeout(timer); timer = undefined; };
   const pump = (): void => {
@@ -53,7 +56,10 @@ export function debouncedFileWriter(
       const filename = await path;
       if (!filename) throw new Error('The settings path is not initialized');
       await navigator.locks.request(`saving file_${filename}`, async () => {
-        if (suspended || disposed || batch.generation !== generation) throw new FileWritesSuspendedError();
+        if (blocked() || batch.generation !== generation) throw new FileWritesSuspendedError();
+        const directory = await tempFileDir;
+        if (!await exists(directory)) await mkdir(directory, { recursive: true });
+        if (blocked() || batch.generation !== generation) throw new FileWritesSuspendedError();
         if (directWrite?.()) {
           await writeTextFile(filename, batch.content);
         } else {
@@ -81,7 +87,7 @@ export function debouncedFileWriter(
 
   const writer: DebouncedFileWriter = {
     save(content) {
-      if (suspended || disposed) return Promise.reject(new FileWritesSuspendedError());
+      if (blocked()) return Promise.reject(new FileWritesSuspendedError());
       lastError = undefined;
       return new Promise<void>((resolve, reject) => {
         if (pending) { pending.content = content; pending.waiters.push({ resolve, reject }); }
@@ -103,6 +109,9 @@ export function debouncedFileWriter(
       for (const waiter of pending?.waiters ?? []) waiter.reject(new FileWritesSuspendedError());
       pending = undefined;
     },
+    // Only the app-preference store uses this after completed removal. A new
+    // maintenance suspension invalidates the grant; old batches stay cancelled.
+    allowCurrentSuspension() { permittedGeneration = generation; },
     dispose() { disposed = true; writer.cancelPending(); writers.delete(writer); },
   };
   writers.add(writer);

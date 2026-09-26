@@ -5,9 +5,11 @@
 // were verified against the pinned @fluentui/web-components package.
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
+import { ref } from 'lit/directives/ref.js';
 import { css } from 'lit';
-import { BasePage, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
+import { BasePage, settingFieldRow, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
+import { pageIntro, statusMessage } from '../ui/presentation';
 import '../ui/controls';
 import './driver-banner';
 import './system-ready';
@@ -17,65 +19,67 @@ import './curve-editor';
 export class DistortionProfilePage extends BasePage {
   static styles = [fieldStyles, css`
     :host { display: block; padding: 0 1rem 2rem 1rem; }
-    .calibration-banner { background: #4a3b00; border: 1px solid #a08500; color: #ffe97a; border-radius: 6px; padding: 8px 14px; margin: 8px 0; }
     .rgb-control { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
     .rgb-control span { opacity: 0.75; font-size: 90%; }
     .matrix-control { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-    .matrix-error { color: var(--colorPaletteRedForeground1, #b00020); font-size: 0.85rem; }
     .note-inline { opacity: 0.75; font-size: 0.9rem; }
     .curve-field { display: block; padding: 0.5rem 0; }
     .share-field { display: block; }
     .share-control { display: flex; flex-direction: column; gap: 0.5rem; }
     .share-buttons { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-    .share-status { font-size: 85%; opacity: 0.8; }
     textarea { background: var(--colorNeutralBackground2, #f4f4f4); border: 0.1rem solid var(--colorNeutralStroke1, #888); border-radius: 0.25rem; width: 100%; font-family: monospace; font-size: 0.8rem; padding: 0.5rem; resize: vertical; color: var(--colorNeutralForeground1, #202020); }
 
   `];
 
   private _fileInput: HTMLInputElement | null = null;
 
+  private calibrationGuide(): void {
+    void this.ctx.dialog.message(t('Calibration guide'), t('Start with small corrections and compare slow head turns. A curve value of 1.0 leaves the image unchanged; higher values pull content inward and lower values push it outward. Corrections are usually within one percent of 1.0.\n\nUse the calibration grid to inspect alignment, then turn calibration off before playing. Force Calibration Grid also enables the angular grid and warped overlays; World-Locked Grid remains independent.'));
+  }
+
+  private sharingGuide(): void {
+    void this.ctx.dialog.message(t('Import and export'), t('Export current copies the active curves, mode, and center offsets into the text box. Export .json saves them as a file.\n\nTo import, paste a profile and choose Import from text, or choose Import .json. Profiles saved by the in-headset tuner use the same format. Export your current profile first if you want to keep it.'));
+  }
+
   render() {
     const galaxy = this.ctx.galaxy;
     if (!galaxy.settings) return html``;
     const settings = galaxy.settings;
     const defaults = galaxy.defaults;
-    const advancedMode = galaxy.advancedMode;
+    const advancedMode = galaxy.advancedMode || this.revealAdvanced;
     const vendor = galaxy.vendor;
     const galaxyXr = galaxy.galaxyXr;
     const sections = galaxy.sections();
     const save = () => { galaxy.save(); this.requestUpdate(); };
-    const parts: TemplateResult[] = [];
+    const parts: TemplateResult[] = [pageIntro(t('Distortion Profile'), t('Lens correction and profile sharing.'))];
 if (settings) {
       parts.push(html`<app-driver-enable-banner .ctx=${this.ctx}></app-driver-enable-banner>`);
 if (galaxy.calibrationActive()) {
-if (galaxy.calibrationActive()) {
-          parts.push(html`<div class="calibration-banner">
-    Calibration modes are active. Turn them off before normal play, or use Advanced Mode to adjust them.
-    <button type="button" @click=${() => { galaxy.stopCalibration(); this.requestUpdate(); }}>Stop calibration</button>
-  </div>`);
-}
+          parts.push(statusMessage('warning', t('Calibration is active'), t('Stop calibration before playing.'),
+            html`<fluent-button appearance="outline" @click=${() => { galaxy.stopCalibration(); this.requestUpdate(); }}>${t('Stop calibration')}</fluent-button>`));
 }
 if (galaxy.imageEnhancementsEnabled) {
         parts.push(sectionRow(t('Distortion Correction'), sections['distortion'], 0, () => this.toggleSection('distortion')));
 if (sections.distortion) {
-          parts.push(noteRow(html`Compensates an imperfect distortion profile on the headset that shows up as rippling or swimming of the world during head rotation. The curve sets a radial scale per distance from the optical center: 1.0 leaves that ring untouched, above 1.0 pulls its content toward the center, below pushes it outward. Real corrections are usually within a percent of 1.0.`));
+          parts.push(noteRow(html`<div class="action-row"><span>${t('Reduce image rippling during head turns with small lens corrections.')}</span>
+            <fluent-button appearance="subtle" @click=${() => this.calibrationGuide()}>${t('Calibration guide')}</fluent-button></div>`));
           parts.push(fieldRow(t('Mode'), html`
       <app-select .value=${settings.distortion.mode} .options=${[{ value: 'k1k2', label: 'k1 / k2 polynomial' }, { value: 'spline', label: 'Spline control points' }]} @change=${(e: CustomEvent) => { settings.distortion.mode = e.detail; save(); }}></app-select>
           `, {
   tip: "Choose how finely you can adjust the lens correction. Start with the two-number curve; use a spline for more control over different parts of the image.\n\nk1/k2 is a simple two value polynomial curve. Spline gives per radius control points. Convert from k1/k2 keeps the current shape as a starting point."
           }));
-          parts.push(fieldRow(t('Per Eye Curves'), html`
+          parts.push(settingFieldRow('streamFrame.distortion.perEye', html`
       <app-switch .checked=${!!settings.distortion.perEye} @change=${(e: CustomEvent) => { settings.distortion.perEye = e.detail; save(); }}></app-switch>
           `, {
   tip: "Adjust the left and right eye separately when one shared correction does not suit both eyes. Your current curve is copied before you start.\n\nSeparate correction curves for the left and right eye. Existing curve is copied to both eyes as a starting point."
           }));
-          parts.push(fieldRow(t('Per Axis Curves'), html`
+          parts.push(settingFieldRow('streamFrame.distortion.perAxis', html`
       <app-switch .checked=${!!settings.distortion.perAxis} @change=${(e: CustomEvent) => { settings.distortion.perAxis = e.detail; save(); }}></app-switch>
           `, {
   tip: "Adjust horizontal and vertical lens correction separately. Start with a shared curve unless you have measured a difference between the two directions.\n\nSeparate horizontal and vertical curves blended around the ring, capturing elliptic error such as lens tilt. Existing curve is copied to both axes as a starting point."
           }));
 if (advancedMode) {
-            parts.push(fieldRow(t('Interactive Tuner (in-headset)'), html`
+            parts.push(settingFieldRow('streamFrame.distortion.tune.enable', html`
       <app-switch .checked=${!!settings.distortion.tune.enable} @change=${(e: CustomEvent) => { settings.distortion.tune.enable = e.detail; save(); }}></app-switch>
             `, {
   tip: "Show the lens-correction controls inside the headset. Use the GxR Tuner and Scoring guide before changing a working profile.\n\nIn-headset configurable distortion profile tuner. For usage refer to the GxR Tuner and Scoring guide."
@@ -114,15 +118,15 @@ if (advancedMode && settings.distortion.tune.enable) {
             `, {
   tip: "Choose how many rings the lens tuner uses and how much of the image they cover. More rings give finer control but take longer to tune.\n\nHow many radius bands the tuner edits and where they start and end, spaced evenly (defaults: 7 bands, 0.15 to 0.65). More bands = finer control but a longer session. Edits regenerate the band list; the active session picks it up next time the tuner is toggled on."
             }));
-            parts.push(fieldRow(t('Force Calibration Grid'), html`
+            parts.push(settingFieldRow('streamFrame.distortion.tune.forceGrid', html`
       <app-switch .checked=${!!settings.distortion.tune.forceGrid} @change=${(e: CustomEvent) => { settings.distortion.tune.forceGrid = e.detail; save(); }}></app-switch>
             `, {
   tip: "Automatically show the reference grid while using the lens tuner. Turn this off only when you want to control the overlays yourself.\n\nOn (default): the tuner forces the angular grid + warped overlays on while active. Off: overlays follow your own toggles below."
             }));
 if (settings.distortion.tune.forceGrid) {
-              parts.push(noteRow(html`While Force Calibration Grid is on, the ANGULAR grid and Warped Overlays are forced on and their toggles below are hidden. World-Locked Grid still applies.`));
+              parts.push(statusMessage('info', t('Calibration grid is forced on'), t('Angular grid and warped overlays are active. World-Locked Grid remains independent.')));
 } else {
-              parts.push(fieldRow(t('Calibration Grid'), html`
+              parts.push(settingFieldRow('streamFrame.eyeGaze.debugGrid', html`
       <app-switch .checked=${!!settings.eyeGaze.debugGrid} @change=${(e: CustomEvent) => { settings.eyeGaze.debugGrid = e.detail; save(); }}></app-switch>
       <app-select .value=${settings.eyeGaze.gridMode} .options=${[{ value: 'uv', label: 'UV grid (eye tuning)' }, { value: 'angular', label: 'Angular grid (camera photos)' }, { value: 'sboys', label: 'Camera pattern (hue-coded, sboys)' }]} @change=${(e: CustomEvent) => { settings.eyeGaze.gridMode = e.detail; save(); }}></app-select>
       <span>deg</span>
@@ -131,26 +135,26 @@ if (settings.distortion.tune.forceGrid) {
   tip: "Show reference lines to check whether the image bends or moves as your eyes move. This unwanted movement is often called pupil swim.\n\nOverlays straight reference lines for pupil swim tuning. Fixate a grid intersection, then move only your eyes around it: if the nearby lines bend or shift as your gaze moves, that's pupil swim."
               }));
 if (settings.eyeGaze.gridMode == 'sboys') {
-                parts.push(fieldRow(t('Camera Pattern: Opaque Background'), html`
+                parts.push(settingFieldRow('streamFrame.eyeGaze.gridOpaque', html`
       <app-switch .checked=${!!settings.eyeGaze.gridOpaque} @change=${(e: CustomEvent) => { settings.eyeGaze.gridOpaque = e.detail; save(); }}></app-switch>
                 `, {
   tip: "Replace the game view with a colored calibration pattern for camera measurements. This is a measurement tool, not a normal-play setting.\n\nThe sboys pattern draws per-axis angle lines whose COLOR encodes their angular index (hue = line number / 6), so the calibrated camera and the fit script can identify every line absolutely - no counting from center, and residual camera pose can be solved jointly with the distortion. This toggle replaces game content with a dim grey background so the camera sees only the pattern. Turn on Warped Overlays for measurement runs: the pattern must pass through the active distortion profile exactly like game content, so the camera reads the residual OF the correction, not the raw lens. Keep 2.5 deg spacing to match the reference tooling."
                 }));
 }
-              parts.push(fieldRow(t('Warped Overlays (profile validation)'), html`
+              parts.push(settingFieldRow('streamFrame.eyeGaze.overlayWarped', html`
       <app-switch .checked=${!!settings.eyeGaze.overlayWarped} @change=${(e: CustomEvent) => { settings.eyeGaze.overlayWarped = e.detail; save(); }}></app-switch>
               `, {
   tip: "Apply your lens correction to the calibration overlays too. Use this when checking how well the current correction works.\n\nDraws the calibration grid and the fixation dot in content space, so the active distortion profile warps them exactly like scene content. With the ANGULAR grid: a correct profile makes the lines look straight through the lens. With the fixation dot + swim probe: run probe sessions with profile off / A / B and let the fitter score which one flattens the residual. Leave off for plain measurement runs."
               }));
 }
-            parts.push(fieldRow(t('World-Locked Grid'), html`
+            parts.push(settingFieldRow('streamFrame.eyeGaze.gridWorldLocked', html`
       <app-switch .checked=${!!settings.eyeGaze.gridWorldLocked} @change=${(e: CustomEvent) => { settings.eyeGaze.gridWorldLocked = e.detail; save(); }}></app-switch>
             `, {
   tip: "Keep the reference grid fixed in the virtual world instead of moving it with your head. This only affects the angular grid.\n\nDraws the angular grid at fixed WORLD azimuth/elevation instead of head-locked lens angles. Angular grid mode only."
             }));
 }
 if (advancedMode) {
-            parts.push(fieldRow(t('Center Tuner (in-headset)'), html`
+            parts.push(settingFieldRow('streamFrame.distortion.centerTune.enable', html`
       <app-switch .checked=${!!settings.distortion.centerTune.enable} @change=${(e: CustomEvent) => { settings.distortion.centerTune.enable = e.detail; save(); }}></app-switch>
             `, {
   tip: "Find the center of each lens correction before tuning the surrounding rings. A gently pulsing image and a cross mark the point you are adjusting.\n\nInteractive tuning of the distortion CENTER offsets. While on: the image gently 'breathes' (pulses radially) around the currently configured center, an amber cross marks it, and the fine grid is shown. The lens's true center is the point where color fringing on the grid lines vanishes and sharpness peaks. Drag the breathing's still-point onto it with the stick. X cycles both-shift / both-mirrored(IPD) / left / right. Y resets, holding a grip 1.5s saves a centers profile + paste block. Do this BEFORE band tuning."
@@ -181,7 +185,7 @@ if (settings.distortion.mode == 'k1k2' && !settings.distortion.perEye && !settin
   <app-stream-frame-curve .settings=${settings} .revision=${galaxy.revision()} @changed=${() => save()}></app-stream-frame-curve>
 </div>`);
 if (advancedMode) {
-            parts.push(fieldRow(t('Annulus Tuning Band'), html`
+            parts.push(settingFieldRow('streamFrame.distortion.annulus.enable', html`
       <app-switch .checked=${!!settings.distortion.annulus.enable} @change=${(e: CustomEvent) => { settings.distortion.annulus.enable = e.detail; save(); }}></app-switch>
             `, {
   tip: "Show the area of the image affected by a tuning ring. Turn this diagnostic display off for normal play.\n\nDiagnostic: limit the correction to a radius band so one region of the curve can be tuned against untouched surroundings. Disable for normal use, the band edges are intentionally not geometric."
@@ -240,29 +244,28 @@ if (sections.eyeAlign) {
 }
         parts.push(sectionRow(t('Share Distortion Profile'), sections['share'], 0, () => this.toggleSection('share')));
 if (sections.share) {
-          parts.push(noteRow(html`Export copies your distortion settings (curves, mode, center offsets) as text or downloads them as a .json file. To use someone else's profile, paste it below and press Import from text, or pick their file with Import .json. Tuner-saved files from the Distortion folder import the same way.`));
+          parts.push(noteRow(html`<div class="action-row"><span>${t('Save your current profile or import a shared one.')}</span>
+            <fluent-button appearance="subtle" @click=${() => this.sharingGuide()}>${t('Import and export')}</fluent-button></div>`));
           parts.push(html`<div class="field share-field">
   <div class="control share-control">
     <div class="share-buttons">
-      <button type="button" @click=${() => galaxy.exportProfile()}>Export current</button>
-      <button type="button" @click=${() => galaxy.importProfile()}>Import from text</button>
-      <button type="button" @click=${() => galaxy.exportJsonFile()}>Export .json</button>
-      <button type="button" @click=${() => this._fileInput && this._fileInput.click()}>Import .json</button>
-      <input ref=${(el: Element | null) => { this._fileInput = el as HTMLInputElement | null; }} type="file" accept=".json,application/json" style="display: none" @change=${(e: Event) => { const el = e.target as HTMLInputElement; const f = el.files && el.files[0]; if (f) galaxy.importJsonFile(f); }}>
-      ${galaxy.shareStatus() ? html`<span class="share-status">${galaxy.shareStatus()}</span>` : html``}
+      <fluent-button appearance="outline" @click=${() => galaxy.exportProfile()}>${t('Export current')}</fluent-button>
+      <fluent-button appearance="outline" @click=${() => galaxy.importProfile()}>${t('Import from text')}</fluent-button>
+      <fluent-button appearance="outline" @click=${() => galaxy.exportJsonFile()}>${t('Export .json')}</fluent-button>
+      <fluent-button appearance="outline" @click=${() => this._fileInput && this._fileInput.click()}>${t('Import .json')}</fluent-button>
+      <input ${ref(el => { this._fileInput = el as HTMLInputElement | undefined ?? null; })} type="file" accept=".json,application/json" style="display: none" @change=${(e: Event) => { const el = e.target as HTMLInputElement; const f = el.files && el.files[0]; if (f) galaxy.importJsonFile(f); }}>
     </div>
-    <textarea .value=${galaxy.shareText()} rows="6" placeholder="Paste a profile here to import, or press Export current" @input=${(e: Event) => galaxy.shareText.set((e.target as HTMLTextAreaElement).value)}></textarea>
+    ${galaxy.shareStatus() ? statusMessage('info', t('Profile transfer'), galaxy.shareStatus()!) : html``}
+    <textarea .value=${galaxy.shareText()} rows="6" aria-label=${t('Profile text')} placeholder=${t('Paste a profile or choose Export current')} @input=${(e: Event) => galaxy.shareText.set((e.target as HTMLTextAreaElement).value)}></textarea>
   </div>
 </div>`);
 }
 } else {
         parts.push(sectionHeading(t('Distortion Correction')));
-        parts.push(noteRow(galaxy.baselineRequested
-          ? html`<strong>${t('Enable Image Enhancements to use distortion correction with SDR 10-bit.')}</strong>
-              ${t('Enable Image Enhancements in App Settings and accept the image-quality warning to adjust the picture while keeping the 10-bit request.')}
-              <a href="#/app-settings">${t('Open App Settings')}</a>`
-          : html`${t('Enable Image Enhancements in App Settings to use distortion correction and profile sharing.')}
-              <a href="#/app-settings">${t('Open App Settings')}</a>`));
+        parts.push(statusMessage('info', t('Image Enhancements is off'),
+          galaxy.baselineRequested ? t('Enable it in App Settings and accept the quality warning to adjust the SDR 10-bit picture.')
+            : t('Enable it in App Settings to use lens correction and profile sharing.'),
+          html`<a href="#/app-settings">${t('Open App Settings')}</a>`));
 }
 }
     return html`<app-system-ready .ctx=${this.ctx}>${this.sectionCardsFor(parts)}</app-system-ready>`;

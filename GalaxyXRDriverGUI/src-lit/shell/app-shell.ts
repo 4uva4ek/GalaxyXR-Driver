@@ -5,17 +5,16 @@ import { t, subscribeLocale } from '../locale/i18n';
 import type { AppContext } from '../app-context';
 import { applyTheme } from '../ui/theme';
 import { interactiveStyles } from '../ui/shared-styles';
-import { driverAvailable, parseRoute, permittedRoute, visibleRoutes, type Route } from '../domain/navigation';
-
-const LABELS: Record<Route, string> = {
-  'driver-settings': 'Driver Settings', 'distortion-profile': 'Distortion Profile',
-  'stream-frame': 'Image Settings', 'app-settings': 'App Settings', setup: 'Setup', about: 'About',
-};
+import { driverAvailable, parseRoute, parseSettingTarget, permittedRoute, visibleRoutes, ROUTE_LABELS, type Route } from '../domain/navigation';
+import { settingPresentation } from '../domain/settings-presentation';
+import type { BasePage } from '../features/page-base';
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
   @property({ attribute: false }) ctx!: AppContext;
   @property({ type: String }) route: Route = 'driver-settings';
+  @property({ attribute: false }) private settingMessage = '';
+  private targetGeneration = 0;
 
   static styles = [interactiveStyles, css`
     :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: var(--colorNeutralBackground2); }
@@ -25,8 +24,7 @@ export class AppShell extends LitElement {
     fluent-tab { flex: 1 0 0; min-width: max-content; white-space: nowrap; }
     .content { flex: 1; overflow: auto; min-height: 0; padding: 12px 8px; }
     .panel { max-width: 1500px; margin: 0 auto; outline-offset: -2px; }
-    .status { padding: 8px 20px; background: var(--colorNeutralBackground3); border-bottom: 1px solid var(--colorNeutralStroke2); }
-    .error { color: var(--colorPaletteRedForeground1); }
+    .status { margin: 8px 20px; }
     .warn { color: var(--colorPaletteDarkOrangeForeground1); margin-left: 0.35rem; }
     @media (max-width: 720px) { .header { padding-inline: 8px; } .brand-icon { display: none; } .content { padding-inline: 0; } }
   `];
@@ -57,6 +55,7 @@ export class AppShell extends LitElement {
   }
 
   disconnectedCallback(): void {
+    ++this.targetGeneration;
     window.removeEventListener('hashchange', this.onHash);
     this.systemTheme.removeEventListener('change', this.onSystemTheme);
     for (const unsubscribe of this.unsubs) unsubscribe();
@@ -70,6 +69,7 @@ export class AppShell extends LitElement {
   }
 
   private syncRoute(): void {
+    const target = parseSettingTarget(window.location.hash);
     const requested = parseRoute(window.location.hash, this.driverAvailable);
     const next = permittedRoute(requested, this.driverAvailable);
     const redirected = this.route !== next && requested !== next;
@@ -83,6 +83,31 @@ export class AppShell extends LitElement {
       void this.updateComplete.then(() => {
         this.shadowRoot?.querySelector<HTMLElement>(`#tab-${next}`)?.focus();
       });
+    }
+    void this.showTarget(target, requested, ++this.targetGeneration);
+  }
+
+  private async showTarget(id: string | undefined, requested: Route, generation: number): Promise<void> {
+    this.settingMessage = '';
+    await this.updateComplete;
+    if (!this.isConnected || generation !== this.targetGeneration) return;
+    const page = this.shadowRoot?.getElementById(`panel-${this.route}`)?.firstElementChild as BasePage | undefined;
+    if (!id) { page?.clearSettingTarget?.(); return; }
+    const setting = settingPresentation(id);
+    if (!setting || setting.route !== requested) {
+      this.settingMessage = 'This setting is not available in this version.';
+      return;
+    }
+    if (requested !== this.route) {
+      this.settingMessage = 'Install the driver to show this control.';
+      return;
+    }
+    if (page) {
+      await page.updateComplete;
+      if (generation !== this.targetGeneration) return;
+      const message = await page.showSetting(id);
+      if (generation === this.targetGeneration) this.settingMessage = message ?? (setting.advanced && !this.ctx.galaxy.advancedMode
+        ? 'Advanced controls are temporarily visible for this setting. Advanced Mode has not changed.' : '');
     }
   }
 
@@ -121,12 +146,13 @@ export class AppShell extends LitElement {
         <img class="brand-icon" src="icons/headset_galaxy_xr_ready_2x.png" alt="Galaxy XR Companion" title="Galaxy XR Companion">
         <fluent-tablist activeid=${`tab-${activeRoute}`} aria-label=${t('Settings pages')} ?disabled=${busy} @change=${this.onTabChange}>
           ${routes.map(route => html`<fluent-tab slot="tab" id=${`tab-${route}`} aria-controls=${`panel-${route}`}>
-            ${t(LABELS[route])}${(route === 'about' && update?.updateAvailable) ? html`<span class="warn" role="img" aria-label=${t('Warning')}>⚠</span>` : nothing}
+            ${t(ROUTE_LABELS[route])}${(route === 'about' && update?.updateAvailable) ? html`<fluent-badge appearance="tint" color="brand">${t('Update')}</fluent-badge>` : nothing}
           </fluent-tab>`)}
         </fluent-tablist>
       </header>
-      ${busy ? html`<div class="status" role="status">${this.ctx.sds.installingDriver() ? t('Updating driver or settings. Please wait…') : t('Checking installation and saved settings…')}</div>` : nothing}
-      ${writeError ? html`<div class="status error" role="alert">${t('Settings could not be saved. The controls have been restored to the last verified values.')} ${writeError}</div>` : nothing}
+      ${busy ? html`<fluent-message-bar class="status" intent="info" role="status"><fluent-spinner slot="icon" size="tiny" aria-hidden="true"></fluent-spinner>${this.ctx.sds.installingDriver() ? t('Updating driver or settings. Please wait…') : t('Checking installation and saved settings…')}</fluent-message-bar>` : nothing}
+      ${writeError ? html`<fluent-message-bar class="status" intent="error" role="alert"><span slot="icon" aria-hidden="true">!</span><strong>${t('Settings could not be saved.')}</strong> ${t('The controls have been restored to the last verified values.')}<details><summary>${t('Technical details')}</summary>${writeError}</details></fluent-message-bar>` : nothing}
+      ${this.settingMessage ? html`<fluent-message-bar class="status" intent="info" role="status"><span slot="icon" aria-hidden="true">ⓘ</span>${t(this.settingMessage)}</fluent-message-bar>` : nothing}
       <main class="content" aria-busy=${String(busy)} .inert=${busy}>
         ${routes.map(route => html`<section class="panel" role="tabpanel" id=${`panel-${route}`}
           aria-labelledby=${`tab-${route}`} ?hidden=${activeRoute !== route} tabindex="0">

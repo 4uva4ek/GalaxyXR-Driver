@@ -35,11 +35,12 @@ const nothing = Symbol('nothing');
 const lit = {
   LitElement: InertElement, nothing,
   html: (strings, ...values) => ({ strings, values }),
+  svg: (strings, ...values) => ({ strings, values }),
   css: (strings, ...values) => ({ cssText: strings.reduce((s, v, i) => s + v + (values[i]?.cssText ?? values[i] ?? ''), '') }),
 };
 const sandbox = vm.createContext({
   console, window: windowMock, document: { visibilityState: 'visible' },
-  performance, queueMicrotask, structuredClone, URL,
+  performance, queueMicrotask, structuredClone, URL, URLSearchParams,
   setTimeout(fn, ms) { const id = ++timerId; timers.set(id, { fn, ms }); return id; },
   clearTimeout(id) { timers.delete(id); },
 });
@@ -95,10 +96,14 @@ function context(options = {}) {
       restartCompositor: async () => calls.push('restart'),
       installDriver: async () => { calls.push('install'); return true; },
       uninstallDriver: async () => {
-        calls.push('uninstall'); ctx.sds.driverInstalled.set(undefined); ctx.sds.driverState.set('not-installed'); return true;
+        calls.push('uninstall'); ctx.sds.driverInstalled.set(undefined); ctx.sds.driverState.set('not-installed');
+        ctx.appSetting.values.set({ colorScheme: 'system', advanceMode: false, driverVerified: false }); return true;
       },
-      cleanSettings: async () => { calls.push('clean'); return { resetFiles: [], restoredSettings: 0, removedIdentityKeys: [], backupPath: 'fixture-backup', warnings: [] }; },
-      lastUninstallReport: { removedPaths: [], restoredSettings: 0, warnings: [] },
+      cleanSettings: async () => {
+        calls.push('clean'); ctx.appSetting.values.set({ colorScheme: 'system', advanceMode: false, driverVerified: false });
+        return { outcome: 'complete', resetFiles: [], restoredSettings: 0, removedIdentityKeys: [], backupPath: 'fixture-backup', warnings: [] };
+      },
+      lastUninstallReport: { outcome: 'complete', removedPaths: [], preservedPaths: [], restoredSettings: 0, warnings: [] },
     }),
     startup: {
       status: signal(options.runtimeUnknown ? undefined : { steamvrRunning: !!options.running, driverInitialized: !!options.initialized, detail: 'Runtime fixture' }),
@@ -112,7 +117,7 @@ function context(options = {}) {
       refresh: async () => calls.push('check-refresh'),
     },
     aus: {
-      updateInfo: signal(options.noVersion ? undefined : { currentVersion: '1.2.3', fetchSuccess: true,
+      updateInfo: signal(options.noVersion ? undefined : { currentVersion: '1.2.3', fetchSuccess: !options.failedUpdate,
         updateAvailable: !!options.update, installAvailable: !!options.upgrade, url: 'https://example.invalid/releases' }),
       checkUpdate: async () => calls.push('update'),
     },
@@ -122,7 +127,7 @@ function context(options = {}) {
       save: async value => { calls.push('app-save'); ctx.appSetting.values.set(value); return true; },
       readFileError: signal(undefined), writeFileError: signal(undefined) }),
     galaxy: signals({ imageEnhancementsEnabled: installed, baselineRequested: false, imageModeChanging: signal(false), imageModeError: signal(undefined), sections: signal({}) }),
-    dialog: { message: async (title, message) => calls.push({ title, message }) },
+    dialog: { message: async (title, message, details) => calls.push({ title, message, details }) },
   };
   return ctx;
 }
@@ -148,9 +153,14 @@ function markup(value) {
   return text;
 }
 function render(Page, ctx) { const page = new Page(); page.ctx = ctx; return { page, template: page.render() }; }
-function cards(template) { return Array.from(template.values[0]); }
+function cards(template) {
+  if (Array.isArray(template)) return template.flatMap(cards);
+  if (!template?.strings) return [];
+  if (/class="section-card\b/.test(template.strings[0])) return [template];
+  return template.values.flatMap(cards);
+}
 function buttonLabels(template) {
-  return [...markup(template).matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
+  return [...markup(template).matchAll(/<(?:fluent-)?button\b[^>]*>([\s\S]*?)<\/(?:fluent-)?button>/g)]
     .map(m => m[1].replace(/<[^>]+>/g, '').trim());
 }
 function enhancementSwitch(template) {
@@ -204,53 +214,69 @@ async function test(name, fn) {
   for (const options of [{ installed: false }, {}, { upgrade: true }, { state: 'checking' }, { installed: false, state: 'unknown' }, { enabled: false }, { steamvr: false, installed: false }]) {
     await test(`Single install control and correct card ownership: ${JSON.stringify(options)}`, () => {
       const { template } = render(SetupPage, context(options));
-      const sections = cards(template); assert.equal(sections.length, 4);
-      assert.match(markup(sections[0]), /Galaxy XR Companion/); assert.match(markup(sections[0]), /A standalone SteamVR vendor driver/);
-      assert.match(markup(sections[1]), /Set up your headset/); assert.match(markup(sections[1]), /Installed Driver Version/);
-      assert.match(markup(sections[1]), /Restart Compositor/);
-      assert.match(markup(sections[2]), /Installation and settings check/);
-      assert.match(markup(sections[3]), /Cleanup/); assert.match(markup(sections[3]), /Clean Settings/);
+      const sections = cards(template); assert.equal(sections.length, 3);
+      assert.match(markup(template), /<header class="page-intro"><h1>Setup<\/h1>/);
+      assert.match(markup(template), /Set up Galaxy XR for SteamVR/);
+      assert.match(markup(sections[0]), /Set up your headset/); assert.match(markup(sections[0]), /Installed Driver Version/);
+      assert.match(markup(sections[0]), /Restart Compositor/);
+      assert.match(markup(sections[1]), /Settings check/);
+      assert.match(markup(sections[2]), /Restore or remove/); assert.match(markup(sections[2]), /Restore defaults/);
       const labels = buttonLabels(template);
-      assert.equal(labels.filter(label => /^(Install Driver|Re-Install Driver|Install 1\.2\.3)$/.test(label)).length, 1);
-      assert.equal(labels.filter(label => label === 'Uninstall Driver').length, options.installed === false ? 0 : 1);
-      assert.equal(buttonLabels(sections[3]).filter(label => label === 'Uninstall Driver').length, options.installed === false ? 0 : 1);
-      assert.doesNotMatch(markup(sections[1]), /Uninstall Driver/);
+      assert.equal(labels.filter(label => /^(Install Driver|Reinstall driver|Install 1\.2\.3)$/.test(label)).length, 1);
+      assert.equal(labels.filter(label => label === 'Uninstall driver').length, 1, 'Uninstall remains available for residual settings');
+      assert.equal(buttonLabels(sections[2]).filter(label => label === 'Uninstall driver').length, 1);
+      assert.doesNotMatch(markup(sections[0]), /Uninstall driver/);
       assert.doesNotMatch(markup(template), /App Version|Donation Links|Source Code and Releases/);
     });
   }
   await test('Install, update, and reinstall reuse the same single button', () => {
     assert.ok(buttonLabels(render(SetupPage, context({ installed: false })).template).includes('Install Driver'));
     assert.ok(buttonLabels(render(SetupPage, context({ upgrade: true })).template).includes('Install 1.2.3'));
-    assert.ok(buttonLabels(render(SetupPage, context()).template).includes('Re-Install Driver'));
+    assert.ok(buttonLabels(render(SetupPage, context()).template).includes('Reinstall driver'));
   });
   for (const options of [{ busy: true }, { checking: true }, { launching: true }]) await test(`Actions are disabled while busy: ${JSON.stringify(options)}`, () => {
     const html = markup(render(SetupPage, context(options)).template);
     // Collapsible section headings only change layout, not driver state.
-    const actions=[...html.matchAll(/<button\b([^>]*)>/g)].filter(match=>!match[1].includes('section-title'));
+    const actions=[...html.matchAll(/<(?:fluent-)?button\b([^>]*)>/g)].filter(match=>!match[1].includes('section-title'));
     assert.ok(actions.length>0);for (const match of actions) assert.match(match[1], /\bdisabled\b/);
   });
   for (const installed of [false,true]) for (const status of ['stopped','running','unknown']) await test(`Cleanup buttons require confirmed stopped SteamVR: installed=${installed}, ${status}`,()=>{
     const ctx=context({installed,running:status==='running',runtimeUnknown:status==='unknown'});
-    const buttons=[...markup(render(SetupPage,ctx).template).matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-      .filter(match=>['Clean Settings','Uninstall Driver'].includes(match[2].trim()));
-    assert.equal(buttons.length,installed?2:1);
+    const buttons=[...markup(render(SetupPage,ctx).template).matchAll(/<(?:fluent-)?button\b([^>]*)>([\s\S]*?)<\/(?:fluent-)?button>/g)]
+      .filter(match=>['Restore defaults','Uninstall driver'].includes(match[2].trim()));
+    assert.equal(buttons.length,2);
     for(const button of buttons)assert.equal(/\bdisabled\b/.test(button[1]),status!=='stopped',button[2]);
   });
   await test('A launch request is not displayed as verified initialization', () => {
     assert.doesNotMatch(markup(render(SetupPage, context({ running: true })).template), /Driver initialization verified in SteamVR\./);
     assert.match(markup(render(SetupPage, context({ running: true, initialized: true })).template), /Driver initialization verified in SteamVR\./);
   });
-  for (const options of [{}, { update: true }, { noVersion: true }]) await test(`About contains one Links card and no setup actions: ${JSON.stringify(options)}`, () => {
+  for (const options of [{}, { update: true }, { noVersion: true }, { failedUpdate: true }]) await test(`About separates version, resources, credits, and has no setup actions: ${JSON.stringify(options)}`, () => {
     const { template } = render(AboutPage, context(options)); const sections = cards(template);
-    assert.equal(sections.length, 1); assert.match(markup(sections[0]), /Links/);
-    if (!options.noVersion) assert.match(markup(sections[0]), /App Version/);
-    for (const text of ['Source Code and Releases', 'Documentation', 'Report a Problem', 'Based On', 'Galaxy XR icons', 'Donation Links']) assert.ok(markup(sections[0]).includes(text));
-    assert.doesNotMatch(markup(template), /Install Driver|Uninstall Driver|Restart Compositor|Clean Settings|Set up your headset/);
+    assert.equal(sections.length, 3); assert.match(markup(sections[0]), /Version and updates/);
+    const version = markup(sections[0]);
+    assert.match(version, /App Version/);
+    if (options.noVersion) {
+      assert.match(version, /Loading…/); assert.match(version, /aria-busy="true"/);
+      assert.match(version, /<fluent-spinner/); assert.match(version, /<fluent-button[^>]*disabled/);
+      assert.doesNotMatch(version, /Up to date|Update check unavailable/);
+    } else {
+      assert.match(version, /1\.2\.3/); assert.match(version, /aria-busy="false"/);
+      assert.match(version, options.update ? /Update available[\s\S]*View release/
+        : options.failedUpdate ? /Update check unavailable/ : /Up to date/);
+    }
+    assert.match(markup(sections[1]), /Links/); assert.match(markup(sections[2]), /Credits/);
+    for (const text of ['GitHub project', 'Releases and changelog', 'Setup and image processing guide', 'Distortion tuner guide', 'Report a problem']) assert.ok(markup(sections[1]).includes(text));
+    assert.equal((markup(sections[1]).match(/class="resource-link"/g) ?? []).length, 5);
+    for (const text of ['Built together', 'Galaxy XR icons', 'Support the original project', 'Patreon', 'Ko-fi']) assert.ok(markup(sections[2]).includes(text));
+    assert.equal((markup(sections[2]).match(/class="compact-link"/g) ?? []).length, 4);
+    assert.match(markup(template), /class="about-hero"[\s\S]*Galaxy XR Companion/);
+    assert.doesNotMatch(markup(template), /Install Driver|Uninstall driver|Restart Compositor|Restore defaults|Set up your headset/);
   });
   await test('App Settings notices remain inside Application preferences', () => {
     const ctx = context(); ctx.appSetting.readFileError.set(new Error('fixture')); ctx.galaxy.imageModeError.set('mode fixture');
     const sections = cards(render(AppSettingsPage, ctx).template); assert.equal(sections.length, 1);
-    assert.match(markup(sections[0]), /Application preferences/); assert.match(markup(sections[0]), /Check installation on Setup/); assert.match(markup(sections[0]), /mode fixture/);
+    assert.match(markup(sections[0]), /Application preferences/); assert.match(markup(sections[0]), /Check Settings on Setup/); assert.match(markup(sections[0]), /mode fixture/);
   });
   await test('Image Enhancement page handler: cancelled warning leaves settings and switch off', async () => {
     const ctx = imageModeContext(), prompts = [];
@@ -260,8 +286,8 @@ async function test(name, fn) {
     assert.equal(prompts.length, 1); assert.deepEqual(ctx.calls, []);
     assert.equal(ctx.galaxy.imageEnhancementsEnabled, false); assert.equal(control.checked, false);
     assert.match(prompts[0][0], /SDR 10-bit/);
-    assert.match(prompts[0][1], /reduce image quality/);
-    assert.match(prompts[0][1], /does not guarantee.*10-bit precision/);
+    assert.match(prompts[0][1], /banding, artifacts, or color changes/);
+    assert.match(prompts[0][1], /10-bit request stays enabled, but processing may not preserve its precision/);
     assert.match(prompts[0][2], /I understand/); assert.equal(prompts[0][3], 'danger');
   });
   await test('Image Enhancement page handler: acceptance forwards explicit consent and updates switch', async () => {
@@ -338,27 +364,84 @@ async function test(name, fn) {
     assert.equal(windowMock.location.hash, '#/driver-settings'); assert.equal(shell.route, 'setup');
     shell.ctx.sds.driverState.set('not-installed'); shell.syncRoute(); assert.equal(windowMock.location.hash, '#/setup');
   });
-  await test('Successful install invalidates stale reports and names Setup in the next-step dialog', async () => {
+  await test('Successful install invalidates stale reports and explains runtime verification', async () => {
     const ctx = context({ installed: false }); const { page } = render(SetupPage, ctx); await page.installDriver();
     assert.deepEqual(ctx.calls.slice(0, 3), ['install', 'invalidate', 'clear']);
-    assert.match(ctx.calls[3].message, /Start SteamVR on Setup/);
+    assert.match(ctx.calls[3].message, /Start SteamVR and connect your headset through Steam Link to verify/);
   });
   await test('Cancelled install does not invalidate runtime or show success', async () => {
     const ctx = context(); ctx.sds.installDriver = async () => false; await render(SetupPage, ctx).page.installDriver(); assert.deepEqual(ctx.calls, []);
   });
-  await test('Cleanup calls the existing safe service and refreshes state', async () => {
+  await test('Restore defaults delegates app reset to the service and refreshes state without an extra save', async () => {
     const ctx = context({verified:true}); await render(SetupPage, ctx).page.cleanSettings();
-    assert.deepEqual(ctx.calls.slice(0, 6), ['runtime-refresh', 'clean', 'invalidate', 'clear', 'app-save', 'check-refresh']);
+    assert.deepEqual(ctx.calls.slice(0, 5), ['runtime-refresh', 'clean', 'invalidate', 'clear', 'check-refresh']);
     assert.equal(ctx.appSetting.values().driverVerified,false);
-    assert.match(ctx.calls[6].message, /start SteamVR from Setup/);
+    assert.equal(ctx.calls.includes('app-save'), false);
+    assert.equal(ctx.calls[5].title, 'Defaults restored');
+    assert.match(ctx.calls[5].message, /Start SteamVR to apply driver defaults/);
   });
-  await test('Uninstall removes its button, preserves Cleanup, and leaves Setup selected', async () => {
+  await test('A previous verification does not turn unknown runtime into confirmed stopped', () => {
+    const html = markup(render(SetupPage, context({ verified: true, runtimeUnknown: true })).template);
+    assert.match(html, /Previously verified\. Current SteamVR status is unknown\./);
+    assert.doesNotMatch(html, /SteamVR is not running\./);
+    assert.match(markup(render(SetupPage, context({ verified: true })).template), /Previously verified\. SteamVR is not running\./);
+  });
+  await test('Uninstall keeps residue cleanup available, resets through the service, and leaves Setup selected', async () => {
     const ctx = context({verified:true}); const { page } = render(SetupPage, ctx); const shell = new AppShell(); shell.ctx = ctx;
     windowMock.location.hash = '#/setup'; await page.uninstallDriver(); shell.syncRoute();
     assert.equal(shell.route, 'setup'); assert.ok(buttonLabels(page.render()).includes('Install Driver'));
-    assert.ok(buttonLabels(page.render()).includes('Clean Settings')); assert.ok(!buttonLabels(page.render()).includes('Uninstall Driver'));
-    assert.deepEqual(ctx.calls.slice(0, 5), ['runtime-refresh', 'app-save', 'uninstall', 'invalidate', 'clear']);
+    assert.ok(buttonLabels(page.render()).includes('Restore defaults')); assert.ok(buttonLabels(page.render()).includes('Uninstall driver'));
+    assert.deepEqual(ctx.calls.slice(0, 4), ['runtime-refresh', 'uninstall', 'invalidate', 'clear']);
+    assert.equal(ctx.calls.includes('app-save'), false);
     assert.equal(ctx.appSetting.values().driverVerified,false);
+  });
+  for (const action of ['cleanSettings', 'uninstallDriver']) await test(`${action} cancellation does not save app settings or clear verification`, async () => {
+    const ctx = context({ verified: true });
+    ctx.sds[action] = async app => { assert.equal(app, ctx.appSetting); ctx.calls.push('cancelled'); return undefined; };
+    await render(SetupPage, ctx).page[action]();
+    assert.deepEqual(ctx.calls, ['runtime-refresh', 'cancelled']);
+    assert.equal(ctx.appSetting.values().driverVerified, true);
+  });
+  await test('Uninstall is a red destructive action with an icon; Restore defaults stays neutral', () => {
+    const html = markup(render(SetupPage, context()).template);
+    assert.match(html, /<article class="action-card danger-zone">[\s\S]*?<svg[\s\S]*?<fluent-button appearance="primary" class="danger"[^>]*>Uninstall driver<\/fluent-button>/);
+    assert.match(html, /<fluent-button(?![^>]*class="danger")[^>]*>Restore defaults<\/fluent-button>/);
+    const styles = fs.readFileSync(path.join(root, 'src-lit/ui/shared-styles.ts'), 'utf8');
+    assert.match(styles, /fluent-button\.danger\s*\{[\s\S]*?--colorBrandBackground: var\(--colorPaletteRedBackground3/);
+  });
+  await test('Settings check shows UI locations and navigation; raw keys appear only in Technical details', () => {
+    const report = { checkedAt: Date.now(), driverEnabled: true, errors: [], warnings: [],
+      settings: [
+        { location: ['Driver Settings', 'Headset', 'Galaxy XR Native Identity'], state: 'On', origin: 'stored', href: '#/driver-settings?setting=native-identity' },
+        { location: ['App Settings', 'Application preferences', 'Image Enhancements'], state: 'Unknown', origin: 'unknown', unavailableReason: 'Install the driver to use this setting.' },
+      ], checks: [{ source: 'settings.json', key: 'galaxyXr.nativeIdentity', enabled: true, origin: 'stored' }] };
+    const { page } = render(SetupPage, context({ report }));
+    const html = markup(page.renderSettingsCheck());
+    const primary = html.split('<fluent-accordion')[0];
+    assert.match(primary.replace(/<[^>]+>/g, ''), /Driver Settings→Headset→Galaxy XR Native Identity/);
+    assert.match(primary, /href="#\/driver-settings\?setting=native-identity"/);
+    assert.match(primary, /Show setting/); assert.match(primary, /Unknown/); assert.match(primary, /Unavailable/);
+    assert.doesNotMatch(primary, /settings\.json|galaxyXr\.nativeIdentity|<code>/);
+    assert.match(html, /Technical details[\s\S]*settings\.json[\s\S]*galaxyXr\.nativeIdentity/);
+  });
+  for (const outcome of ['incomplete', 'attention-required']) await test(`Uninstall ${outcome} reports recovery details and never claims complete restoration`, async () => {
+    const ctx = context();
+    ctx.sds.lastUninstallReport = { outcome, removedPaths: [], preservedPaths: ['saved-profiles'], restoredSettings: 0,
+      unresolvedItems: ['Locked fixture file'], warnings: ['External change preserved'] };
+    await render(SetupPage, ctx).page.uninstallDriver();
+    const dialog = ctx.calls.find(call => typeof call === 'object');
+    assert.equal(dialog.title, outcome === 'incomplete' ? 'Uninstall needs another step' : 'Driver removed with notices');
+    assert.match(dialog.details, /Locked fixture file/); assert.match(dialog.details, /External change preserved/);
+    assert.match(dialog.details, /saved-profiles/); assert.doesNotMatch(dialog.title, /complete/);
+    if (outcome === 'incomplete') assert.match(dialog.message, /Recovery information was kept/);
+  });
+  await test('Restore notices stay visible in the result title and recovery details', async () => {
+    const ctx = context();
+    ctx.sds.cleanSettings = async () => ({ outcome: 'attention-required', backupPath: 'fixture-backup', resetFiles: [], restoredSettings: 0,
+      unresolvedItems: ['External change preserved'], warnings: [] });
+    await render(SetupPage, ctx).page.cleanSettings();
+    const dialog = ctx.calls.find(call => typeof call === 'object');
+    assert.equal(dialog.title, 'Defaults restored with notices'); assert.match(dialog.details, /External change preserved/);
   });
   for(const action of ['cleanSettings','uninstallDriver'])for(const status of ['running','unknown'])await test(`${action} rejects ${status} after fresh check and keeps verification`,async()=>{
     const ctx=context({verified:true,running:status==='running',runtimeUnknown:status==='unknown'});
@@ -372,7 +455,7 @@ async function test(name, fn) {
     assert.equal(ctx.appSetting.values().driverVerified,true);release();await pending;
     assert.deepEqual(ctx.calls,['runtime-refresh']);assert.equal(ctx.appSetting.values().driverVerified,true);
   });
-  await test('Confirmed stopped permits Clean Settings before installation and without SteamVR path',async()=>{
+  await test('Confirmed stopped permits Restore defaults before installation and without SteamVR path',async()=>{
     const ctx=context({installed:false,steamvr:false});await render(SetupPage,ctx).page.cleanSettings();
     assert.deepEqual(ctx.calls.slice(0,5),['runtime-refresh','clean','invalidate','clear','check-refresh']);assert.equal(ctx.sds.driverInstalled(),undefined);
   });

@@ -31,9 +31,43 @@ export const interactiveStyles = css`
   }
   input, select, textarea { color: var(--colorNeutralForeground1, #242424); background: var(--colorNeutralBackground1, #fff); border: 1px solid var(--colorNeutralStroke1, #d1d1d1); border-radius: 4px; }
   input:disabled, select:disabled, textarea:disabled { color: var(--colorNeutralForegroundDisabled, #bdbdbd); }
-  a { color: var(--colorBrandForegroundLink, #115ea3); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  a { color: var(--colorBrandForegroundLink, #115ea3); text-decoration: underline; text-decoration-color: transparent;
+    text-underline-offset: 3px; text-decoration-thickness: 1px; border-radius: 3px;
+    transition: color 120ms ease, background 120ms ease, border-color 120ms ease; }
+  a:hover { text-decoration-color: currentColor; }
   a:visited { color: var(--colorBrandForegroundLink, #115ea3); }
+  a[href^="#/"] { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 32px; padding: 5px 10px; font-weight: 600; line-height: 1.4;
+    border: 1px solid var(--colorNeutralStroke2); border-radius: 6px;
+    background: var(--colorNeutralBackground1); text-decoration: none; }
+  a[href^="#/"]::after { content: ''; width: 6px; height: 6px; flex: 0 0 6px;
+    border-top: 1.5px solid currentColor; border-right: 1.5px solid currentColor; transform: rotate(45deg); }
+  a[href^="#/"]:hover { color: var(--colorBrandForegroundLinkHover); background: var(--colorNeutralBackground1Hover); border-color: var(--colorBrandStroke1); }
+  a[href^="#/"]:active { background: var(--colorNeutralBackground1Pressed); }
   hr { border: 0; border-top: 1px solid var(--colorNeutralStroke2, #e0e0e0); }
+  .page-intro { padding: 24px 4px 12px; }
+  .page-intro h1 { margin: 0; font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
+  .page-intro p { margin: 6px 0 0; color: var(--colorNeutralForeground2); line-height: 1.5; }
+  .status-message { margin: 12px 0; width: 100%; overflow-wrap: anywhere; }
+  .status-message .status-title { display: block; font-weight: 600; }
+  .status-body { margin-top: 3px; line-height: 1.5; }
+  .status-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .status-actions, .action-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .surface-card { padding: 20px; border: 1px solid var(--colorNeutralStroke2); border-radius: 8px; background: var(--colorNeutralBackground1); }
+  .surface-card h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; }
+  .surface-card p { margin: 8px 0; line-height: 1.5; }
+  .status-badge-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+  fluent-button { flex-shrink: 0; }
+  fluent-button.danger {
+    --colorBrandBackground: var(--colorPaletteRedBackground3, #c50f1f);
+    --colorBrandBackgroundHover: var(--colorPaletteRedBackground3Hover, #b10e1b);
+    --colorBrandBackgroundPressed: var(--colorPaletteRedBackground3Pressed, #960b17);
+    --colorNeutralForegroundOnBrand: #fff;
+  }
+  @media (max-width: 700px) {
+    .page-intro { padding-top: 18px; }
+    .surface-card { padding: 16px; }
+    .status-actions { justify-content: flex-start; }
+  }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 `;
