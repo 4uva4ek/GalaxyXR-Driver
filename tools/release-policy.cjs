@@ -81,18 +81,20 @@ function planRelease(repo, env, event) {
   const commits = git(repo, ['log', '--no-merges', '--reverse', '--format=%H%x09%s', `${base}..${source}`])
     .split('\n').filter(Boolean).map(line => ({ hash: line.slice(0, 40), subject: line.slice(41) }))
     .filter(c => !/^chore\(release\): v/.test(c.subject));
-  const manualVersion = version !== previousVersion;
-  // Explicit prerelease bumps remain supported; automatic bumps use stable versions.
-  if (manualVersion && stable.test(version) && compareVersions(version, previousVersion) < 0) throw new Error('Source version is older than the latest reachable release.');
-  const planned = manualVersion ? version : nextVersion(version, commits);
-  if (!manualVersion && planned === version) {
+  // Release baseline repair (2026-09-26): source metadata can be reverted after
+  // publication. Stable automatic bumps must advance the reachable release.
+  const automatic = stable.test(version) && stable.test(previousVersion) && compareVersions(version, previousVersion) <= 0;
+  const manualVersion = version !== previousVersion && !automatic;
+  // Explicit higher versions and prereleases retain their existing override rules.
+  const planned = manualVersion ? version : nextVersion(previousVersion, commits);
+  if (!manualVersion && planned === previousVersion) {
     if (manualPublish && git(repo, ['rev-parse', `${base}^{commit}`]) !== source) {
       throw new Error('No new release version: use a fix:/feat:/rework: commit or bump-version.js before publishing changed source.');
     }
-    return initial;
+    return { ...initial, publish: false };
   }
   return { ...initial, version: planned, tag: `v${planned}`, baseTag, commits,
-    publish: manualVersion || planned !== version || manualPublish };
+    publish: manualVersion || planned !== previousVersion || manualPublish };
 }
 
 function changelogEntry(version, date, commits) {
@@ -118,16 +120,47 @@ function updateChangelog(text, entry, version) {
   const start = text.search(/^## \[/m);
   return start < 0 ? `${text.trimEnd()}\n\n${entry}\n` : `${text.slice(0, start).trimEnd()}\n\n${entry}\n${text.slice(start)}`;
 }
+function restoreChangelogHistory(current, published) {
+  const sections = text => {
+    const headers = [...text.matchAll(/^## \[([^\]\r\n]+)\][^\r\n]*/gm)];
+    return { intro: text.slice(0, headers[0]?.index ?? text.length), entries: headers.map((header, index) => ({
+      version: header[1], text: text.slice(header.index, headers[index + 1]?.index ?? text.length),
+    })) };
+  };
+  const authored = sections(current), released = sections(published).entries;
+  const present = new Set(authored.entries.map(section => section.version));
+  let changed = false;
+  for (let index = 0; index < released.length; index++) {
+    const section = released[index];
+    if (present.has(section.version)) continue;
+    const older = new Set(released.slice(index + 1).map(entry => entry.version));
+    const before = authored.entries.findIndex(entry => older.has(entry.version) ||
+      (stable.test(section.version) && stable.test(entry.version) && compareVersions(entry.version, section.version) < 0));
+    authored.entries.splice(before < 0 ? authored.entries.length : before, 0, section);
+    present.add(section.version);
+    changed = true;
+  }
+  if (!changed) return current;
+  // Current introductions and authored sections win verbatim; only add missing
+  // published sections and separators. An authored future entry stays first.
+  return authored.entries.reduce((text, section) => text + (text && !/\r?\n\r?\n$/.test(text) ? (text.endsWith('\n') ? '\n' : '\n\n') : '') + section.text, authored.intro);
+}
 function prepareRelease(repo, env, event) {
   const plan = planRelease(repo, env, event);
   if (!plan.publish || env.GITHUB_REF !== 'refs/heads/main' || !plan.commits) return plan;
   if (git(repo, ['status', '--porcelain', '--untracked-files=normal'])) throw new Error('Release preparation requires a clean checkout.');
-  const { version } = verifyReleaseVersion(repo);
-  const files = plan.version === version ? [] : bumpVersion(repo, plan.version);
   const changelog = path.join(repo, 'CHANGELOG.md');
   const before = fs.readFileSync(changelog, 'utf8');
+  let restored = before;
+  // Recover only history actually present at the reachable tag. Older tags that
+  // predate CHANGELOG.md have no published sections to restore.
+  if (plan.baseTag && git(repo, ['ls-tree', '--name-only', plan.baseTag, '--', 'CHANGELOG.md']) === 'CHANGELOG.md') {
+    restored = restoreChangelogHistory(before, git(repo, ['show', `${plan.baseTag}:CHANGELOG.md`]));
+  }
   const date = git(repo, ['show', '-s', '--format=%cI', plan.source]);
-  const after = updateChangelog(before, changelogEntry(plan.version, new Date(date).toISOString().slice(0, 10), plan.commits), plan.version);
+  const after = updateChangelog(restored, changelogEntry(plan.version, new Date(date).toISOString().slice(0, 10), plan.commits), plan.version);
+  const { version } = verifyReleaseVersion(repo);
+  const files = plan.version === version ? [] : bumpVersion(repo, plan.version);
   if (after !== before) { fs.writeFileSync(changelog, after); files.push('CHANGELOG.md'); }
   if (!files.length) return plan;
   git(repo, ['add', '--', ...files]);

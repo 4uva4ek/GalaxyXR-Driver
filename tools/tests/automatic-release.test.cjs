@@ -64,24 +64,128 @@ test('main compares against the entire push base, including multi-commit pushes'
   assert.throws(() => planRelease(repo, env, {}), /Missing release tag or push base/);
 });
 
-function history(t) {
+function history(t, version = '1.2.4', changelog = `# Changelog\n\n## [${version}] - 2026-09-23\n\nExisting authored history.\n`) {
   const repo = fixture(t);
   const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', windowsHide: true }).trim();
   git('init', '--quiet', '--initial-branch=main');
   git('config', 'core.autocrlf', 'false');
   git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.invalid');
   git('config', 'commit.gpgsign', 'false');
-  bumpVersion(repo, '1.2.4');
-  fs.writeFileSync(path.join(repo, 'CHANGELOG.md'), '# Changelog\n\n## [1.2.4] - 2026-09-23\n\nExisting authored history.\n');
+  bumpVersion(repo, version);
+  if (changelog !== null) fs.writeFileSync(path.join(repo, 'CHANGELOG.md'), changelog);
   let sequence = 0;
   const commit = subject => {
     fs.writeFileSync(path.join(repo, 'source.txt'), String(++sequence));
     git('add', '.'); git('commit', '--quiet', '-m', subject);
     return git('rev-parse', 'HEAD');
   };
-  const before = commit('Initial release'); git('tag', 'v1.2.4');
+  const before = commit('Initial release'); git('tag', `v${version}`);
   return { repo, git, commit, before, env: { GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/main' } };
 }
+
+test('a stale 1.2.13 feature commit advances from published 1.2.14 and restores its missing notes', t => {
+  const f = history(t, '1.2.14');
+  bumpVersion(f.repo, '1.2.13');
+  fs.writeFileSync(path.join(f.repo, 'CHANGELOG.md'), '# Changelog\n\nCurrent introduction.\n\n## [1.2.13] - 2026-09-22\n\nOlder history.\n');
+  const source = f.commit('feat: improve settings recovery and refresh Companion UI');
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(plan.version, '1.3.0');
+  assert.equal(verifyReleaseVersion(f.repo).version, '1.3.0');
+  const text = fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8');
+  assert.match(text, /Existing authored history/);
+  assert.deepEqual([...text.matchAll(/^## \[([^\]]+)\]/gm)].map(m => m[1]), ['1.3.0', '1.2.14', '1.2.13']);
+  assert.equal(f.git('rev-parse', 'v1.2.14'), f.before);
+  f.git('tag', plan.tag);
+  const retry = prepareRelease(f.repo, { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' }, { inputs: { publish: true } });
+  assert.equal(retry.commit, plan.commit); assert.equal(retry.generated, false);
+  f.git('checkout', '--quiet', '--detach', source);
+  const repeated = prepareRelease(f.repo, f.env, {});
+  assert.equal(repeated.commit, plan.commit);
+  assert.equal(fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8'), text);
+});
+
+for (const manual of [false, true]) {
+  for (const [type, expected] of [['fix', '1.2.15'], ['feat', '1.3.0'], ['rework', '2.0.0'], ['docs', null]]) {
+    test(`stale stable metadata follows the released baseline for ${type} on ${manual ? 'explicit manual retry' : 'push'}`, t => {
+      const f = history(t, '1.2.14');
+      bumpVersion(f.repo, '1.2.13');
+      const source = f.commit(`${type}: changed source with reverted metadata`);
+      const env = manual ? { ...f.env, GITHUB_EVENT_NAME: 'workflow_dispatch' } : f.env;
+      const event = manual ? { inputs: { publish: true } } : {};
+      if (manual && !expected) {
+        assert.throws(() => prepareRelease(f.repo, env, event), /No new release version/);
+      } else {
+        const plan = prepareRelease(f.repo, env, event);
+        assert.equal(plan.publish, Boolean(expected));
+        assert.equal(plan.generated, Boolean(expected));
+        assert.equal(plan.version, expected || '1.2.13');
+        if (expected) assert.equal(verifyReleaseVersion(f.repo, { tag: `v${expected}` }).version, expected);
+      }
+      if (!expected) {
+        assert.equal(f.git('rev-parse', 'HEAD'), source);
+        assert.equal(verifyReleaseVersion(f.repo).version, '1.2.13');
+        assert.equal(fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8'), f.git('show', 'v1.2.14:CHANGELOG.md') + '\n');
+      }
+      assert.equal(f.git('rev-parse', 'v1.2.14'), f.before);
+      assert.equal(f.git('status', '--porcelain'), '');
+    });
+  }
+}
+
+test('stale metadata ignores unrelated higher tags while an explicit higher version remains authoritative', t => {
+  const f = history(t, '1.2.14');
+  f.git('checkout', '--quiet', '-b', 'unrelated'); f.commit('unreleased branch'); f.git('tag', 'v99.0.0');
+  f.git('checkout', '--quiet', 'main');
+  bumpVersion(f.repo, '1.2.13'); f.commit('fix: correct reverted source');
+  assert.equal(planRelease(f.repo, f.env, {}).version, '1.2.15');
+  bumpVersion(f.repo, '1.4.7'); f.commit('rework: deliberately overridden version');
+  const plan = prepareRelease(f.repo, f.env, {});
+  assert.equal(plan.version, '1.4.7');
+  assert.equal(verifyReleaseVersion(f.repo).version, '1.4.7');
+});
+
+test('missing published changelog sections merge around authored future and historical entries', t => {
+  const published = '# Published introduction.\n\n' +
+    '## [1.2.14] - 2026-09-26\n\nPublished newest notes.\n\n' +
+    '## [1.2.13] - 2026-09-25\n\nOriginal older notes.\n\n' +
+    '## [1.2.12] - 2026-09-24\n\nPublished oldest notes.\n';
+  const f = history(t, '1.2.14', published);
+  const intro = '# Current introduction.\n\nKeep these custom links and guidance.\n\n';
+  const future = '## [1.3.0] - 2026-09-27\n\nHandwritten future release.\n\n';
+  const older = '## [1.2.13] - 2026-09-25\n\nCorrected authored older notes.\n\n';
+  const oldest = '## [1.2.11] - 2026-09-23\n\nCurrent oldest notes.\n';
+  fs.writeFileSync(path.join(f.repo, 'CHANGELOG.md'), intro + future + older + oldest);
+  bumpVersion(f.repo, '1.2.13'); f.commit('feat: generate release with restored history');
+  const plan = prepareRelease(f.repo, f.env, {});
+  const text = fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8');
+  assert.equal(plan.version, '1.3.0');
+  assert.ok(text.startsWith(intro + future));
+  assert.ok(text.includes(older)); assert.ok(text.endsWith(oldest));
+  assert.match(text, /Published newest notes/); assert.match(text, /Published oldest notes/);
+  assert.doesNotMatch(text, /Published introduction|Original older notes|generate release with restored history/);
+  assert.deepEqual([...text.matchAll(/^## \[([^\]]+)\]/gm)].map(m => m[1]), ['1.3.0', '1.2.14', '1.2.13', '1.2.12', '1.2.11']);
+});
+
+test('release tags predating CHANGELOG.md preserve current authored history without invented recovery', t => {
+  const f = history(t, '1.2.14', null);
+  const authored = '# Changelog\n\n## [1.2.13] - 2026-09-25\n\nCurrent authored notes.\n';
+  fs.writeFileSync(path.join(f.repo, 'CHANGELOG.md'), authored);
+  bumpVersion(f.repo, '1.2.13'); f.commit('fix: add initial changelog');
+  const plan = prepareRelease(f.repo, f.env, {});
+  const text = fs.readFileSync(path.join(f.repo, 'CHANGELOG.md'), 'utf8');
+  assert.equal(plan.version, '1.2.15');
+  assert.ok(text.endsWith(authored.slice(authored.indexOf('## ['))));
+  assert.deepEqual([...text.matchAll(/^## \[([^\]]+)\]/gm)].map(m => m[1]), ['1.2.15', '1.2.13']);
+});
+
+test('stale metadata never absorbs dirty edits while recovering release history', t => {
+  const f = history(t, '1.2.14');
+  bumpVersion(f.repo, '1.2.13'); f.commit('fix: source metadata was reverted');
+  fs.writeFileSync(path.join(f.repo, 'private.txt'), 'Unrelated local edit');
+  assert.throws(() => prepareRelease(f.repo, f.env, {}), /clean checkout/);
+  assert.equal(verifyReleaseVersion(f.repo).version, '1.2.13');
+  assert.equal(fs.readFileSync(path.join(f.repo, 'private.txt'), 'utf8'), 'Unrelated local edit');
+});
 test('project commit policy uses patch for fixes, minor for features and major for reworks', () => {
   const next = (...subjects) => nextVersion('1.2.4', subjects.map(subject => ({ subject })));
   assert.equal(next('fix: first', 'fix(gui): second'), '1.2.5');

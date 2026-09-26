@@ -22,6 +22,18 @@ Commit your changes and push them to `main`. CI chooses the next version from
 commit subjects since the latest reachable stable release tag, updates all seven
 version files above, and prepends an entry to `CHANGELOG.md`.
 
+The latest reachable stable release tag is the automatic version baseline. If a
+merge or stale local checkout restores an older stable version, CI calculates
+the next version from that published baseline and synchronizes all version files
+through `bump-version.js`. For example, source metadata at `1.2.13` with reachable
+`v1.2.14` and an unreleased `feat:` commit produces `1.3.0`. It cannot downgrade or
+replace `v1.2.14`. Docs-only changes still do not publish a release.
+
+During release preparation, missing published changelog sections are recovered
+from the baseline tag. Existing authored entries and introduction are retained.
+Pull the bot's metadata commit before starting new work to avoid carrying stale
+versions or dropping release history in the first place.
+
 This project's rules use **patch** for fixes, **minor** for features, and **major** for reworks:
 
 | Commit subject | Version change (starting at 1.2.4) |
@@ -61,7 +73,8 @@ node bump-version.js 1.2.5
 node tools/verify-release-version.cjs
 ```
 
-Commit all seven version files. CI respects an explicitly changed version and
+Commit all seven version files. CI respects a stable version higher than the
+published baseline, or an explicit prerelease version, and
 generates its changelog entry if missing. Existing authored entries are retained.
 For a repository with no stable release tag, CI uses the push's base commit;
 if neither is available, create an initial stable `v<version>` tag first.
@@ -90,6 +103,9 @@ Explicit `v*` tag pushes remain supported and build the tagged files without rew
 
 `build-tools.yml` separately installs the locked frontend dependencies and runs
 the service regressions plus build-tool tests under PowerShell 5.1 and 7.
+Its automatic-release fixtures cover stale version metadata, missing published
+changelog history, docs-only changes, authored notes and deterministic retries.
+These checks stay independent of the release build's installed compiler path.
 
 The local full build command is unchanged and never publishes or deploys:
 
