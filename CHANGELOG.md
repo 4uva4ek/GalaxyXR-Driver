@@ -6,6 +6,22 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.3.0] - 2026-09-26
+
+### Features
+
+- improve settings recovery and refresh Companion UI (`a3d3bcb`)
+
+### Fixes
+
+- ci: recover stale release metadata (`ae0c13f`)
+
+## [1.2.14] - 2026-09-26
+
+### Fixes
+
+- nvenc defaults changed and tabs now fill the window width (`442501b`)
+
 ## [1.2.13] - 2026-09-26
 
 ### Fixes
