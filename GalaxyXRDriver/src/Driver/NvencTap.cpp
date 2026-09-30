@@ -186,7 +186,7 @@ struct Retag {
 		if(!p || n >= 6 || !Is111(*p)){ return; }
 		slot[n] = p; old[n] = *p; *p = Tag121(digit, b31); n++;
 	}
-	~Retag(){ for(int i = n - 1; i >= 0; i--){ *slot[i] = old[i]; } if(n){ std::lock_guard<std::mutex> g(statsLock); stats.retagCalls++; } }
+	~Retag(){ for(int i = n - 1; i >= 0; i--){ *slot[i] = old[i]; } if(n && NvencTap::Get().GetConfig().enabled){ std::lock_guard<std::mutex> g(statsLock); stats.retagCalls++; } }
 };
 void RetagInitParams(Retag &r, NV_ENC_INITIALIZE_PARAMS* p){
 	if(!p){ return; }
@@ -672,6 +672,7 @@ NVENCSTATUS NVENCAPI NvencTapShims::InitializeEncoder(void* encoder, NV_ENC_INIT
 	if(!params){ return origInitializeEncoder(encoder, params); }
 	// re-tag first so the caps probe below and Guarded see the session's version
 	Retag rt; if(Upgraded(encoder)){ RetagInitParams(rt, params); }
+	if(!NvencTap::Get().GetConfig().enabled){ return origInitializeEncoder(encoder, params); }
 	// one-shot: how many NVENC engines does this session see (NV_ENC_CAPS_
 	// NUM_ENCODER_ENGINES is a 12.0 enum value; NV_ENC_CAPS_PARAM itself is
 	// unchanged since 11.1, so we ask with the caller's own struct version)
@@ -693,8 +694,9 @@ NVENCSTATUS NVENCAPI NvencTapShims::InitializeEncoder(void* encoder, NV_ENC_INIT
 NVENCSTATUS NVENCAPI NvencTapShims::ReconfigureEncoder(void* encoder, NV_ENC_RECONFIGURE_PARAMS* params){
 	if(!params){ return origReconfigureEncoder(encoder, params); }
 	NvencTapConfig cfg = NvencTap::Get().GetConfig();
-	bool logThis = reconfLogged.fetch_add(1) < 4 || cfg.verbose;
 	Retag rt; if(Upgraded(encoder)){ rt.add(&params->version, 1, true); RetagInitParams(rt, &params->reInitEncodeParams); }
+	if(!cfg.enabled){ return origReconfigureEncoder(encoder, params); }
+	bool logThis = reconfLogged.fetch_add(1) < 4 || cfg.verbose;
 	NVENCSTATUS st = Guarded("nvEncReconfigureEncoder", encoder, &params->reInitEncodeParams,
 		[&]{ return origReconfigureEncoder(encoder, params); }, logThis,
 		stats.reconfCalls, stats.reconfOverridden, stats.reconfFailedThenPristineOk, stats.reconfFailed,
@@ -704,9 +706,12 @@ NVENCSTATUS NVENCAPI NvencTapShims::ReconfigureEncoder(void* encoder, NV_ENC_REC
 }
 
 NVENCSTATUS NVENCAPI NvencTapShims::RegisterResource(void* encoder, NV_ENC_REGISTER_RESOURCE* params){
-	{ std::lock_guard<std::mutex> g(statsLock); stats.registerCalls++; }
 	Retag rt; if(params && Upgraded(encoder)){ rt.add(&params->version, 4, false); }
-	if(params && registerLogged.fetch_add(1) < 12){
+	// 2026-09-30: retain lifetime ownership even while OFF. A newly
+	// registered alias may map the same texture as an older ON handle.
+	const bool enabled = NvencTap::Get().GetConfig().enabled;
+	if(enabled){ std::lock_guard<std::mutex> g(statsLock); stats.registerCalls++; }
+	if(enabled && params && registerLogged.fetch_add(1) < 12){
 		DriverLog("NvencTap: nvEncRegisterResource encoder=%p type=%u %ux%u pitch=%u fmt=0x%x usage=%u res=%p — a LAYER-sized DX resource here is the direct-encode substitution site",
 			encoder, (unsigned)params->resourceType, params->width, params->height, params->pitch,
 			(unsigned)params->bufferFormat, (unsigned)params->bufferUsage, params->resourceToRegister);
@@ -732,6 +737,16 @@ NVENCSTATUS NVENCAPI NvencTapShims::UnmapInputResource(void* encoder, NV_ENC_INP
 }
 
 NVENCSTATUS NVENCAPI NvencTapShims::EncodePicture(void* encoder, NV_ENC_PIC_PARAMS* params){
+	// 2026-09-30: OFF keeps only the ABI adapter required by live 12.1 sessions.
+	if(!NvencTap::Get().GetConfig().enabled){
+		if(params && Upgraded(encoder) && Is111(params->version)){
+			alignas(16) unsigned char scratch[kScratch] = {};
+			memcpy(scratch, params, kPicParams11Size);
+			((NV_ENC_PIC_PARAMS*)scratch)->version = Tag121(6, true);
+			return origEncodePicture(encoder, (NV_ENC_PIC_PARAMS*)scratch);
+		}
+		return origEncodePicture(encoder, params);
+	}
 	{ std::lock_guard<std::mutex> g(statsLock); stats.encodeCalls++; }
 	if(params && params->outputBitstream){
 		std::lock_guard<std::mutex> g(submitLock);
@@ -789,11 +804,11 @@ NVENCSTATUS NVENCAPI NvencTapShims::LockBitstream(void* encoder, NV_ENC_LOCK_BIT
 		st = origLockBitstream(encoder, (NV_ENC_LOCK_BITSTREAM*)scratch);
 		memcpy(params, scratch, kLockBitstream11Size);
 		params->version = saved;
-		{ std::lock_guard<std::mutex> g(statsLock); stats.retagCalls++; }
+		if(NvencTap::Get().GetConfig().enabled){ std::lock_guard<std::mutex> g(statsLock); stats.retagCalls++; }
 	}else{
 		st = origLockBitstream(encoder, params);
 	}
-	if(st != NV_ENC_SUCCESS || !params){ return st; }
+	if(!NvencTap::Get().GetConfig().enabled || st != NV_ENC_SUCCESS || !params){ return st; }
 	double latMs = -1;
 	if(params->outputBitstream){
 		double now = NowSecondsNv();
@@ -889,6 +904,17 @@ NVENCSTATUS NVENCAPI NvencTapShims::UnregisterAsyncEvent(void* encoder, NV_ENC_E
 }
 NVENCSTATUS NVENCAPI NvencTapShims::MapInputResource(void* encoder, NV_ENC_MAP_INPUT_RESOURCE* params){
 	Retag rt; if(params && Upgraded(encoder)){ rt.add(&params->version, 4, false); }
+	if(!NvencTap::Get().GetConfig().enabled){
+		// Keep ownership while OFF: re-enabling must never sharpen an
+		// input mapped through an alias while processing was disabled.
+		std::lock_guard<std::mutex> g(resLock);
+		NVENCSTATUS st = origMapInputResource(encoder, params);
+		if(st == NV_ENC_SUCCESS && params && params->mappedResource
+			&& registered.count(params->registeredResource)){
+			mappedToReg[params->mappedResource] = params->registeredResource;
+		}
+		return st;
+	}
 	std::lock_guard<std::mutex> g(resLock);
 	// CAS ordering fix (2026-09-25): submit all post-pack D3D writes before
 	// NVENC maps the texture; modifying a mapped input is undefined behavior.
@@ -916,6 +942,7 @@ NVENCSTATUS NVENCAPI NvencTapShims::RunMotionEstimationOnly(void* encoder, NV_EN
 }
 
 NVENCSTATUS NVENCAPI NvencTapShims::CreateInstance(NV_ENCODE_API_FUNCTION_LIST* list){
+	if(!NvencTap::Get().GetConfig().enabled){ return origCreateInstance(list); }
 	// present the function list as 12.1 when an upgrade is wanted: same
 	// size (12.1 only appends pointers into 11.1's reserved tail), and it
 	// keeps the runtime's view of this client consistent with the session
@@ -985,12 +1012,21 @@ NvencTapConfig NvencTap::GetConfig(){
 	std::lock_guard<std::mutex> g(cfgLock);
 	return cfg;
 }
+NvencTapRuntimeState NvencTap::GetRuntimeState(){
+	std::lock_guard<std::mutex> installationGuard(installationLock);
+	const bool enabled = GetConfig().enabled;
+	const bool hookInstalled = Installed();
+	std::lock_guard<std::mutex> guard(upgradedLock);
+	return {enabled, hookInstalled, !upgradedSessions.empty()};
+}
 NvencTapStats NvencTap::GetStats(){
 	std::lock_guard<std::mutex> g(statsLock);
 	return stats;
 }
 
 void NvencTap::TryInstall(){
+	std::lock_guard<std::mutex> installationGuard(installationLock);
+	if(!GetConfig().enabled){ return; }
 	if(installed.load(std::memory_order_relaxed) || failedPermanently.load(std::memory_order_relaxed)){ return; }
 	double now = NowSecondsNv();
 	if(now - lastAttempt < 1.0){ return; }
@@ -1036,6 +1072,7 @@ void NvencTap::TryInstall(){
 }
 
 void NvencTap::MaybeHeartbeat(){
+	if(!GetConfig().enabled){ return; }
 	double now = NowSecondsNv();
 	if(now - lastHeartbeat < 10.0){ return; }
 	lastHeartbeat = now;

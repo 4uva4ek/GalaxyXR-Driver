@@ -25,6 +25,10 @@ NVENCSTATUS NVENCAPI FakeMap(void*, NV_ENC_MAP_INPUT_RESOURCE* p){
 }
 NVENCSTATUS NVENCAPI FakeUnmap(void*, NV_ENC_INPUT_PTR){ calls += 'U'; return unmapResult; }
 NVENCSTATUS NVENCAPI FakeUnregister(void*, NV_ENC_REGISTERED_PTR){ return unregisterResult; }
+NVENCSTATUS NVENCAPI FakeRegister(void*, NV_ENC_REGISTER_RESOURCE* p){
+	if(p){ p->registeredResource = &aliasToken; }
+	return NV_ENC_SUCCESS;
+}
 NVENCSTATUS NVENCAPI FakeEncode(void*, NV_ENC_PIC_PARAMS*){ calls += 'E'; return NV_ENC_ERR_GENERIC; }
 
 NV_ENC_MAP_INPUT_RESOURCE Input(void* handle = &regToken){
@@ -34,6 +38,9 @@ NV_ENC_MAP_INPUT_RESOURCE Input(void* handle = &regToken){
 	return p;
 }
 void Reset(){
+	NvencTapConfig config;
+	config.enabled = true;
+	NvencTap::Get().SetConfig(config);
 	registered.clear(); mappedToReg.clear(); upgradedSessions.clear(); calls.clear();
 	mapResult = unmapResult = unregisterResult = NV_ENC_SUCCESS;
 	processResult = true;
@@ -61,6 +68,7 @@ int main(){
 	origMapInputResource = FakeMap;
 	origUnmapInputResource = FakeUnmap;
 	origUnregisterResource = FakeUnregister;
+	origRegisterResource = FakeRegister;
 	origEncodePicture = FakeEncode;
 	Reset();
 	auto p = Input();
@@ -124,6 +132,30 @@ int main(){
 	NvencTapShims::MapInputResource(&encoderToken, &p);
 	Check(seenMapVersion == Tag121(4, false), "upgraded map sees required API version");
 	Check(p.version == oldVersion, "caller API version restored after map");
+
+	// 2026-09-30: OFF registrations can alias an ON texture. Keep ownership
+	// even while processing is bypassed, or re-enable could write a mapped input.
+	Reset();
+	NvencTapConfig cfg; cfg.enabled = false; NvencTap::Get().SetConfig(cfg);
+	NV_ENC_REGISTER_RESOURCE reg = {};
+	reg.version = NV_ENC_REGISTER_RESOURCE_VER;
+	reg.resourceType = NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX;
+	reg.resourceToRegister = &textureToken;
+	reg.bufferFormat = NV_ENC_BUFFER_FORMAT_NV12;
+	Check(NvencTapShims::RegisterResource(&encoderToken, &reg) == NV_ENC_SUCCESS, "OFF alias registration forwarded");
+	Check(registered.count(&aliasToken) == 1, "OFF alias registration retains safety ownership");
+	p = Input(&aliasToken);
+	Check(NvencTapShims::MapInputResource(&encoderToken, &p) == NV_ENC_SUCCESS, "OFF alias map forwarded");
+	Check(calls == "M", "OFF alias map never enters post-pack processing");
+	cfg.enabled = true; NvencTap::Get().SetConfig(cfg);
+	calls.clear(); mapResult = NV_ENC_ERR_GENERIC; p = Input();
+	NvencTapShims::MapInputResource(&encoderToken, &p);
+	Check(calls == "M", "re-enable cannot modify texture still mapped through OFF alias");
+	Check(mappedToReg.count(&mappedToken) == 1, "failed new map preserves OFF alias ownership");
+	NvencTapShims::UnmapInputResource(&encoderToken, &mappedToken);
+	calls.clear(); mapResult = NV_ENC_SUCCESS;
+	NvencTapShims::MapInputResource(&encoderToken, &p);
+	Check(calls == "PM", "post-pack resumes after OFF alias is successfully unmapped");
 	std::cout << "NvencPostPackOrder: " << checks << " checks, " << failures << " failures\n";
 	return failures ? 1 : 0;
 }

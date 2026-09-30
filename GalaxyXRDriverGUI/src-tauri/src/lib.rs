@@ -35,6 +35,7 @@ pub fn run() {
             driver_installation::uninstall_galaxyxr_driver,
             driver_installation::clean_legacy_galaxyxr_identity,
             driver_installation::settings_cleanup::clean_galaxyxr_settings,
+            driver_installation::settings_cleanup::restore_steamlink_encoder_behaviour,
             driver_installation::runtime_status::get_galaxyxr_runtime_status,
         ])
         .run(tauri::generate_context!())

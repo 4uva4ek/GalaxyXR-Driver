@@ -65,7 +65,7 @@ jobs:
       - name: Run service and packaging regressions
         if: ${{ !cancelled() }}
         run: |
-          $tests = @('Test-FluentFixes', 'Test-CompanionModes', 'Test-AboutSetup',
+          $tests = @('Test-FluentFixes', 'Test-CompanionModes', 'Test-EncoderRestore', 'Test-AboutSetup',
             'Test-SectionCards', 'Test-FluentBuildHooks', 'Test-SourceUpdate')
           $failed = @()
           foreach ($test in $tests) {

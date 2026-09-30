@@ -2391,6 +2391,65 @@ Use the calibration grid to inspect alignment, then turn calibration off before 
       <trans-unit id="about-20260926-5fa27952799cf546" datatype="html">
         <source>Support the original project</source>
       </trans-unit>
+      <trans-unit id="encoder-restore-20260930-1" datatype="html">
+        <source>Restore Steam Link encoder behaviour</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-2" datatype="html">
+        <source>Use the Galaxy XR build to restore Steam Link encoder behaviour. No files were changed.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-3" datatype="html">
+        <source>Restore Steam Link encoder behaviour?</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-4" datatype="html">
+        <source>Disable NVENC Tap and use Steam Link's own encoder behaviour. Your saved encoder tuning, image settings, profiles, app preferences, and SteamVR settings are kept. Close SteamVR first.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-5" datatype="html">
+        <source>Restore encoder behaviour</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-6" datatype="html">
+        <source>Encoder restore failed</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-7" datatype="html">
+        <source>NVENC Tap is OFF. Saved tuning was kept. Start SteamVR to use Steam Link's encoder parameters.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-8" datatype="html">
+        <source>Disable NVENC Tap without deleting your custom tuning. Stream quality, bandwidth, resolution, 10-bit requests and other settings are kept. Close SteamVR completely before restoring.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-9" datatype="html">
+        <source>Allow this driver to adjust NVIDIA's video encoder. OFF bypasses NVIDIA parameter overrides and post-pack processing; saved tuning is kept. Stream quality, bandwidth, resolution and 10-bit requests still apply. Requires a SteamVR restart.
+
+An encoder already created with the tap can retain its earlier parameters and API version until SteamVR is closed. The restore action requires SteamVR to be stopped so the next session starts without the tap.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-10" datatype="html">
+        <source>NVENC Tap OFF confirmed</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-11" datatype="html">
+        <source>NVENC Tap OFF: restart required</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-12" datatype="html">
+        <source>NVENC Tap OFF saved</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-13" datatype="html">
+        <source>The current driver process reports no NVENC hook. Your selected stream settings remain active.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-14" datatype="html">
+        <source>This SteamVR process already installed the hook. Close SteamVR completely and start it again to clear the encoder session.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-15" datatype="html">
+        <source>Start SteamVR to verify OFF in a fresh driver process. Old or missing runtime information cannot confirm it.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-16" datatype="html">
+        <source>Driver configuration</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-17" datatype="html">
+        <source>Loaded driver</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-18" datatype="html">
+        <source>Encoder behaviour was restored, but the settings file could not be reloaded. Reopen Companion after resolving its permissions.</source>
+      </trans-unit>
+      <trans-unit id="encoder-restore-20260930-19" datatype="html">
+        <source>Encoder behaviour was restored, but automatic UI refresh failed: {error}. Reopen Companion.</source>
+      </trans-unit>
     </body>
   </file>
 </xliff>

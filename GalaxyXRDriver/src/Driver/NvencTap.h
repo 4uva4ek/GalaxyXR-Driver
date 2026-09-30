@@ -248,6 +248,13 @@ struct NvencTapStats {
 	uint32_t lastLevel = 0, lastTier = 0, lastBitDepth = 0;
 };
 
+// 2026-09-30: passive session evidence, not per-frame encoder instrumentation.
+struct NvencTapRuntimeState {
+	bool enabled = false;
+	bool hookInstalled = false;
+	bool upgradedSessionsRemain = false;
+};
+
 class NvencTap{
 public:
 	static NvencTap& Get();
@@ -261,6 +268,7 @@ public:
 	void SetConfig(const NvencTapConfig &cfg);
 	NvencTapConfig GetConfig();
 	NvencTapStats GetStats();
+	NvencTapRuntimeState GetRuntimeState();
 
 	// periodic one-line summary to the log while enabled (10 s)
 	void MaybeHeartbeat();
@@ -274,6 +282,8 @@ private:
 	std::atomic<bool> failedPermanently{false};
 	double lastAttempt = 0;
 	double lastHeartbeat = 0;
+	// 2026-09-30: prevent premature OFF confirmation while hook enable is in flight.
+	std::mutex installationLock;
 	std::mutex cfgLock;
 	NvencTapConfig cfg;
 

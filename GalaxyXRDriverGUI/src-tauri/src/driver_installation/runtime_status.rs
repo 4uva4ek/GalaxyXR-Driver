@@ -14,10 +14,36 @@ pub struct RuntimeStatus {
     driver_version: Option<String>,
     server_pid: Option<u32>,
     checked_at: u64,
+    encoder_tap: Option<EncoderTapStatus>,
+}
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EncoderTapStatus {
+    state: String,
+    config_path: String,
+    module_path: String,
 }
 fn status(state: &str, detail: &str, running: bool, now: u64) -> RuntimeStatus {
     RuntimeStatus { state: state.into(), detail: detail.into(), steamvr_running: running,
-        driver_initialized: false, headset_connected: false, driver_version: None, server_pid: None, checked_at: now }
+        driver_initialized: false, headset_connected: false, driver_version: None, server_pid: None, checked_at: now, encoder_tap: None }
+}
+
+fn encoder_status(info: &Value, diagnostic: &Value) -> Option<EncoderTapStatus> {
+    // 2026-09-30: use the current diagnostic heartbeat for hook state. Old
+    // packages or incomplete snapshots must never imply an uninstalled hook.
+    let tap = &diagnostic["encoderTap"];
+    let enabled = tap["enabled"].as_bool()?;
+    let installed = tap["hookInstalled"].as_bool()?;
+    let upgraded = tap["upgradedSessionsRemain"].as_bool()?;
+    let config = info["encoderTap"]["configPath"].as_str().filter(|v| !v.is_empty())?;
+    let module = info["encoderTap"]["modulePath"].as_str().filter(|v| !v.is_empty())?;
+    Some(EncoderTapStatus { state: if enabled { "enabled" } else if installed || upgraded { "restart-required" } else { "disabled" }.into(),
+        config_path: config.into(), module_path: module.into() })
+}
+
+fn encoder_provenance_matches(tap: &EncoderTapStatus, settings: &Path, drivers: &[PathBuf]) -> bool {
+    same_path(Path::new(&tap.config_path), settings) && drivers.iter().any(|root|
+        same_path(Path::new(&tap.module_path), &root.join("bin/win64/driver_GalaxyXRNative.dll")))
 }
 
 fn assess_runtime(info: &Value, diagnostic: &Value, pid: u32, started: u64,
@@ -45,6 +71,7 @@ fn assess_runtime(info: &Value, diagnostic: &Value, pid: u32, started: u64,
         && now.saturating_sub(diagnostic_modified) <= 5000;
     if info["runtime"]["initialized"] != true || !fresh_diagnostic || diagnostic["vrserverPID"].as_u64() != Some(pid as u64) { return report; }
     report.driver_initialized = true;
+    report.encoder_tap = encoder_status(info, diagnostic);
     // Connection alone is not proof of image quality, tracking or a working
     // display. The UI separately asks the user to check those in the headset.
     report.headset_connected = info["connectedHeadset"].as_u64().map(|v| v != 0).unwrap_or(false);
@@ -99,8 +126,16 @@ pub fn get_galaxyxr_runtime_status(steamvr_path: Option<String>, expected_versio
     let snapshot = (|| -> Result<RuntimeStatus> {
         let info = read_json(&info_path)?;
         let diagnostic = if diagnostic_path.exists() { read_json(&diagnostic_path)? } else { json!({}) };
-        Ok(assess_runtime(&info, &diagnostic, pid.as_u32(), process.start_time() * 1000,
-            modified_ms(&info_path)?, modified_ms(&diagnostic_path).unwrap_or(0), &expected_version, now))
+        let mut report = assess_runtime(&info, &diagnostic, pid.as_u32(), process.start_time() * 1000,
+            modified_ms(&info_path)?, modified_ms(&diagnostic_path).unwrap_or(0), &expected_version, now);
+        if let Some(tap) = &report.encoder_tap {
+            let mut registered = ctx.registrations()?;
+            registered.push(ctx.steamvr.join("drivers").join(DRIVER));
+            if !encoder_provenance_matches(tap, &ctx.data.join("settings.json"), &registered) {
+                report.encoder_tap = None;
+            }
+        }
+        Ok(report)
     })();
     Ok(snapshot.unwrap_or_else(|_| status("waiting", "Waiting for readable driver runtime information. Connect Steam Link. If this continues, close SteamVR, reinstall the driver, and start SteamVR again.", true, now)))
 }
@@ -138,4 +173,36 @@ mod tests {
     #[test] fn locked_out_is_not_success() { let mut i=info();i["runtime"]["lockedOut"]=json!(true);let r=assess_runtime(&i,&json!({"vrserverPID":42}),42,1000,2000,9000,"1.2.0",10000);assert_eq!(r.state,"locked-out");assert!(!r.driver_initialized); }
     #[test] fn wrong_version_is_not_success() { assert_eq!(assess_runtime(&info(),&json!({"vrserverPID":42}),42,1000,2000,9000,"2.0.0",10000).state,"version-mismatch"); }
     #[test] fn connection_is_separate_from_initialization() { let mut i=info();i["connectedHeadset"]=json!(1);assert_eq!(assess_runtime(&i,&json!({"vrserverPID":42}),42,1000,2000,9000,"1.2.0",10000).state,"headset-connected"); }
+    #[test]
+    fn encoder_off_requires_complete_current_session_evidence() {
+        let mut i=info();
+        i["encoderTap"]=json!({"configPath":"C:/config/settings.json","modulePath":"C:/driver/bin/win64/driver_GalaxyXRNative.dll"});
+        let mut d=json!({"vrserverPID":42,"encoderTap":{"enabled":false,"hookInstalled":false,"upgradedSessionsRemain":false}});
+        let check=|info:&Value, diag:&Value, pid| assess_runtime(info,diag,pid,1000,2000,9000,"1.2.0",10000);
+        assert_eq!(check(&i,&d,42).encoder_tap.unwrap().state,"disabled");
+        assert!(check(&i,&d,43).encoder_tap.is_none());
+        d["encoderTap"]["hookInstalled"]=json!(true);
+        assert_eq!(check(&i,&d,42).encoder_tap.unwrap().state,"restart-required");
+        d["encoderTap"]["hookInstalled"]=json!(false);
+        d["encoderTap"]["upgradedSessionsRemain"]=json!(true);
+        assert_eq!(check(&i,&d,42).encoder_tap.unwrap().state,"restart-required");
+        d["encoderTap"]["enabled"]=json!(true);
+        assert_eq!(check(&i,&d,42).encoder_tap.unwrap().state,"enabled");
+        d["encoderTap"].as_object_mut().unwrap().remove("enabled");
+        assert!(check(&i,&d,42).encoder_tap.is_none());
+        assert!(check(&i,&json!({"vrserverPID":42}),42).encoder_tap.is_none());
+        assert!(assess_runtime(&i,&d,42,3000,2000,9000,"1.2.0",10000).encoder_tap.is_none());
+    }
+    #[test]
+    fn encoder_confirmation_requires_expected_config_and_registered_module() {
+        let root=PathBuf::from("C:/test/registered-driver");
+        let settings=PathBuf::from("C:/test/config/settings.json");
+        let mut tap=EncoderTapStatus {state:"disabled".into(),config_path:settings.to_string_lossy().into(),
+            module_path:root.join("bin/win64/driver_GalaxyXRNative.dll").to_string_lossy().into()};
+        assert!(encoder_provenance_matches(&tap,&settings,&[root.clone()]));
+        assert!(!encoder_provenance_matches(&tap,&settings,&[]));
+        assert!(!encoder_provenance_matches(&tap,Path::new("C:/other/settings.json"),&[root.clone()]));
+        tap.module_path="C:/other/bin/win64/driver_GalaxyXRNative.dll".into();
+        assert!(!encoder_provenance_matches(&tap,&settings,&[root]));
+    }
 }
