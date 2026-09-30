@@ -11,7 +11,7 @@ const { createHash } = require('node:crypto');
 const { chromium } = require('playwright');
 const repo = path.resolve(__dirname, '..');
 const dist = path.join(repo, 'GalaxyXRDriverGUI/dist/fluent');
-const out = path.join(repo, 'build/companion-ui-validation');
+const out = process.env.COMPANION_BROWSER_OUTPUT || path.join(repo, 'build/companion-ui-validation');
 fs.mkdirSync(out, { recursive: true });
 
 function fixture() {
@@ -40,7 +40,7 @@ function fixture() {
   const put = (p, value) => { files[normalize(p)] = value; persist(); };
   const github = { tagName: '1.2.13', releaseUrl: 'https://github.com/AngelDark92/GalaxyXR-Driver/releases/tag/v1.2.13',
     status: 200, hold: false, pending: [], requests: [] };
-  window.__qa = { files, calls, data, github, openerError: '', releaseGithub() {
+  window.__qa = { files, calls, data, github, openerError: '', runtime: null, holdRuntime: false, pendingRuntime: [], releaseGithub() {
     github.hold = false;
     for (const release of github.pending.splice(0)) release();
   } };
@@ -87,10 +87,22 @@ function fixture() {
       if (command === 'plugin:fs|mkdir') return;
       if (command === 'plugin:fs|watch') return 1;
       if (command === 'plugin:fs|unwatch' || command === 'plugin:resources|close') return;
-      if (command === 'get_galaxyxr_runtime_status') return {
-        state: 'not-running', detail: 'SteamVR is closed.', steamvrRunning: false, driverInitialized: false,
-        headsetConnected: false, driverVersion: null, serverPid: null, checkedAt: Date.now(),
-      };
+      if (command === 'get_galaxyxr_runtime_status') {
+        const report = () => ({ state: 'not-running', detail: 'SteamVR is closed.', steamvrRunning: false, driverInitialized: false,
+          headsetConnected: false, driverVersion: null, serverPid: null, ...window.__qa.runtime, checkedAt: Date.now() });
+        if (window.__qa.holdRuntime) return new Promise(resolve => window.__qa.pendingRuntime.push(() => resolve(report())));
+        return report();
+      }
+      if (command === 'restore_steamlink_encoder_behaviour') {
+        if (window.__qa.runtime?.steamvrRunning) throw Error('Close SteamVR completely before restoring encoder behaviour');
+        const source = files[data + '/settings.json'];
+        const backupPath = '/roaming/GalaxyXR/Backups/encoder-fixture';
+        put(backupPath + '/settings.json.before', source);
+        const config = JSON.parse(source); config.streamFrame.nvencTap = false;
+        put(data + '/settings.json', JSON.stringify(config));
+        return { outcome: 'complete', preservedPaths: [], unresolvedItems: [], backupPath,
+          resetFiles: [data + '/settings.json'], tapEnabled: false, warnings: [] };
+      }
       if (command === 'clean_galaxyxr_settings') {
         put(data + '/settings.json', '{"galaxyXr":{"nativeIdentity":true}}');
         put(data + '/gui-settings.json', '{}');
@@ -144,7 +156,7 @@ function fixture() {
     assert.deepEqual(await page.evaluate(() => ['button','badge','message-bar','dialog','dialog-body','accordion','accordion-item','spinner']
       .filter(name => !customElements.get('fluent-' + name))), []);
     results.push('All Fluent elements registered in production bundle');
-    const mutationCommands = ['clean_galaxyxr_settings','uninstall_galaxyxr_driver','plugin:fs|mkdir','plugin:fs|write_text_file','plugin:fs|copy_file','plugin:fs|remove'];
+    const mutationCommands = ['clean_galaxyxr_settings','restore_steamlink_encoder_behaviour','uninstall_galaxyxr_driver','plugin:fs|mkdir','plugin:fs|write_text_file','plugin:fs|copy_file','plugin:fs|remove'];
     const mutations = () => page.evaluate(list => window.__qa.calls.filter(call => list.includes(call.command)).length, mutationCommands);
     const openerUrls = () => page.evaluate(() => window.__qa.calls.filter(call => call.command === 'plugin:opener|open_url').map(call => call.args.url));
     const focusLinkWithKeyboard = async link => {
@@ -317,6 +329,44 @@ function fixture() {
     assert.equal(await mutations(), beforeAdvancedLink);
     assert.equal((await openerUrls()).length, beforeInternalOpen);
     results.push('Advanced target reveals and focuses its container without enabling Advanced Mode or writing');
+    await page.evaluate(async () => {
+      await appContext.appSetting.save({ ...appContext.appSetting.values(), advanceMode: true });
+      const settings = structuredClone(appContext.dss.values());
+      settings.streamFrame.nvencTap = true; settings.streamFrame.nvencPreset = 2;
+      await appContext.dss.save(settings); await appContext.dss.flush();
+    });
+    await openRoute('stream-frame');
+    await page.evaluate(() => appContext.galaxy.sections.set({ ...appContext.galaxy.sections(), advanced: true, 'heading:encoder': true }));
+    const encoder = page.locator('app-stream-frame-page');
+    await encoder.getByText('Restore encoder behaviour', { exact: true }).click();
+    let restoreDialog = page.locator('fluent-dialog');
+    await restoreDialog.getByText('Restore Steam Link encoder behaviour?', { exact: true }).waitFor();
+    await restoreDialog.locator('fluent-button').nth(1).click();
+    await restoreDialog.getByText("NVENC Tap is OFF. Saved tuning was kept. Start SteamVR to use Steam Link's encoder parameters.", { exact: true }).waitFor();
+    await restoreDialog.locator('fluent-button').click();
+    assert.equal(await page.evaluate(() => appContext.dss.values().streamFrame.nvencTap), false);
+    assert.equal(await page.evaluate(() => appContext.dss.values().streamFrame.nvencPreset), 2);
+    await encoder.getByText('NVENC Tap OFF saved', { exact: true }).waitFor();
+    await encoder.getByText('Restore encoder behaviour', { exact: true }).waitFor();
+    results.push('Encoder restore remains accessible with Tap OFF and preserves saved tuning');
+    await page.evaluate(async () => {
+      window.__qa.runtime = { state:'headset-connected',steamvrRunning:true,driverInitialized:true,serverPid:4242,
+        encoderTap:{state:'disabled',configPath:'/roaming/GalaxyXR/CustomHeadset/settings.json',modulePath:'/managed/GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll'} };
+      await appContext.startup.refresh();
+      window.__qa.holdRuntime = true;
+    });
+    await encoder.getByText('NVENC Tap OFF confirmed', { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(out, 'encoder-off-confirmed.png'), animations: 'disabled' });
+    await page.waitForFunction(() => window.__qa.pendingRuntime.length > 0);
+    await encoder.getByText('NVENC Tap OFF saved', { exact: true }).waitFor({timeout:8000});
+    assert.equal(await encoder.getByText('NVENC Tap OFF confirmed', { exact: true }).count(), 0);
+    assert.equal(await encoder.getByText('Restore encoder behaviour', { exact: true }).getAttribute('disabled'), '');
+    await page.evaluate(async () => {
+      window.__qa.holdRuntime = false; window.__qa.runtime = null;
+      for (const release of window.__qa.pendingRuntime.splice(0)) release();
+      await appContext.startup.refresh();
+    });
+    results.push('Confirmed OFF expires independently while a runtime poll hangs');
     await openRoute('setup');
     const beforeCancel = await mutations();
     await setup.locator('fluent-button.danger:not([disabled])').click();

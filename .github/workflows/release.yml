@@ -76,6 +76,15 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
 
+      - name: Verify production NVENC OFF bypass and resource ownership
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do call "%%i\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\Test-NvencToggle.ps1 -UseCurrentEnvironment
+          if errorlevel 1 exit /b 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\Test-NvencPostPackOrder.ps1 -UseCurrentEnvironment
+          if errorlevel 1 exit /b 1
+
       - name: Install frontend dependencies
         working-directory: GalaxyXRDriverGUI
         shell: pwsh
@@ -89,7 +98,7 @@ jobs:
       - name: Run service and packaging regressions
         shell: pwsh
         run: |
-          foreach ($test in @('Test-FluentFixes', 'Test-CompanionModes', 'Test-AboutSetup',
+          foreach ($test in @('Test-FluentFixes', 'Test-CompanionModes', 'Test-EncoderRestore', 'Test-AboutSetup',
             'Test-SectionCards', 'Test-FluentBuildHooks', 'Test-SourceUpdate')) {
             node ".\tools\$test.cjs"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

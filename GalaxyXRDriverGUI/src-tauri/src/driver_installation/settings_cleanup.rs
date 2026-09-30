@@ -18,6 +18,18 @@ pub struct CleanSettingsReport {
     warnings: Vec<String>,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EncoderRestoreReport {
+    outcome: &'static str,
+    preserved_paths: Vec<String>,
+    unresolved_items: Vec<String>,
+    backup_path: String,
+    reset_files: Vec<String>,
+    tap_enabled: bool,
+    warnings: Vec<String>,
+}
+
 struct FileChange { path: PathBuf, before: Option<Vec<u8>>, after: Option<Vec<u8>> }
 impl FileChange {
     fn new(path: PathBuf, after: Option<Vec<u8>>) -> Result<Self> {
@@ -71,6 +83,10 @@ fn commit_clean(data: &Path, changes: Vec<FileChange>) -> Result<String> {
 }
 fn commit_clean_with<F>(data: &Path, changes: Vec<FileChange>, mut write_file: F) -> Result<String>
 where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
+    commit_changes_with(data, changes, "Reset all settings", &mut write_file)
+}
+fn commit_changes_with<F>(data: &Path, changes: Vec<FileChange>, operation: &str, mut write_file: F) -> Result<String>
+where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
     let backup = data.parent().ok_or("Settings directory has no parent")?.join("Backups")
         .join(format!("clean-settings-{stamp}-{}", std::process::id()));
@@ -82,7 +98,7 @@ where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
         if let Some(bytes) = &change.before { atomic_bytes(&backup.join(&name), bytes)?; }
         manifest.push(json!({"path":change.path,"originallyPresent":change.before.is_some(),"backupFile":name}));
     }
-    atomic_json(&backup.join("manifest.json"), &json!({"schema":1,"operation":"Reset all settings","files":manifest}))?;
+    atomic_json(&backup.join("manifest.json"), &json!({"schema":1,"operation":operation,"files":manifest}))?;
     let mut committed: Vec<usize> = vec![];
     let transaction = (|| {
         for change in &changes {
@@ -93,6 +109,12 @@ where F: FnMut(&Path, &Option<Vec<u8>>) -> Result<()> {
             if snapshot_file(&change.path)? != change.before { return Err(error(&change.path, "File changed during cleanup")); }
             write_file(&change.path, &change.after)?;
             committed.push(index);
+            if snapshot_file(&change.path)? != change.after { return Err(error(&change.path, "Saved settings failed readback verification")); }
+        }
+        // 2026-09-30: verify the complete transaction before reporting success,
+        // including files that already matched and earlier replacements.
+        for change in &changes {
+            if snapshot_file(&change.path)? != change.after { return Err(error(&change.path, "File changed during settings verification")); }
         }
         Ok(())
     })();
@@ -205,6 +227,49 @@ pub fn clean_galaxyxr_settings(steamvr_path: Option<String>) -> Result<CleanSett
         None => PathBuf::from(std::env::var_os("APPDATA").ok_or("APPDATA unavailable")?).join("GalaxyXR/CustomHeadset"),
     };
     clean_settings_at(&data, ctx.as_ref())
+}
+
+fn encoder_restore_change(data: &Path) -> Result<FileChange> {
+    let mut change = FileChange::new(data.join("settings.json"), None)?;
+    let mut config = match &change.before {
+        Some(bytes) => parse_json_bytes(&change.path, bytes)?,
+        None => json!({}),
+    };
+    if !config.is_object() { return Err("Driver settings must be a JSON object; no files were changed".into()); }
+    if config.get("streamFrame").map(|value| !value.is_object()).unwrap_or(false) {
+        return Err("streamFrame must be a JSON object; no files were changed".into());
+    }
+    // 2026-09-30: this restores the original NVENC call path on the next
+    // SteamVR launch, not a fresh Companion profile or stock stream quality.
+    // Preserve every tuned value, migration marker and SteamVR journal entry.
+    if config["streamFrame"]["nvencTap"] == false {
+        change.after = change.before.clone();
+    } else {
+        config["streamFrame"]["nvencTap"] = json!(false);
+        change.after = Some(serde_json::to_vec_pretty(&config).map_err(|e|e.to_string())?);
+    }
+    Ok(change)
+}
+
+fn restore_encoder_at(data: &Path) -> Result<EncoderRestoreReport> {
+    let change = encoder_restore_change(data)?;
+    let reset_files = if change.before != change.after { vec![change.path.to_string_lossy().into_owned()] } else { vec![] };
+    let backup_path = commit_changes_with(data, vec![change], "Restore Steam Link encoder behaviour", restore_file)?;
+    let mut preserved_paths = preserved_data_paths(data);
+    preserved_paths.push(backup_path.clone());
+    Ok(EncoderRestoreReport { outcome:"complete", preserved_paths, unresolved_items:vec![],
+        backup_path, reset_files, tap_enabled:false, warnings:vec![] })
+}
+
+#[tauri::command]
+pub fn restore_steamlink_encoder_behaviour(steamvr_path: Option<String>) -> Result<EncoderRestoreReport> {
+    let _lock = platform::Lock::acquire()?;
+    require_stopped()?;
+    // This action edits only Companion's saved tap switch. Locating or opening
+    // SteamVR settings is unnecessary, even when installation records exist.
+    let _ = steamvr_path;
+    let data = PathBuf::from(std::env::var_os("APPDATA").ok_or("APPDATA unavailable")?).join("GalaxyXR/CustomHeadset");
+    restore_encoder_at(&data)
 }
 
 #[cfg(test)]
@@ -461,6 +526,106 @@ mod tests {
         assert!(clean_settings_at(&ctx.data,Some(&ctx)).unwrap_err().contains("missing"));
         assert_eq!(fs::read(ctx.data.join("settings.json")).unwrap(),config);
         assert_eq!(fs::read(ctx.journal()).unwrap(),journal);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn encoder_restore_changes_only_tap_and_backs_up_exact_original() {
+        let (root,ctx)=fixture();
+        let original=json!({"unknown":{"keep":42},"galaxyXr":{"nativeIdentity":false,"nativeResolution":true,
+            "sdr10Baseline":true,"streamQuality":"custom","customBandwidthMbit":123,
+            "vrlinkExtraKeys":{"targetBandwidth":{"i":117}}},"streamFrame":{"nvencTap":true,
+            "nvencSettingsVersion":2,"nvencBandwidthOverrideMbit":450,"nvencPreset":3,
+            "postPack":{"enable":true,"casEnable":true,"unknown":9},"saturation":77}});
+        atomic_json(&ctx.data.join("settings.json"),&original).unwrap();
+        let raw=fs::read(ctx.data.join("settings.json")).unwrap();
+        let files=[ctx.journal(),ctx.receipt(),ctx.data.join("gui-settings.json"),ctx.data.join("info.json"),
+            ctx.data.join("nvenc-settings-v4.migrated"),ctx.data.join("Distortion/custom.json")];
+        for path in &files { atomic_bytes(path,b"preserve exact bytes, including invalid JSON").unwrap(); }
+        let steamvr=fs::read(&ctx.settings).unwrap();
+        let report=restore_encoder_at(&ctx.data).unwrap();
+        let mut expected=original;expected["streamFrame"]["nvencTap"]=json!(false);
+        assert_eq!(read_json(&ctx.data.join("settings.json")).unwrap(),expected);
+        assert_eq!(report.outcome,"complete");assert!(!report.tap_enabled);assert!(report.warnings.is_empty());
+        assert_eq!(report.reset_files,vec![ctx.data.join("settings.json").to_string_lossy().into_owned()]);
+        assert_eq!(fs::read(&ctx.settings).unwrap(),steamvr);
+        for path in &files { assert_eq!(fs::read(path).unwrap(),b"preserve exact bytes, including invalid JSON"); }
+        let manifest=read_json(&Path::new(&report.backup_path).join("manifest.json")).unwrap();
+        assert_eq!(manifest["operation"],"Restore Steam Link encoder behaviour");
+        assert_eq!(manifest["files"].as_array().unwrap().len(),1);
+        assert_eq!(fs::read(Path::new(&report.backup_path).join(manifest["files"][0]["backupFile"].as_str().unwrap())).unwrap(),raw);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn encoder_restore_is_repeatable_and_keeps_off_file_bytes() {
+        let (root,ctx)=fixture();
+        let raw=b"{ \"streamFrame\": { \"nvencTap\": false, \"nvencPreset\": 7 }, \"unknown\": 9 }\n";
+        atomic_bytes(&ctx.data.join("settings.json"),raw).unwrap();
+        for _ in 0..2 {
+            let report=restore_encoder_at(&ctx.data).unwrap();
+            assert!(report.reset_files.is_empty());assert!(!report.tap_enabled);
+            assert_eq!(fs::read(ctx.data.join("settings.json")).unwrap(),raw);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn encoder_restore_can_add_missing_tap_without_importing_defaults() {
+        let (root,ctx)=fixture();
+        for original in [Some(json!({"keep":42})),None] {
+            if let Some(value)=original { atomic_json(&ctx.data.join("settings.json"),&value).unwrap(); }
+            else { fs::remove_file(ctx.data.join("settings.json")).unwrap(); }
+            restore_encoder_at(&ctx.data).unwrap();
+            let actual=read_json(&ctx.data.join("settings.json")).unwrap();
+            assert_eq!(actual["streamFrame"],json!({"nvencTap":false}));
+            assert!(actual.get("galaxyXr").is_none());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn malformed_encoder_restore_input_is_never_reset_or_backed_up_as_success() {
+        let (root,ctx)=fixture();
+        for raw in [b"invalid".as_slice(),b"[]",b"null",b"{\"streamFrame\":null}",
+            b"{\"streamFrame\":7}",b"{\"streamFrame\":[]}"] {
+            atomic_bytes(&ctx.data.join("settings.json"),raw).unwrap();
+            assert!(restore_encoder_at(&ctx.data).is_err());
+            assert_eq!(fs::read(ctx.data.join("settings.json")).unwrap(),raw);
+            assert!(!ctx.data.parent().unwrap().join("Backups").exists());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn encoder_restore_rejects_concurrent_edit_and_preserves_it() {
+        let (root,ctx)=fixture();let path=ctx.data.join("settings.json");
+        let change=encoder_restore_change(&ctx.data).unwrap();
+        atomic_json(&path,&json!({"streamFrame":{"nvencTap":true},"external":42})).unwrap();
+        let before=fs::read(&path).unwrap();
+        assert!(commit_changes_with(&ctx.data,vec![change],"Restore Steam Link encoder behaviour",restore_file).is_err());
+        assert_eq!(fs::read(&path).unwrap(),before);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn encoder_restore_write_failure_preserves_original_and_backup() {
+        let (root,ctx)=fixture();let path=ctx.data.join("settings.json");
+        let before=fs::read(&path).unwrap();let change=encoder_restore_change(&ctx.data).unwrap();
+        let result=commit_changes_with(&ctx.data,vec![change],"Restore Steam Link encoder behaviour",|_,_|Err("Injected failure".into()));
+        assert!(result.unwrap_err().contains("Recovery backup"));
+        assert_eq!(fs::read(&path).unwrap(),before);
+        assert_eq!(fs::read_dir(ctx.data.parent().unwrap().join("Backups")).unwrap().count(),1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn successful_write_requires_matching_readback() {
+        let (root,ctx)=fixture();let path=ctx.data.join("settings.json");
+        let change=encoder_restore_change(&ctx.data).unwrap();
+        let result=commit_changes_with(&ctx.data,vec![change],"Restore Steam Link encoder behaviour",|_,_|Ok(()));
+        let error=result.unwrap_err();assert!(error.contains("readback verification"));assert!(error.contains("Recovery backup"));
+        assert_eq!(read_json(&path).unwrap(),json!({"galaxyXr":{"nativeIdentity":false}}));
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -438,6 +438,13 @@ export type DriverInfo = {
   driverVersion: string,
   connectedHeadset: number,
   nonNativeHeadsetFound: boolean
+  encoderTap?: {
+    enabled: boolean;
+    hookInstalled: boolean;
+    upgradedSessionsRemain: boolean;
+    configPath: string;
+    modulePath: string;
+  };
 }
 export type ResolutionInfo = {
   fovX: number,

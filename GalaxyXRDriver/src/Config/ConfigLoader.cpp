@@ -12,6 +12,7 @@
 #include "../Distortion/DistortionProfileConstructor.h"
 #ifdef _WIN32
 #include "Windows.h"
+#include "../Driver/NvencTap.h"
 #else
 #include <unistd.h>
 #endif
@@ -19,6 +20,17 @@
 using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
 
+#ifdef _WIN32
+static std::string LoadedDriverModulePath(){
+	HMODULE module = nullptr;
+	if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&LoadedDriverModulePath), &module)){ return {}; }
+	wchar_t path[32768]{};
+	const DWORD size = GetModuleFileNameW(module, path, 32768);
+	if(size == 0 || size >= 32768){ return {}; }
+	return std::filesystem::path(std::wstring(path, size)).u8string();
+}
+#endif
 
 std::string ConfigLoader::GetConfigFolder(){
 	// vendor builds keep their config in a separate folder so they can coexist
@@ -2020,6 +2032,16 @@ void ConfigLoader::WriteInfo(){
 		{"runtime", {{"initialized", info.runtimeInitialized.load()}, {"lockedOut", info.runtimeLockedOut.load()}, {"processId", info.runtimeProcessId.load()}}},
 		{"driverVersion", driverVersion}
 	};
+	// 2026-09-30: report existing state without installing hooks or sampling
+	// the encoder. Companion checks the process, version and file freshness.
+#ifdef _WIN32
+	const auto tap = NvencTap::Get().GetRuntimeState();
+	static const std::string modulePath = LoadedDriverModulePath();
+	data["encoderTap"] = {{"enabled", tap.enabled}, {"hookInstalled", tap.hookInstalled},
+		{"upgradedSessionsRemain", tap.upgradedSessionsRemain},
+		{"configPath", std::filesystem::absolute(std::filesystem::u8path(GetConfigFolder() + "settings.json")).u8string()},
+		{"modulePath", modulePath}};
+#endif
 	ordered_json& distortionProfilesJson = data["builtInDistortionProfiles"];
 	for(auto profilePair : builtInDistortionProfiles){
 		auto profile = profilePair.second;
@@ -2140,6 +2162,13 @@ void ConfigLoader::WriteDiagnosticInfo(){
 			{"mapActive", diagnosticInfo.mapActive},
 		}},
 	};
+#ifdef _WIN32
+	// The diagnostic heartbeat carries current hook state even when static
+	// info.json did not need rewriting after an ON/OFF transition.
+	const auto tap = NvencTap::Get().GetRuntimeState();
+	data["encoderTap"] = {{"enabled", tap.enabled}, {"hookInstalled", tap.hookInstalled},
+		{"upgradedSessionsRemain", tap.upgradedSessionsRemain}};
+#endif
 	diagnosticFile << data.dump(1, '\t');
 	diagnosticFile.close();
 }

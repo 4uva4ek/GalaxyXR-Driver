@@ -70,6 +70,15 @@ export interface CleanSettingsReport extends MaintenanceReport {
     steamvrCleaned: boolean;
     warnings: string[];
 }
+export interface EncoderRestoreReport extends MaintenanceReport {
+    backupPath: string;
+    resetFiles: string[];
+    tapEnabled: boolean;
+    warnings: string[];
+}
+export function restore_steamlink_encoder_behaviour(steamvrPath?: string): Promise<EncoderRestoreReport> {
+    return invoke('restore_steamlink_encoder_behaviour', { steamvrPath: steamvrPath ?? null });
+}
 export interface DriverRuntimeStatus {
     state: 'not-running' | 'waiting' | 'locked-out' | 'version-mismatch' | 'initialized' | 'headset-connected';
     detail: string;
@@ -79,6 +88,11 @@ export interface DriverRuntimeStatus {
     driverVersion: string | null;
     serverPid: number | null;
     checkedAt: number;
+    encoderTap?: {
+        state: 'enabled' | 'restart-required' | 'disabled';
+        configPath: string;
+        modulePath: string;
+    } | null;
 }
 export function clean_galaxyxr_settings(steamvrPath?: string): Promise<CleanSettingsReport> {
     return invoke('clean_galaxyxr_settings', { steamvrPath: steamvrPath ?? null });

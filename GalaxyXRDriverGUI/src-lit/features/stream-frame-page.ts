@@ -9,12 +9,62 @@ import { css } from 'lit';
 import { BasePage, settingFieldRow, fieldRow, noteRow, sectionRow, sectionHeading, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import { pageIntro, statusMessage } from '../ui/presentation';
+import { encoderTapStatus } from '../domain/encoder-tap-status';
 import '../ui/controls';
 import './driver-banner';
 import './system-ready';
 
 @customElement('app-stream-frame-page')
 export class StreamFramePage extends BasePage {
+  private runtimeTimer?: ReturnType<typeof setTimeout>;
+  private runtimeExpiryTimer?: ReturnType<typeof setTimeout>;
+  private runtimeUnsub?: () => void;
+  private readonly onVisibilityChange = () => this.requestUpdate();
+  private pollGeneration = 0;
+  private updateRuntimeEvidence(): void {
+    this.requestUpdate();
+    if (this.runtimeExpiryTimer !== undefined) clearTimeout(this.runtimeExpiryTimer);
+    const checkedAt = this.ctx.startup.status()?.checkedAt;
+    // Expire evidence independently: an unresolved native poll cannot keep
+    // the previous confirmed-OFF badge alive indefinitely (2026-09-30).
+    if (checkedAt !== undefined) this.runtimeExpiryTimer = setTimeout(() => this.requestUpdate(),
+      Math.max(0, checkedAt + 5001 - Date.now()));
+  }
+  private async pollRuntime(generation: number): Promise<void> {
+    if (!this.isConnected || generation !== this.pollGeneration) return;
+    if (document.visibilityState !== 'hidden') await this.ctx.startup.refresh();
+    if (this.isConnected && generation === this.pollGeneration) {
+      this.runtimeTimer = setTimeout(() => { void this.pollRuntime(generation); }, 2000);
+    }
+  }
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.runtimeUnsub = this.ctx.startup.status.subscribe(() => this.updateRuntimeEvidence());
+    this.updateRuntimeEvidence();
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    void this.pollRuntime(++this.pollGeneration);
+  }
+  disconnectedCallback(): void {
+    ++this.pollGeneration;
+    if (this.runtimeTimer !== undefined) clearTimeout(this.runtimeTimer);
+    if (this.runtimeExpiryTimer !== undefined) clearTimeout(this.runtimeExpiryTimer);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.runtimeUnsub?.();
+    super.disconnectedCallback();
+  }
+  private async restoreEncoder(): Promise<void> {
+    await this.ctx.startup.refresh();
+    if (this.ctx.startup.status()?.steamvrRunning !== false) return;
+    const report = await this.ctx.sds.restoreSteamLinkEncoderBehaviour();
+    if (!report) return;
+    this.ctx.startup.invalidate();
+    this.ctx.checks.clear();
+    await this.ctx.dialog.message(t('Restore Steam Link encoder behaviour'),
+      t('NVENC Tap is OFF. Saved tuning was kept. Start SteamVR to use Steam Link\'s encoder parameters.'),
+      [t('Recovery backup') + ': ' + report.backupPath, ...report.unresolvedItems].join('\n'));
+    await this.ctx.startup.refresh();
+    this.requestUpdate();
+  }
   static styles = [fieldStyles, css`
     :host { display: block; padding: 0 1rem 2rem 1rem; }
     .rgb-control { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
@@ -323,9 +373,26 @@ if (vendor) {
         parts.push(settingFieldRow('streamFrame.nvencTap', html`
       <app-switch .checked=${!!settings.nvencTap} @change=${(e: CustomEvent) => { settings.nvencTap = e.detail; save(); }}></app-switch>
             `, {
-  tip: "Allow this driver to adjust NVIDIA's video encoder. These controls require a supported NVIDIA encoder path and may need a new stream connection.\n\nHooks the streamer's video encoder setup and applies the settings below on every encoder init and reconfigure. Every change is tried once and, if the encoder rejects it, retried with the streamer's own values, so the worst case is stock behaviour plus a log line. Off = stock streamer (the tier then only sets tile width and bandwidth). Requires an NVIDIA GPU; turn on BEFORE launching SteamVR.",
+  tip: "Allow this driver to adjust NVIDIA's video encoder. OFF bypasses NVIDIA parameter overrides and post-pack processing; saved tuning is kept. Stream quality, bandwidth, resolution and 10-bit requests still apply. Requires a SteamVR restart.\n\nAn encoder already created with the tap can retain its earlier parameters and API version until SteamVR is closed. The restore action requires SteamVR to be stopped so the next session starts without the tap.",
   reset: { can: settings.nvencTap != defaults.nvencTap, on: () => { galaxy.reset('nvencTap'); } }
             }));
+        parts.push(fieldRow(t('Restore Steam Link encoder behaviour'), html`
+          <fluent-button appearance="outline" ?disabled=${this.ctx.sds.installingDriver() || this.ctx.startup.status()?.steamvrRunning !== false}
+            @click=${() => this.restoreEncoder()}>${t('Restore encoder behaviour')}</fluent-button>
+        `, { tip: "Disable NVENC Tap without deleting your custom tuning. Stream quality, bandwidth, resolution, 10-bit requests and other settings are kept. Close SteamVR completely before restoring." }));
+        if (!settings.nvencTap) {
+          const runtime = this.ctx.startup.status();
+          const state = encoderTapStatus(false, runtime);
+          parts.push(statusMessage(state === 'restart-required' ? 'warning' : 'info',
+            t(state === 'confirmed-off' ? 'NVENC Tap OFF confirmed' : state === 'restart-required' ? 'NVENC Tap OFF: restart required' : 'NVENC Tap OFF saved'),
+            t(state === 'confirmed-off' ? 'The current driver process reports no NVENC hook. Your selected stream settings remain active.'
+              : state === 'restart-required' ? 'This SteamVR process already installed the hook. Close SteamVR completely and start it again to clear the encoder session.'
+              : 'Start SteamVR to verify OFF in a fresh driver process. Old or missing runtime information cannot confirm it.')));
+          if (state === 'confirmed-off' && runtime?.encoderTap) {
+            parts.push(noteRow(html`${t('Driver configuration')}: ${runtime.encoderTap.configPath}<br />
+              ${t('Loaded driver')}: ${runtime.encoderTap.modulePath}`));
+          }
+        }
 if (settings.nvencTap) {
               parts.push(sectionRow(t('Advanced'), sections['encoderAdv'], 1, () => this.toggleSection('encoderAdv')));
 if (sections.encoderAdv) {

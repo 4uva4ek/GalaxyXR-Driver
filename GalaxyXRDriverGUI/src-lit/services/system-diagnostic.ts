@@ -17,7 +17,8 @@ import type { AppSettingService } from './app-setting';
 import type { DriverInfoService } from './driver-info';
 import { get_executable_path, restart_vrcompositor, run_process_sync, register_galaxyxr_driver,
   uninstall_galaxyxr_driver, update_galaxyxr_steamvr_settings, DriverUninstallReport,
-  clean_legacy_galaxyxr_identity, IdentityCleanupReport, clean_galaxyxr_settings, CleanSettingsReport } from '../platform/tauri';
+  clean_legacy_galaxyxr_identity, IdentityCleanupReport, clean_galaxyxr_settings, CleanSettingsReport,
+  restore_steamlink_encoder_behaviour, EncoderRestoreReport } from '../platform/tauri';
 import { galaxyXRDriverName, driverCopyInstallationMethod, vendor } from '../environment';
 import { open } from '@tauri-apps/plugin-dialog';
 import { DialogService } from './dialog';
@@ -465,6 +466,56 @@ export class SystemDiagnosticService {
       app.inspecting = this.dss.inspecting = this.dis.inspecting = false;
       if (suspended && !this.driverDataRemoved) resumeFileWrites();
       else if (suspended && !completed && restoreAppEditsOnFailure) app.allowEditsAfterUninstall();
+      this.installing = false;
+      this._installingDriver.set(false);
+    }
+  }
+
+  async restoreSteamLinkEncoderBehaviour(app = this.app): Promise<EncoderRestoreReport | undefined> {
+    if (this.installing || this.dss.inspecting || app?.inspecting) return undefined;
+    if (vendor !== 'galaxyxr') {
+      await this.dialog.message(t('Restore Steam Link encoder behaviour'), t('Use the Galaxy XR build to restore Steam Link encoder behaviour. No files were changed.'));
+      return undefined;
+    }
+    this.installing = true;
+    let suspended = false;
+    let completed: EncoderRestoreReport | undefined;
+    try {
+      if (!await this.dialog.confirm(t('Restore Steam Link encoder behaviour?'), t('Disable NVENC Tap and use Steam Link\'s own encoder behaviour. Your saved encoder tuning, image settings, profiles, app preferences, and SteamVR settings are kept. Close SteamVR first.'), t('Restore encoder behaviour'), 'primary')) return undefined;
+      this._installingDriver.set(true);
+      await this.drainDriverChecks();
+      if (app) app.inspecting = true;
+      this.dss.inspecting = this.dis.inspecting = true;
+      suspended = true;
+      await suspendFileWrites();
+      // 2026-09-30: native restore changes only nvencTap; reload from disk
+      // before releasing writers so a stale GUI snapshot cannot enable it again.
+      completed = await restore_steamlink_encoder_behaviour(this.steamVRinstalled());
+      const loaded = await this.dss.reloadAfterReset();
+      if (!loaded) completed.warnings.push(t('Encoder behaviour was restored, but the settings file could not be reloaded. Reopen Companion after resolving its permissions.'));
+      if (completed.warnings.length) {
+        completed.outcome = 'attention-required';
+        completed.unresolvedItems = [...new Set([...completed.unresolvedItems, ...completed.warnings])];
+      }
+      return completed;
+    } catch (error) {
+      if (completed) {
+        completed.warnings.push(t('Encoder behaviour was restored, but automatic UI refresh failed: {error}. Reopen Companion.', { error: String(error) }));
+        completed.outcome = 'attention-required';
+        completed.unresolvedItems = [...new Set([...completed.unresolvedItems, ...completed.warnings])];
+        return completed;
+      }
+      await this.dialog.message(t('Encoder restore failed'), String(error));
+      return undefined;
+    } finally {
+      if (suspended) {
+        // Reload also after native failure: suspension cancels optimistic edits.
+        await Promise.allSettled([this.dss.loadSetting(), this.dis.loadSetting(), ...(app ? [app.loadSetting()] : [])]);
+        await Promise.allSettled([this.dss.refreshWatch(), this.dis.refreshWatch(), ...(app ? [app.refreshWatch()] : [])]);
+      }
+      if (app) app.inspecting = false;
+      this.dss.inspecting = this.dis.inspecting = false;
+      if (suspended && !this.driverDataRemoved) resumeFileWrites();
       this.installing = false;
       this._installingDriver.set(false);
     }

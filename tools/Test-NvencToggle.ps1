@@ -1,6 +1,7 @@
+param([switch]$UseCurrentEnvironment)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-. (Join-Path $PSScriptRoot 'Enter-PortableBuildEnvironment.ps1')
+if (-not $UseCurrentEnvironment) { . (Join-Path $PSScriptRoot 'Enter-PortableBuildEnvironment.ps1') }
 $build = Join-Path $repo 'build/nvenc-toggle-test'
 New-Item -ItemType Directory -Force -Path $build | Out-Null
 $exe = Join-Path $build 'NvencToggleTest.exe'
