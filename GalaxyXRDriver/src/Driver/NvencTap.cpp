@@ -1013,6 +1013,7 @@ NvencTapConfig NvencTap::GetConfig(){
 	return cfg;
 }
 NvencTapRuntimeState NvencTap::GetRuntimeState(){
+	std::lock_guard<std::mutex> installationGuard(installationLock);
 	const bool enabled = GetConfig().enabled;
 	const bool hookInstalled = Installed();
 	std::lock_guard<std::mutex> guard(upgradedLock);
@@ -1024,6 +1025,7 @@ NvencTapStats NvencTap::GetStats(){
 }
 
 void NvencTap::TryInstall(){
+	std::lock_guard<std::mutex> installationGuard(installationLock);
 	if(!GetConfig().enabled){ return; }
 	if(installed.load(std::memory_order_relaxed) || failedPermanently.load(std::memory_order_relaxed)){ return; }
 	double now = NowSecondsNv();

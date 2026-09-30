@@ -1,6 +1,17 @@
 // Compile the actual shim implementation; substitute only external NVENC/D3D
 // and hook dependencies. No GPU, injected hooks, or SteamVR process is used.
+#include <windows.h>
+#include <future>
+#include <condition_variable>
+HMODULE WINAPI FakeModule(LPCSTR);
+FARPROC WINAPI FakeExport(HMODULE, LPCSTR);
+#define GetModuleHandleA FakeModule
+#define LoadLibraryA FakeModule
+#define GetProcAddress FakeExport
 #include "../src/Driver/NvencTap.cpp"
+#undef GetModuleHandleA
+#undef LoadLibraryA
+#undef GetProcAddress
 #include <cstdlib>
 #include <iostream>
 
@@ -218,16 +229,29 @@ void CheckExistingSessionAfterOff(void* encoder){
 }
 }
 
-// Any attempted GPU processing or hook installation is a test failure, not a
-// silent fallback. The cases below exercise only the actual API shims.
+// GPU processing always fails fast. Hook installation is allowed only in
+// the explicit fake-loader concurrency case below; no live DLL is loaded.
 namespace NvencPostPack {
 bool Process(void*, uint32_t){ std::abort(); }
 NvencPostPackStats GetStats(){ std::abort(); }
 void ResetIntervalStats(){ std::abort(); }
 }
-extern "C" MH_STATUS WINAPI MH_Initialize(){ std::abort(); }
-extern "C" MH_STATUS WINAPI MH_CreateHook(LPVOID, LPVOID, LPVOID*){ std::abort(); }
-extern "C" MH_STATUS WINAPI MH_EnableHook(LPVOID){ std::abort(); }
+namespace {
+bool hookTest = false, hookEntered = false, hookRelease = false;
+std::mutex hookMutex;
+std::condition_variable hookCondition;
+}
+HMODULE WINAPI FakeModule(LPCSTR){ if(!hookTest) std::abort(); return reinterpret_cast<HMODULE>(1); }
+FARPROC WINAPI FakeExport(HMODULE, LPCSTR){ if(!hookTest) std::abort(); return reinterpret_cast<FARPROC>(1); }
+extern "C" MH_STATUS WINAPI MH_Initialize(){ if(!hookTest) std::abort(); return MH_OK; }
+extern "C" MH_STATUS WINAPI MH_CreateHook(LPVOID, LPVOID, LPVOID*){ if(!hookTest) std::abort(); return MH_OK; }
+extern "C" MH_STATUS WINAPI MH_EnableHook(LPVOID){
+	if(!hookTest) std::abort();
+	std::unique_lock<std::mutex> lock(hookMutex);
+	hookEntered = true; hookCondition.notify_all();
+	hookCondition.wait(lock, []{ return hookRelease; });
+	return MH_OK;
+}
 
 int main(){
 	origOpenEncodeSessionEx = CaptureOpen;
@@ -309,6 +333,27 @@ int main(){
 		"upgraded session destruction still delegates after OFF");
 	Check(!Upgraded(upgraded), "destroy removes the session ABI record");
 
+	// Exercise actual TryInstall with fake loader/hooks; pause inside hook enable.
+	hookTest = true;
+	Configure(true, 1);
+	auto installer = std::async(std::launch::async, []{ NvencTap::Get().TryInstall(); });
+	{
+		std::unique_lock<std::mutex> lock(hookMutex);
+		Check(hookCondition.wait_for(lock, std::chrono::seconds(2), []{ return hookEntered; }), "installation reached paused enable");
+	}
+	Configure(false, 1);
+	std::promise<void> readerStarted;
+	auto reader = std::async(std::launch::async, [&]{ readerStarted.set_value(); return NvencTap::Get().GetRuntimeState(); });
+	readerStarted.get_future().wait();
+	Check(reader.wait_for(std::chrono::milliseconds(100)) == std::future_status::timeout,
+		"OFF runtime snapshot waits for in-flight installation");
+	{
+		std::lock_guard<std::mutex> lock(hookMutex); hookRelease = true;
+	}
+	hookCondition.notify_all(); installer.get();
+	const auto snapshot = reader.get();
+	Check(!snapshot.enabled && snapshot.hookInstalled, "OFF snapshot reports completed hook installation");
+	hookTest = false;
 	std::cout << "NVENC toggle: " << checks << " checks, " << failures << " failures\n";
 	return failures == 0 ? 0 : 1;
 }
