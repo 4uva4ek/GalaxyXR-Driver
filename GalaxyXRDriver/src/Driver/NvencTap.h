@@ -282,7 +282,8 @@ private:
 	std::atomic<bool> failedPermanently{false};
 	double lastAttempt = 0;
 	double lastHeartbeat = 0;
-	std::mutex installationLock; // Serialize passive evidence with hook installation.
+	// 2026-09-30: prevent premature OFF confirmation while hook enable is in flight.
+	std::mutex installationLock;
 	std::mutex cfgLock;
 	NvencTapConfig cfg;
 
