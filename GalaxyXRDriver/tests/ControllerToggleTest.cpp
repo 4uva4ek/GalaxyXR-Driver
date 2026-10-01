@@ -1,6 +1,7 @@
 // 2026-09-25 toggle regression: production input callbacks/state extracted by
 // Test-ControllerToggles.ps1; API, device identity, and clock are memory-only.
 #include "Config/Config.h"
+#include "Config/DebugModePolicy.h"
 #include "openvr_driver.h"
 #include <algorithm>
 #include <atomic>
@@ -48,9 +49,13 @@ public:
     std::map<uint32_t, DeriveFilterState> deriveFilterStates;
     std::map<uint32_t, VelFixState> velFixStates;
     std::map<uint32_t, MotionSnapshot> motionSnapshots;
+    std::map<uint32_t, PoseLogState> poseLogStates;
     std::mutex poseLogLock, gripTouchLock, deriveFilterLock;
     std::atomic<bool> tunerInputActive{false};
     double lastReleaseLogTime = 0, lastEdgeLogTime = 0;
+    uint64_t poseDiagnosticGeneration = 0, kalDiagnosticGeneration = 0;
+    void RefreshPoseDiagnosticSession();
+    void RefreshKalDiagnosticSession();
     uint32_t ResolveContainerId(vr::PropertyContainerHandle_t container) {
         std::lock_guard<std::mutex> guard(poseLogLock);
         return container >= 1 && container <= 3 ? static_cast<uint32_t>(container) : vr::k_unTrackedDeviceIndexInvalid;
@@ -337,7 +342,95 @@ static void TestRejectedRelease() {
     }
 }
 
+static void TestDiagnosticReset() {
+    GalaxyXRDeviceProvider::KalState state;
+    state.p[0] = 3; state.v[1] = 4; state.P[0][0] = 7;
+    state.schedNis = 2; state.schedANis = 5;
+    state.tFresh = 12; state.tMeas = 13; state.lossStartT = 14;
+    state.lastMeas[0] = 9; state.haveMeas = true;
+    state.rewindUntil = 21; state.rtsCount = 2; state.rtsT[0] = 11;
+    state.rawPkSp = 6; state.rawPkT = 16; state.rawPkWSp = 8; state.rawPkWT = 17;
+    state.stuckRun = true; state.stuckStartT = 18;
+    state.stepMax = 1; state.fdtN = 3; state.dtN = 4;
+    state.rawCount = 7; state.rawSecHave = true; state.pkActive = true;
+    state.diagLossStartT = 19; state.lossMsSum = 20;
+    state.diagFreshHave = true; state.diagCoastStart = 22; state.coastStart = 23;
+    state.ResetDiagnostics();
+    Check(state.rawPkSp == 0 && state.rawPkT == 0 && state.rawPkWSp == 0 && state.rawPkWT == 0,
+        "diagnostic reset discards pre-OFF release peaks and timestamps");
+    Check(!state.stuckRun && state.stuckStartT == 0 && !state.pkActive && !state.rawSecHave && state.rawCount == 0,
+        "diagnostic reset discards old watchdog and raw observation windows");
+    Check(state.stepMax == 0 && state.fdtN == 0 && state.dtN == 0 && state.diagLossStartT == 0 && state.lossMsSum == 0,
+        "diagnostic reset clears counters and its separate loss timer");
+    Check(!state.diagFreshHave && state.diagCoastStart == -1 && state.coastStart == 23,
+        "diagnostic reset preserves shared coast clock while discarding telemetry cadence");
+    Check(state.p[0] == 3 && state.v[1] == 4 && state.P[0][0] == 7 && state.schedNis == 2 && state.schedANis == 5,
+        "diagnostic reset preserves estimates covariance and scheduler");
+    Check(state.tFresh == 12 && state.tMeas == 13 && state.lossStartT == 14 && state.haveMeas && state.lastMeas[0] == 9,
+        "diagnostic reset preserves measurement and tracking-loss state");
+    Check(state.rewindUntil == 21 && state.rtsCount == 2 && state.rtsT[0] == 11,
+        "diagnostic reset preserves release and fixed-lag motion history");
+}
+
+static void TestDiagnosticCallbackGeneration() {
+    Fixture f;
+    driverConfig.debugMode = true;
+    driverConfig.debugGeneration = 1;
+    driverConfig.streamFrame.poseLogging = true;
+    driverConfig.streamFrame.velocityFixMode = 4;
+    driverConfig.streamFrame.kalmanReleaseRewindMs = 30;
+    driverConfig.streamFrame.kalmanRewindHoldMs = 80;
+    f.Boolean(10, 1);
+    f.Button(10, true);
+    f.provider.LogReleaseSnapshot(1, "initial");
+    auto& state = f.provider.kalStates[1];
+    state.rawPkSp = 8; state.rawPkT = testNow;
+    state.rawPkWSp = 9; state.rawPkWT = testNow;
+    state.stuckRun = true; state.stuckStartT = testNow - 10;
+    state.dtN = 4; state.stepMax = 2;
+    state.p[0] = 3; state.v[1] = 4; state.P[0][0] = 7;
+    state.schedNis = 2; state.schedANis = 5; state.tFresh = 12;
+    f.provider.poseLogStates[1].recentFastTime = testNow;
+    f.provider.lastReleaseLogTime = testNow;
+    f.provider.lastEdgeLogTime = testNow;
+    logs.clear();
+    // Both published master transitions occur without a provider frame or
+    // intervening callback. The first direct release must start a new session.
+    driverConfig.debugMode = false;
+    ++driverConfig.debugGeneration;
+    driverConfig.debugMode = true;
+    ++driverConfig.debugGeneration;
+    testNow += 0.01;
+    f.Button(10, false);
+    Check(LogsStarting("ReleaseSnap:") == 1, "first direct release after missed-frame transitions gets a fresh log budget");
+    Check(f.provider.poseLogStates.empty() && f.provider.lastEdgeLogTime == 0,
+        "direct release clears prior pose windows and edge budget before a provider frame");
+    Check(state.rawPkSp == 0 && state.rawPkT == 0 && state.rawPkWSp == 0 && !state.stuckRun && state.dtN == 0 && state.stepMax == 0,
+        "direct release clears prior Kalman telemetry before reading release diagnostics");
+    Check(LogsStarting("PoseLog: RELDIAG") == 0, "direct callback cannot emit the prior session's fresh raw peak");
+    Check(state.p[0] == 3 && state.v[1] == 4 && state.P[0][0] == 7 && state.schedNis == 2 && state.schedANis == 5 && state.tFresh == 12,
+        "direct callback epoch reset preserves shared estimates covariance scheduler and clock");
+    Check(Near(state.rewindUntil, testNow + 0.08) && Near(state.rewindTarget, testNow - 0.03),
+        "diagnostic epoch reset preserves the release action from the same callback");
+    state.rawPkSp = 4; state.rawPkT = testNow;
+    f.provider.poseLogStates[1].recentFastTime = testNow;
+    // These are the same lock-held refresh calls used by RunFrame. A later
+    // frame must retain observations already collected by the direct callback.
+    {
+        std::lock_guard<std::mutex> guard(f.provider.poseLogLock);
+        f.provider.RefreshPoseDiagnosticSession();
+    }
+    {
+        std::lock_guard<std::mutex> guard(f.provider.deriveFilterLock);
+        f.provider.RefreshKalDiagnosticSession();
+    }
+    Check(state.rawPkSp == 4 && f.provider.poseLogStates[1].recentFastTime == testNow,
+        "later frame refresh does not reset the callback's current diagnostic session twice");
+}
+
 int main() {
+    TestDiagnosticCallbackGeneration();
+    TestDiagnosticReset();
     TestGripTransitions();
     TestGripLifecycle();
     TestGripHysteresis();

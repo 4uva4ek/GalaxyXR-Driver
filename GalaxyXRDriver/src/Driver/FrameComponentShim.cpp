@@ -1521,6 +1521,7 @@ bool DirectModeComponentShim::GetActiveSettings(FrameProcessSettings &settings, 
 		// 2026-09-25: gaze prediction must read the saved settings, not the
 		// default-constructed frame snapshot. Resolve every consumer first.
 		settings.config = driverConfig.streamFrame;
+		settings.debugGeneration = driverConfig.debugGeneration;
 		processAtSubmit = driverConfig.streamFrame.processAtSubmitLayer;
 		// 2026-09-19 SDR10 baseline: resolve the effective color policy from
 		// the SAME snapshot under the SAME lock so eye and encoder settings

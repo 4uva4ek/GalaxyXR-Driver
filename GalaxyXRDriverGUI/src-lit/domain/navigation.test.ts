@@ -11,7 +11,29 @@ describe('stable tab order and the always-visible Setup page', () => {
     expect(parseSettingTarget('#/stream-frame?setting=%22%3E')).toBeUndefined();
   });
   it('keeps the canonical tab order', () => {
-    expect([...ROUTES]).toEqual(['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings', 'setup', 'about']);
+    expect([...ROUTES]).toEqual(['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings', 'setup', 'about']);
+  });
+
+  it.each([
+    [true, true], [true, false], [false, true], [false, false],
+  ] as const)('gates Debug for installed=%s and Debug Mode=%s', (available, debugMode) => {
+    const routes = visibleRoutes(available, debugMode);
+    expect(routes).toEqual(available
+      ? debugMode
+        ? ['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings', 'setup', 'about']
+        : ['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings', 'setup', 'about']
+      : ['app-settings', 'setup', 'about']);
+    expect(parseRoute('#/debug', available)).toBe('debug');
+    expect(permittedRoute('debug', available, debugMode)).toBe(available
+      ? debugMode ? 'debug' : 'app-settings'
+      : 'setup');
+  });
+
+  it('hides Debug by default and gates its setting links through application preferences', () => {
+    expect(visibleRoutes(true)).not.toContain('debug');
+    const hash = settingHref('debug', 'streamFrame.hitchDiag');
+    expect(parseSettingTarget(hash)).toBe('streamFrame.hitchDiag');
+    expect(permittedRoute(parseRoute(hash, true), true)).toBe('app-settings');
   });
 
   it.each([

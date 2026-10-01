@@ -4,6 +4,7 @@
 #include "../src/Driver/ReconLogger.h"
 #include "../src/Driver/ZeroCopy.h"
 #include "../src/Config/ConfigLoader.h"
+#include "../src/Config/DebugModePolicy.h"
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -268,6 +269,24 @@ int main() {
     Check(!lastPostPack.enable && lastTap.vuiFullRange == 1,
         "post-pack OFF disables remap and its metadata override");
 
+    Config selected;
+    selected.streamFrame.nvencVerbose = true;
+    selected.streamFrame.nvencFixLevel = true;
+    selected.streamFrame.nvencForceFps = 72;
+    selected.streamFrame.nvencBitrateMbit = 123;
+    selected.streamFrame.nvencMaxBitrateHeadroomPct = 20;
+    selected.streamFrame.blackFloor.blackPointCode = 3.5;
+    for(bool debugMode : {false, true}) {
+        Config effective = selected;
+        effective.debugMode = debugMode;
+        gxr::ApplyDebugModePolicy(effective);
+        Dispatch(effective, "Debug Mode encoder policy");
+        Check(lastTap.verbose == debugMode, "master gates verbose publication");
+        Check(lastTap.fixLevel && lastTap.forceFps == 72 && lastTap.bitrateMbit == 123,
+            "master preserves compatibility and rate publication");
+        Check(effective.streamFrame.nvencMaxBitrateHeadroomPct == 20 && effective.streamFrame.blackFloor.blackPointCode == 3.5,
+            "master preserves headroom and black-point tuning");
+    }
     std::cout << "CAS activation: " << checks << " checks, " << failures << " failures\n";
     return failures == 0 ? 0 : 1;
 }

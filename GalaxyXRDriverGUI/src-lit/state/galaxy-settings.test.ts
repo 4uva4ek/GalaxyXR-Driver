@@ -1,5 +1,5 @@
 // Unit tests for the Galaxy settings state (state/galaxy-settings.ts):
-// persisted-schema migrations (schema 2/3/4, NVENC v3/v4), defaults
+// persisted-schema migrations (schema 2/3/4/5, NVENC v3/v4), defaults
 // resolution, tuner band/segment generation, matrix text parsing, CAS
 // mode switching, calibration lifecycle, and profile import semantics.
 //
@@ -16,10 +16,11 @@ type Harness = {
   flush: () => Promise<void>;
 };
 
-function buildHarness(stored: Record<string, unknown> | undefined = {}, disValues: unknown = undefined, rawStored: unknown = undefined) {
+function buildHarness(stored: Record<string, unknown> | undefined = {}, disValues: unknown = undefined, rawStored: unknown = undefined, readError: unknown = undefined) {
   const saved: unknown[] = [];
   const dss = {
     values: () => stored,
+    readFileError: () => readError,
     save: (v: unknown) => { saved.push(v); },
     ...(rawStored === undefined ? {} : { storedValues: () => rawStored }),
   };
@@ -33,7 +34,7 @@ function buildHarness(stored: Record<string, unknown> | undefined = {}, disValue
 describe('schema migrations', () => {
   it.each([false, true])('migrates SDR10 OFF with legacy compatibility=%s without changing tuning', async legacy10bit => {
     const stored = structuredClone(driverDefaults);
-    stored.streamFrame!.streamFrameSchema = 4;
+    stored.streamFrame!.streamFrameSchema = 5;
     stored.streamFrame!.nvencSettingsVersion = 4;
     stored.galaxyXr!.sdr10Baseline = false;
     stored.galaxyXr!.profileSupports10bit = legacy10bit;
@@ -53,7 +54,7 @@ describe('schema migrations', () => {
 
   it.each([false, true])('keeps active SDR10 and its legacy compatibility=%s during migration', async legacy10bit => {
     const stored = structuredClone(driverDefaults);
-    stored.streamFrame!.streamFrameSchema = 4;
+    stored.streamFrame!.streamFrameSchema = 5;
     stored.streamFrame!.nvencSettingsVersion = 4;
     stored.galaxyXr!.sdr10Baseline = true;
     stored.galaxyXr!.profileSupports10bit = legacy10bit;
@@ -64,7 +65,7 @@ describe('schema migrations', () => {
     expect(stored.galaxyXr!.profileSupports10bit).toBe(legacy10bit);
   });
 
-  it('chains schema 1 -> 2 -> 3 -> 4 for an exact-default legacy kalman config', async () => {
+  it('chains schema 1 -> 2 -> 3 -> 4 -> 5 for an exact-default legacy kalman config', async () => {
     const stored: any = {
       streamFrame: { velocityFixMode: 'kalman' },
       controllers: {
@@ -91,7 +92,7 @@ describe('schema migrations', () => {
     expect(stored.controllers.rotationOffsetDeg).toEqual(driverDefaults.controllers!.rotationOffsetDeg);
     expect(stored.controllers.positionOffsetCm).toEqual(driverDefaults.controllers!.positionOffsetCm);
     expect(stored.controllers.mirrorOffsetsForRightHand).toBe(driverDefaults.controllers!.mirrorOffsetsForRightHand);
-    expect(stored.streamFrame.streamFrameSchema).toBe(4);
+    expect(stored.streamFrame.streamFrameSchema).toBe(5);
     // NVENC v3 + v4 ride along
     expect(stored.streamFrame.nvencSettingsVersion).toBe(4);
     expect(stored.streamFrame.postPack.enable).toBe(true);
@@ -108,7 +109,7 @@ describe('schema migrations', () => {
     await flush();
     expect(stored.streamFrame.velocityFixMode).toBe('kalman');
     expect(stored.streamFrame.kalmanProcessAccel).toBe(2);
-    expect(stored.streamFrame.streamFrameSchema).toBe(4);
+    expect(stored.streamFrame.streamFrameSchema).toBe(5);
   });
 
   it('keeps custom kalmanCA tuning intact through schema 3/4', async () => {
@@ -117,7 +118,7 @@ describe('schema migrations', () => {
         velocityFixMode: 'kalmanCA',
         kalmanCaJerk: 99, kalmanCaPosNoiseMm: 3.3, kalmanCaOriNoiseDeg: 3.3,
         kalmanCaAccelTauMs: 50, kalmanCaExactCov: true,
-        streamFrameSchema: 4, nvencSettingsVersion: 4,
+        streamFrameSchema: 5, nvencSettingsVersion: 4,
       },
     };
     const { saved, flush } = buildHarness(stored);
@@ -134,7 +135,7 @@ describe('schema migrations', () => {
   it('normalises the integer kalmanAngularOutFrame to the string enum', async () => {
     const cases: Array<[number, string]> = [[0, 'world'], [1, 'body'], [2, 'zero'], [99, 'body']];
     for (const [raw, expected] of cases) {
-      const stored: any = { streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 4, kalmanAngularOutFrame: raw } };
+      const stored: any = { streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 4, kalmanAngularOutFrame: raw } };
       const { flush } = buildHarness(stored);
       await flush();
       expect(stored.streamFrame.kalmanAngularOutFrame).toBe(expected);
@@ -152,7 +153,7 @@ describe('schema migrations', () => {
     const stored: any = {
       galaxyXr: { sdr10SettingsVersion: 2, customStreamFormatWidth: 1856 },
       streamFrame: {
-        streamFrameSchema: 4, nvencSettingsVersion: version,
+        streamFrameSchema: 5, nvencSettingsVersion: version,
         postPack: { enable: false, casEnable: false }, ...chosen,
       },
     };
@@ -173,7 +174,7 @@ describe('schema migrations', () => {
     };
     const stored: any = {
       galaxyXr: { sdr10SettingsVersion: 2, vrlinkHeadsetProfile: false },
-      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 2, ...off },
+      streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 2, ...off },
     };
     const { flush } = buildHarness(stored);
     await flush();
@@ -188,7 +189,7 @@ describe('schema migrations', () => {
   it('fills missing legacy encoder toggle values from defaults', async () => {
     const stored: any = {
       galaxyXr: { sdr10SettingsVersion: 2 },
-      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 2 },
+      streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 2 },
     };
     const { gs, flush } = buildHarness(stored);
     await flush();
@@ -204,7 +205,7 @@ describe('schema migrations', () => {
   ])('keeps explicit post-pack mode %j during the v4 migration', async mode => {
     const stored: any = {
       streamFrame: {
-        streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+        streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
         cas: { enable: true, strength: 0.9 }, postPack: { ...mode, foveaStrength: 0.23 },
       },
     };
@@ -217,7 +218,7 @@ describe('schema migrations', () => {
   it.each([false, true])('keeps legacy CAS Off with independent limitedRange=%s', async limitedRange => {
     const stored: any = {
       streamFrame: {
-        streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+        streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
         cas: { enable: false, strength: 0.87 }, postPack: { limitedRange },
       },
     };
@@ -233,7 +234,7 @@ describe('schema migrations', () => {
     const raw = {
       galaxyXr: { sdr10SettingsVersion: 2 },
       streamFrame: {
-        streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+        streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
         cas: { enable: true, strength: 0.91 },
       },
     };
@@ -251,7 +252,7 @@ describe('schema migrations', () => {
 
   it('moves an enabled pre-encode CAS to post-pack when the NVENC tap is on', async () => {
     const stored: any = {
-      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true, cas: { enable: true, strength: 0.9 } },
+      streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true, cas: { enable: true, strength: 0.9 } },
     };
     const { flush } = buildHarness(stored);
     await flush();
@@ -264,7 +265,7 @@ describe('schema migrations', () => {
 
   it('leaves pre-encode CAS enabled when the NVENC tap is off', async () => {
     const stored: any = {
-      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: false, cas: { enable: true, strength: 0.4 } },
+      streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: false, cas: { enable: true, strength: 0.4 } },
     };
     const { flush } = buildHarness(stored);
     await flush();
@@ -276,15 +277,15 @@ describe('schema migrations', () => {
   it('does not touch a config that is already at the latest schema', async () => {
     const stored: any = {
       streamFrame: {
-        velocityFixMode: 'kalmanCA', streamFrameSchema: 4, nvencSettingsVersion: 4,
+        velocityFixMode: 'kalmanCA', streamFrameSchema: 5, nvencSettingsVersion: 4,
         kalmanAngularOutFrame: 'body', kalmanDirLeadMs: 3,
       },
     };
     const { saved, flush } = buildHarness(stored);
     await flush();
-    // schema-4 is unconditional only for configs BELOW 4; this one is at 4
+    // schema-4 is unconditional only for configs BELOW 4; this one is current
     expect(stored.streamFrame.kalmanDirLeadMs).toBe(3);
-    expect(stored.streamFrame.streamFrameSchema).toBe(4);
+    expect(stored.streamFrame.streamFrameSchema).toBe(5);
     expect(saved.length).toBe(0);
   });
 });
@@ -292,7 +293,7 @@ describe('schema migrations', () => {
 describe('defaults resolution', () => {
   it('defaults Hitch Diagnostics to off and resets an explicit opt-in to off', async () => {
     const stored = structuredClone(driverDefaults);
-    stored.streamFrame!.streamFrameSchema = 4;
+    stored.streamFrame!.streamFrameSchema = 5;
     stored.streamFrame!.nvencSettingsVersion = 4;
     stored.streamFrame!.hitchDiag = true;
     const { gs, flush } = buildHarness(stored);
@@ -322,6 +323,39 @@ describe('advancedMode', () => {
   it('mirrors the appSetting advanceMode flag', () => {
     const { gs } = buildHarness({});
     expect(gs.advancedMode).toBe(false);
+  });
+});
+
+describe('Debug Mode preservation', () => {
+  it('defaults a missing master to Off and keeps unreadable settings hidden', () => {
+    expect(driverDefaults.debugMode).toBe(false);
+    expect(buildHarness({}).gs.debugMode).toBe(false);
+    expect(buildHarness({ debugMode: true }, undefined, undefined, { reason: 'Read failed' }).gs.debugMode).toBe(false);
+  });
+
+  it.each([false, true])('preserves explicit master=%s and selected diagnostics through schema 5', async debugMode => {
+    const chosen = {
+      hitchDiag: true, poseLogging: false, poseLogBurst: true, nvencVerbose: true,
+      eyeGaze: { debugRing: true, predictionMs: 35 },
+      blackFloor: { rampBar: true, blackPointCode: 7 },
+      gamma: 1.8, nvencPreset: 3, nvencForceFps: 72,
+    };
+    const stored: any = {
+      debugMode, galaxyXr: { sdr10SettingsVersion: 2, vrlinkDebugOverlay: true },
+      streamFrame: { streamFrameSchema: 4, nvencSettingsVersion: 4, ...chosen },
+    };
+    const { gs, saved, flush } = buildHarness(stored);
+    await flush();
+    expect(gs.debugMode).toBe(debugMode);
+    expect(stored.streamFrame).toMatchObject({ streamFrameSchema: 5, ...chosen });
+    expect(stored.galaxyXr.vrlinkDebugOverlay).toBe(true);
+    expect(saved).toHaveLength(1);
+    const reopened = buildHarness(structuredClone(saved[0] as Record<string, unknown>));
+    await reopened.flush();
+    expect(reopened.gs.debugMode).toBe(debugMode);
+    expect(reopened.gs.settings).toMatchObject(chosen);
+    expect(reopened.gs.galaxyXr.vrlinkDebugOverlay).toBe(true);
+    expect(reopened.saved).toHaveLength(0);
   });
 });
 

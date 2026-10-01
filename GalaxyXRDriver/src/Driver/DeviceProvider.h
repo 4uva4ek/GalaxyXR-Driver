@@ -91,6 +91,11 @@ private:
 	};
 	std::map<uint32_t, PoseLogState> poseLogStates = {};
 	std::mutex poseLogLock = {};
+	uint64_t poseDiagnosticGeneration = 0; // guarded by poseLogLock
+	uint64_t kalDiagnosticGeneration = 0; // guarded by deriveFilterLock
+	// Caller holds the corresponding state lock; never acquire another lock.
+	void RefreshPoseDiagnosticSession();
+	void RefreshKalDiagnosticSession();
 	// one-shot per-device announcement of a non-identity WorldFromDriver
 	// (mixed-space setups); lock free for the pose hot path
 	std::atomic<uint64_t> spaceFixLoggedMask{0};
@@ -247,11 +252,13 @@ private:
 		int dtN = 0;
 		double dtMaxMs = 0;
 		double coastMaxMs = 0;
+		double diagCoastStart = -1.0;
 		// angular-channel NIS (same EMA treatment as linear nisEma)
 		double nisAEma = 1.0;
 		// fresh-to-fresh clock: device-time stamp of last DISTINCT raw
 		// sample + per-window stats of the tracker's true cadence
 		double tFresh = 0;
+		bool diagFreshHave = false;
 		double fdtSumMs = 0;
 		int fdtN = 0;
 		double fdtMaxMs = 0;
@@ -277,6 +284,7 @@ private:
 		double lossStartT = 0;
 		int lossRuns = 0;
 		double lossMsSum = 0;
+		double diagLossStartT = 0; // diagnostic interval; lossStartT drives motion
 		int teleports = 0;
 		// Measurement-integrity reacquisition.  This is deliberately
 		// separate from throw/release logic: an impossible position jump is
@@ -513,6 +521,46 @@ private:
 		double subP[subN][3] = {};
 		int subHead = 0;
 		int subCount = 0;
+		// Debug Mode sessions (2026-10-01): reset observation state only.
+		// Keep estimators, covariance, scheduler statistics, measurement
+		// clocks, loss/reacquisition and release-rewind histories intact.
+		void ResetDiagnostics(){
+			nisEma = 1.0; nisAEma = 1.0;
+			lastDiagLog = 0; diagSpaceLastLog = 0;
+			diagRawQHave = false; diagRawQT = 0;
+			diagRawQ[0] = 1; diagRawQ[1] = 0; diagRawQ[2] = 0; diagRawQ[3] = 0;
+			posFreeze3dof = 0; stepMax = 0; stepFrozen = 0; dupSkipped = 0;
+			dtBack = 0; dtSumMs = 0; dtN = 0; dtMaxMs = 0; coastMaxMs = 0;
+			diagCoastStart = -1.0; diagFreshHave = false;
+			fdtSumMs = 0; fdtN = 0; fdtMaxMs = 0;
+			accMax = 0; wAccMax = 0; accNZ = 0;
+			lossRuns = 0; lossMsSum = 0; diagLossStartT = 0; teleports = 0;
+			gazeBends = 0; turnCoastSteps = 0; gazeBendSum = 0; gazeBendMax = 0;
+			caAccPk = 0; caWAccPk = 0;
+			stuckRun = false; stuckStartT = 0; stuckMax = 0; stuckV0 = 0;
+			garbageN = 0; garbageRun = false; vClampN = 0;
+			relSnapHave = false; repHave = false;
+			rDivPk = 1.0; rADivPk = 1.0;
+			pkActive = false; pkOut = 0; pkSec = 0; pkCalm = 0; pkMag = 0;
+			pkAngOut = 0; pkAngSec = 0;
+			pkOutT = 0; pkSecT = 0; pkAngOutT = 0; pkAngSecT = 0;
+			diagCalmSp = 0; diagMagSp = 0; diagGripHave = false; diagGripWr = 0;
+			pkGrip = 0; pkWr = 0;
+			rawHead = 0; rawCount = 0; rawSecHave = false; rawSecT = 0;
+			rawPkActive = false; rawPkSp = 0; rawPkT = 0;
+			rawPkWActive = false; rawPkWSp = 0; rawPkWT = 0;
+			rtsFrames = 0; rtsRepFrames = 0; rtsDepthSum = 0;
+			subHead = 0; subCount = 0;
+			for(int axis = 0; axis < 3; ++axis){
+				relOutV[axis] = 0; relOutW[axis] = 0;
+				relSecV[axis] = 0; relSecW[axis] = 0;
+				pkOutVec[axis] = 0; pkSecVec[axis] = 0; pkGripVec[axis] = 0;
+				diagGripV[axis] = 0;
+				rawSecV[axis] = 0; rawSecW[axis] = 0;
+				rawPkV[axis] = 0; rawPkW[axis] = 0;
+				repV[axis] = 0; repW[axis] = 0;
+			}
+		}
 	};
 	std::map<uint32_t, KalState> kalStates;
 	// latest HMD orientation, for rotating the head-space gaze ray into

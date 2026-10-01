@@ -1,11 +1,10 @@
-// Canonical tab order (2026-09-22): Driver Settings, Image Settings,
-// Distortion Profile, App Settings, Setup, About. Installation only hides
-// driver-specific pages; it never reorders the remaining tabs.
-export const ROUTES = ['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings', 'setup', 'about'] as const;
+// Canonical tab order (2026-10-01): Debug follows Image Settings when enabled.
+// Installation/mode gates hide pages without reordering the remaining tabs.
+export const ROUTES = ['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings', 'setup', 'about'] as const;
 export type Route = (typeof ROUTES)[number];
 export const ROUTE_LABELS: Record<Route, string> = {
   'driver-settings': 'Driver Settings', 'distortion-profile': 'Distortion Profile',
-  'stream-frame': 'Image Settings', 'app-settings': 'App Settings', setup: 'Setup', about: 'About',
+  'stream-frame': 'Image Settings', debug: 'Debug', 'app-settings': 'App Settings', setup: 'Setup', about: 'About',
 };
 export type InstallationState = 'checking' | 'installed' | 'not-installed' | 'unknown';
 const ALWAYS_VISIBLE: readonly Route[] = ['app-settings', 'setup', 'about'];
@@ -15,8 +14,8 @@ export function driverAvailable(version: string | undefined, state: Installation
   return !!version && (state === 'installed' || state === 'checking');
 }
 
-export function visibleRoutes(available: boolean): readonly Route[] {
-  return available ? ROUTES : ROUTES.filter(route => ALWAYS_VISIBLE.includes(route));
+export function visibleRoutes(available: boolean, debugMode = false): readonly Route[] {
+  return ROUTES.filter(route => (available || ALWAYS_VISIBLE.includes(route)) && (route !== 'debug' || debugMode));
 }
 
 /** Landing page (2026-09-22): Setup before the driver is installed,
@@ -42,6 +41,7 @@ export function parseSettingTarget(hash: string): string | undefined {
   return id && /^[a-zA-Z0-9._-]+$/.test(id) ? id : undefined;
 }
 
-export function permittedRoute(requested: Route, available: boolean): Route {
+export function permittedRoute(requested: Route, available: boolean, debugMode = false): Route {
+  if (available && requested === 'debug' && !debugMode) return 'app-settings';
   return available || ALWAYS_VISIBLE.includes(requested) ? requested : 'setup';
 }

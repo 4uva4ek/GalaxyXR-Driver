@@ -1582,6 +1582,10 @@ struct CustomShaderConfig{
 
 class Config{
 public:
+	// 2026-10-01: diagnostics require an explicit master opt-in; selections are retained.
+	bool debugMode = false;
+	// Runtime-only epoch: retain transitions even when no scene/provider frame runs.
+	uint64_t debugGeneration = 0;
 	enum HeadsetType{
 		None = 0,
 		Other = 1,

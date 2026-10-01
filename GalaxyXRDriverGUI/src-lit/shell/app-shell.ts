@@ -5,7 +5,7 @@ import { t, subscribeLocale } from '../locale/i18n';
 import type { AppContext } from '../app-context';
 import { applyTheme } from '../ui/theme';
 import { interactiveStyles } from '../ui/shared-styles';
-import { driverAvailable, parseRoute, parseSettingTarget, permittedRoute, visibleRoutes, ROUTE_LABELS, type Route } from '../domain/navigation';
+import { driverAvailable, parseRoute, parseSettingTarget, permittedRoute, visibleRoutes, settingHref, ROUTE_LABELS, type Route } from '../domain/navigation';
 import { settingPresentation } from '../domain/settings-presentation';
 import type { BasePage } from '../features/page-base';
 
@@ -15,6 +15,7 @@ export class AppShell extends LitElement {
   @property({ type: String }) route: Route = 'driver-settings';
   @property({ attribute: false }) private settingMessage = '';
   private targetGeneration = 0;
+  private debugAllowed = false;
 
   static styles = [interactiveStyles, css`
     :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: var(--colorNeutralBackground2); }
@@ -35,6 +36,11 @@ export class AppShell extends LitElement {
   private readonly onSystemTheme = () => applyTheme(this.ctx.appSetting.values().colorScheme);
   private readonly onHash = () => this.syncRoute();
   private readonly onInstallation = () => { this.syncRoute(); this.requestUpdate(); };
+  private readonly onDriverSettings = () => {
+    // Saved selections/default emissions must not erase a guarded-link message.
+    if (this.debugAllowed !== (this.driverAvailable && this.ctx.galaxy.debugMode)) this.syncRoute();
+    this.requestUpdate();
+  };
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -46,6 +52,8 @@ export class AppShell extends LitElement {
       this.ctx.sds.driverInstalled.subscribe(this.onInstallation),
       this.ctx.sds.installingDriver.subscribe(notify),
       this.ctx.sds.driverState.subscribe(this.onInstallation),
+      this.ctx.dss.values.subscribe(this.onDriverSettings),
+      this.ctx.dss.readFileError.subscribe(this.onDriverSettings),
       this.ctx.aus.updateInfo.subscribe(notify),
       this.ctx.checks.checking.subscribe(notify), this.ctx.checks.report.subscribe(notify),
       this.ctx.dss.writeFileError.subscribe(notify), this.ctx.appSetting.writeFileError.subscribe(notify),
@@ -69,9 +77,18 @@ export class AppShell extends LitElement {
   }
 
   private syncRoute(): void {
+    this.debugAllowed = this.driverAvailable && this.ctx.galaxy.debugMode;
     const target = parseSettingTarget(window.location.hash);
-    const requested = parseRoute(window.location.hash, this.driverAvailable);
-    const next = permittedRoute(requested, this.driverAvailable);
+    let requested = parseRoute(window.location.hash, this.driverAvailable);
+    const setting = target ? settingPresentation(target) : undefined;
+    // 2026-10-01: retain pre-move links without bypassing Debug Mode.
+    if (requested === 'stream-frame' && setting?.route === 'debug') {
+      requested = 'debug';
+      if (this.ctx.galaxy.debugMode && this.driverAvailable) {
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${settingHref('debug', target!)}`);
+      }
+    }
+    const next = permittedRoute(requested, this.driverAvailable, this.ctx.galaxy.debugMode);
     const redirected = this.route !== next && requested !== next;
     this.route = next;
     // Do not lose a valid startup deep-link while initial inspection is pending.
@@ -92,14 +109,19 @@ export class AppShell extends LitElement {
     await this.updateComplete;
     if (!this.isConnected || generation !== this.targetGeneration) return;
     const page = this.shadowRoot?.getElementById(`panel-${this.route}`)?.firstElementChild as BasePage | undefined;
-    if (!id) { page?.clearSettingTarget?.(); return; }
+    if (!id) {
+      page?.clearSettingTarget?.();
+      if (requested === 'debug' && this.driverAvailable && !this.ctx.galaxy.debugMode) this.settingMessage = 'Enable Debug Mode in App Settings to show diagnostic controls.';
+      return;
+    }
     const setting = settingPresentation(id);
     if (!setting || setting.route !== requested) {
       this.settingMessage = 'This setting is not available in this version.';
       return;
     }
     if (requested !== this.route) {
-      this.settingMessage = 'Install the driver to show this control.';
+      this.settingMessage = requested === 'debug' && this.driverAvailable
+        ? 'Enable Debug Mode in App Settings to show diagnostic controls.' : 'Install the driver to show this control.';
       return;
     }
     if (page) {
@@ -117,7 +139,7 @@ export class AppShell extends LitElement {
     if (this.ctx.checks.checking() || this.ctx.sds.installingDriver()) return;
     const tablist = event.currentTarget as HTMLElement & { activeid: string };
     const route = tablist.activeid?.replace(/^tab-/, '');
-    if (route !== this.route && (visibleRoutes(this.driverAvailable) as readonly string[]).includes(route)) {
+    if (route !== this.route && (visibleRoutes(this.driverAvailable, this.ctx.galaxy.debugMode) as readonly string[]).includes(route)) {
       this.route = route as Route;
       window.location.hash = `/${route}`;
     }
@@ -125,7 +147,8 @@ export class AppShell extends LitElement {
 
   private renderPage(): TemplateResult {
     const ctx = this.ctx;
-    switch (permittedRoute(this.route, this.driverAvailable)) {
+    switch (permittedRoute(this.route, this.driverAvailable, this.ctx.galaxy.debugMode)) {
+      case 'debug': return html`<app-debug-page .ctx=${ctx}></app-debug-page>`;
       case 'distortion-profile': return html`<app-distortion-profile-page .ctx=${ctx}></app-distortion-profile-page>`;
       case 'stream-frame': return html`<app-stream-frame-page .ctx=${ctx}></app-stream-frame-page>`;
       case 'app-settings': return html`<app-app-settings-page .ctx=${ctx}></app-app-settings-page>`;
@@ -136,8 +159,8 @@ export class AppShell extends LitElement {
   }
 
   render() {
-    const routes = visibleRoutes(this.driverAvailable);
-    const activeRoute = permittedRoute(this.route, this.driverAvailable);
+    const routes = visibleRoutes(this.driverAvailable, this.ctx.galaxy.debugMode);
+    const activeRoute = permittedRoute(this.route, this.driverAvailable, this.ctx.galaxy.debugMode);
     const update = this.ctx.aus.updateInfo();
     const busy = this.ctx.checks.checking() || this.ctx.sds.installingDriver();
     const writeError = this.ctx.dss.writeFileError() || this.ctx.appSetting.writeFileError();

@@ -34,6 +34,7 @@ import { DriverSettingsPage } from './features/driver-settings-page';
 import { DistortionProfilePage } from './features/distortion-profile-page';
 import { StreamFramePage } from './features/stream-frame-page';
 import { AppSettingsPage } from './features/app-settings-page';
+import { DebugPage } from './features/debug-page';
 import { SetupPage } from './features/setup-page';
 import { AboutPage } from './features/about-page';
 import {
@@ -95,6 +96,7 @@ export const appCustomElements = {
   DistortionProfilePage,
   StreamFramePage,
   AppSettingsPage,
+  DebugPage,
   SetupPage,
   AboutPage,
   // Nested helpers are used only by tag name in templates.

@@ -383,6 +383,11 @@ static void ApplyVrlinkExtraKeysIn(const char* section){
 	for(const auto &e : driverConfig.galaxyXr.vrlinkExtraKeys){
 		const std::string &name = std::get<0>(e); char kind = std::get<1>(e); double v = std::get<2>(e);
 		if(name.empty()){ continue; }
+		// Debug Mode policy (2026-10-01): saved expert keys must not
+		// reopen diagnostic overlays while the master is OFF.
+		if(!driverConfig.debugMode && (name == "debugRegionColoring" || name == "showAdvancedGraphs")){
+			continue;
+		}
         if(gxr::IsVrlinkReservedKey(name)){
             DriverLog("GalaxyXR: ignoring reserved vrlink extra key %s; driver registration is managed separately", name.c_str());
             continue;
@@ -395,6 +400,12 @@ static void ApplyVrlinkExtraKeysIn(const char* section){
 			case 'x': gxrsettings::RemoveKeyInSection(section, name.c_str(), &err); DriverLog("GalaxyXR: vrlink extra key %s removed (%d)", name.c_str(), (int)err); break;
 			default: break;
 		}
+	}
+	if(!driverConfig.debugMode){
+		// Explicit OFF preserves journal originals for uninstall and
+		// clears requests left by an earlier enabled expert override.
+		SetBoolIfDifferent(section, "debugRegionColoring", false);
+		SetBoolIfDifferent(section, "showAdvancedGraphs", false);
 	}
 }
 
@@ -492,6 +503,7 @@ void GalaxyXRHmdShim::PosTrackedDeviceActivate(uint32_t &unObjectId, vr::EVRInit
 	appliedProfile10bit = baselinePolicy.profileSupports10bit;
 	appliedBandwidthOverride = driverConfig.streamFrame.nvencBandwidthOverrideMbit;
 	appliedDebugOverlay = driverConfig.galaxyXr.vrlinkDebugOverlay;
+	appliedDebugMode = driverConfig.debugMode;
 	appliedStreamQuality = driverConfig.galaxyXr.streamQuality;
 	appliedCustomEncodeWidth = driverConfig.galaxyXr.customEncodeWidth;
 	appliedCustomStreamFormatWidth = driverConfig.galaxyXr.customStreamFormatWidth;
@@ -660,8 +672,12 @@ void GalaxyXRHmdShim::RunFrame(){
 		const gxr::Sdr10BaselinePolicy policy = gxr::ResolveSdr10Policy(driverConfig);
 		if(active && (routeChanged || policy.profileEnabled != appliedHeadsetProfile || tileNow != appliedProfileMaxSfw
 				|| policy.profileSupports10bit != appliedProfile10bit
+				|| driverConfig.debugMode != appliedDebugMode
 				|| g.vrlinkDebugOverlay != appliedDebugOverlay)){
 			appliedDebugOverlay = g.vrlinkDebugOverlay;
+			// An expert overlay can have been ON even when the normal
+			// overlay flag stayed false across the master transition.
+			appliedDebugMode = driverConfig.debugMode;
 			appliedHeadsetProfile = policy.profileEnabled;
 			appliedProfileMaxSfw = tileNow;
 			appliedProfile10bit = policy.profileSupports10bit;

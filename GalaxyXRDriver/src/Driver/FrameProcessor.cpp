@@ -1772,7 +1772,10 @@ bool FrameProcessor::ProcessSceneLayer(vr::SharedTextureHandle_t leftEye, vr::Sh
 	// 2026-09-26: OFF bypasses the diagnostic clocks/counters as well as
 	// logging. Discard the old window on either transition so re-enabling
 	// cannot attribute the disabled interval to a frame hitch.
-	if(cfgHitchDiag != settings.config.hitchDiag){
+	if(cfgHitchDiag != settings.config.hitchDiag || cfgDebugGeneration != settings.debugGeneration){
+		cfgDebugGeneration = settings.debugGeneration;
+		gazeRingWasActive = false;
+		lastGazeRingLogMs = 0;
 		cfgHitchDiag = settings.config.hitchDiag;
 		hdLastFrameStartUs = 0;
 		hdWindowStartUs = 0;
@@ -1785,6 +1788,10 @@ bool FrameProcessor::ProcessSceneLayer(vr::SharedTextureHandle_t leftEye, vr::Sh
 		hdFrameTags = 0; hdPrevTags = 0;
 		hdPrevAcqMs = 0; hdPrevWorkMs = 0;
 		hdHitchLines = 0;
+	}
+	if(!settings.config.eyeGaze.debugRing){
+		gazeRingWasActive = false;
+		lastGazeRingLogMs = 0;
 	}
 
 	// zero-copy v3 arming follows the live-reloaded flag; frameCounter

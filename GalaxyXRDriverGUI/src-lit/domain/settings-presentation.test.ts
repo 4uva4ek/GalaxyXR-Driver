@@ -19,7 +19,7 @@ describe('human-readable settings inspection', () => {
   });
 
   it('binds every catalog entry to exactly one real field and keeps labels outside JSON paths', () => {
-    const sources = ['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings'].map(route =>
+    const sources = ['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings'].map(route =>
       readFileSync(new URL(`../features/${route}-page.ts`, import.meta.url), 'utf8')).join('\n');
     const ids = [...sources.matchAll(/settingFieldRow\('([^']+)'/g)].map(match => match[1]);
     expect(new Set(SETTINGS_PRESENTATION.map(setting => setting.id)).size).toBe(SETTINGS_PRESENTATION.length);
@@ -84,5 +84,24 @@ describe('human-readable settings inspection', () => {
     setLocale('ja', { 'Image Settings': '画像', 'Force CBR': '固定レート' });
     try { expect(presentSettings([], context()).map(row => row.href)).toEqual(before); }
     finally { setLocale('en-US', {}); }
+  });
+
+  it('keeps Debug links gated independently of Advanced Mode and reports saved selections', () => {
+    const c = context();
+    c.settings.streamFrame!.poseLogging = true;
+    const before = structuredClone(c.settings);
+    const setting = settingPresentation('streamFrame.poseLogging')!;
+    expect(setting.route).toBe('debug');
+    expect(setting.advanced).toBe(false);
+    expect(settingUnavailable(setting, c)).toMatch(/Enable Debug Mode/);
+    const row = presentSettings([], c).find(row => row.id === setting.id)!;
+    expect(row.location).toEqual(['Debug', 'Controllers', 'Diagnostics', 'Pose Logging (diagnostic)']);
+    expect(row.state).toBe('On');
+    expect(row.unavailableReason).toMatch(/Enable Debug Mode/);
+    expect(c.settings).toEqual(before);
+    c.settings.debugMode = true;
+    expect(settingUnavailable(setting, c)).toBeUndefined();
+    c.settings.streamFrame!.nvencTap = false;
+    expect(settingUnavailable(settingPresentation('streamFrame.nvencVerbose')!, c)).toMatch(/NVENC Tap is off/);
   });
 });

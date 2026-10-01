@@ -2450,6 +2450,24 @@ An encoder already created with the tap can retain its earlier parameters and AP
       <trans-unit id="encoder-restore-20260930-19" datatype="html">
         <source>Encoder behaviour was restored, but automatic UI refresh failed: {error}. Reopen Companion.</source>
       </trans-unit>
+      <trans-unit id="debug-mode-20261001-1" datatype="html">
+        <source>Debug Mode</source>
+      </trans-unit>
+      <trans-unit id="debug-mode-20261001-2" datatype="html">
+        <source>Diagnostics</source>
+      </trans-unit>
+      <trans-unit id="debug-mode-20261001-3" datatype="html">
+        <source>Diagnostic overlays, logging, and encoder tuning.</source>
+      </trans-unit>
+      <trans-unit id="debug-mode-20261001-4" datatype="html">
+        <source>Show the Debug tab and allow its selected diagnostic overlays and logging. Turning this off stops diagnostic effects while keeping their saved selections. Black-point correction and encoder compatibility/rate tuning remain active. Requires a SteamVR restart and reconnect for the vrlink Debug Overlay.</source>
+      </trans-unit>
+      <trans-unit id="debug-mode-20261001-5" datatype="html">
+        <source>Enable Debug Mode in App Settings to show diagnostic controls.</source>
+      </trans-unit>
+      <trans-unit id="debug-mode-20261001-6" datatype="html">
+        <source>Show encoder, controller, and calibration controls. Hiding them keeps their values.</source>
+      </trans-unit>
     </body>
   </file>
 </xliff>

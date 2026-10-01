@@ -98,6 +98,13 @@ int main() {
     Check(hitchLines == hitchesBeforeOff + 1, "re-enabled diagnostics resume real gap reporting");
     for (int index = 0; index < 69; ++index) frame();
     Check(summaryLines == summariesBeforeOff + 1, "enabled two-second window emits a summary");
+    const int hitchesBeforeIdleToggle = hitchLines;
+    clockUs += 400000;
+    settings.debugGeneration += 2; // master OFF then ON with no submitted scene.
+    frame();
+    Check(hitchLines == hitchesBeforeIdleToggle, "generation discards OFF interval even when both transitions missed scene submission");
+    frame();
+    Check(hitchLines == hitchesBeforeIdleToggle + 1, "generation reset preserves subsequent real hitch detection");
     Check(errorClockReads == frames, "diagnostic toggles preserve the independent error clock");
     Check(heartbeatCalls == frames && reconResets == 0,
         "unrelated frame-start heartbeat remains active without arming recon");

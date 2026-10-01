@@ -36,17 +36,18 @@ controllers('galaxyXr.nativeInputProfile', 'Official Controller Input Profile');
 controllers('galaxyXr.synthesizeGripTouch', 'Grip Touch From Grip Pressure', { gate: 'native-input-profile', vendorOnly: true });
 controllers('galaxyXr.officialComponents', 'Official Pose Components');
 group('driver-settings', ['Controllers', 'Controller Fix'], ['controllers', 'ctrlFix'], false, 'vendor')('galaxyXr.gripConvention', 'Grip Convention');
-const kalman = group('driver-settings', ['Controllers', 'Controller Fix', 'Kalman Advanced Settings'], ['controllers', 'ctrlFix', 'kalmanAdv'], true, 'kalman');
+const kalman = group('driver-settings', ['Controllers', 'Controller Fix', 'Kalman Advanced Settings'], ['controllers', 'ctrlFix'], true, 'kalman');
 kalman('streamFrame.kalmanCaExactCov', 'Exact Covariance Transition (A/B)', { gate: 'kalman-ca' });
 kalman('streamFrame.kalmanDeviceTime', 'Kalman Device-Time Measurements');
 kalman('streamFrame.kalmanPosFreeze3dof', 'Position-Freeze Protection (3dof Fallback)');
-group('driver-settings', ['Controllers', 'Controllers Advanced'], ['controllers', 'ctrlAdv'], true, 'vendor')('galaxyXr.controllerBypass', 'Controller Bypass');
-group('driver-settings', ['Controllers', 'Controllers Advanced', 'Controller Offsets'], ['controllers', 'ctrlAdv', 'ctrlOffsets'], true, 'controllers')('controllers.mirrorOffsetsForRightHand', 'Mirror Offsets For Right Hand');
+group('driver-settings', ['Controllers', 'Controllers Advanced'], ['controllers'], true, 'vendor')('galaxyXr.controllerBypass', 'Controller Bypass');
+group('driver-settings', ['Controllers', 'Controllers Advanced', 'Controller Offsets'], ['controllers', 'ctrlOffsets'], true, 'controllers')('controllers.mirrorOffsetsForRightHand', 'Mirror Offsets For Right Hand');
 
 group('app-settings', ['Application preferences'], ['heading:app-preferences'])('image-enhancements', 'Image Enhancements', {
   keys: ['streamFrame.enable', 'galaxyXr.sdr10Baseline', 'galaxyXr.sdr10AllowEnhancements'],
 });
 group('app-settings', ['Application preferences'], ['heading:app-preferences'])('advanceMode', 'Advanced Mode', { source: 'gui-settings.json' });
+group('app-settings', ['Application preferences'], ['heading:app-preferences'])('debugMode', 'Debug Mode');
 
 group('stream-frame', ['Image Processing', 'Color'], ['heading:image-processing', 'color'], false, 'enhancements')('streamFrame.contrastLinear', 'Linear Contrast');
 const enhance = group('stream-frame', ['Image Processing', 'Image Enhancements'], ['heading:image-processing', 'enhance'], false, 'enhancements');
@@ -55,22 +56,23 @@ enhance('streamFrame.postPack.foveaTop', 'Fovea Tile On Top', { gate: 'postpack'
 enhance('streamFrame.cas.perEye', 'Per Eye Strength', { gate: 'preencode' });
 enhance('streamFrame.dither', 'Dither');
 enhance('streamFrame.stationaryDimming.enable', 'Stationary Dimming');
-const advanced = group('stream-frame', ['Advanced'], ['advanced'], true);
+const advanced = group('stream-frame', ['Image Processing', 'Advanced'], ['heading:image-processing'], true);
 advanced('streamFrame.directRender', 'Direct Render Path');
 advanced('streamFrame.deferredEviction', 'Deferred Scratch Eviction');
 advanced('streamFrame.processAtSubmitLayer', 'Process At Submit Layer');
 advanced('streamFrame.calib.blackout', 'Blackout Headset Screens', { gate: 'enhancements' });
-const debug = group('stream-frame', ['Debug'], ['debug'], true);
+const debug = group('debug', ['Image Processing', 'Diagnostics'], ['debugImage']);
 debug('streamFrame.blackFloor.rampBar', 'Black Floor: Diagnostic Ramp Bar');
 debug('streamFrame.hitchDiag', 'Hitch Diagnostics (HITCHDIAG)');
 debug('streamFrame.eyeGaze.debugRing', 'Gaze Debug Ring');
-debug('streamFrame.poseLogging', 'Pose Logging (diagnostic)');
-debug('streamFrame.poseLogBurst', 'Pose Logging: Burst Channel');
+const controllerDebug = group('debug', ['Controllers', 'Diagnostics'], ['debugControllers']);
+controllerDebug('streamFrame.poseLogging', 'Pose Logging (diagnostic)');
+controllerDebug('streamFrame.poseLogBurst', 'Pose Logging: Burst Channel');
 group('stream-frame', ['Encoder'], ['heading:encoder'], true, 'vendor')('streamFrame.nvencTap', 'NVENC Tap');
-const encoder = group('stream-frame', ['Encoder', 'Advanced'], ['heading:encoder', 'encoderAdv'], true, 'encoder', true);
+const encoder = group('stream-frame', ['Encoder', 'Advanced'], ['heading:encoder'], true, 'encoder', true);
 encoder('streamFrame.nvencForceCbr', 'Force CBR');
 encoder('streamFrame.postPack.limitedRange', 'Limited Range Video (fixes the black floor)');
-const encoderDebug = group('stream-frame', ['Encoder', 'Advanced', 'Debug'], ['heading:encoder', 'encoderAdv', 'encoderDbg'], true, 'encoder', true);
+const encoderDebug = group('debug', ['Encoder', 'Diagnostics'], ['debugEncoder'], false, 'encoder', true);
 encoderDebug('galaxyXr.vrlinkDebugOverlay', 'vrlink Debug Overlay');
 encoderDebug('streamFrame.nvencFixLevel', 'NVENC: Fix Level');
 encoderDebug('streamFrame.nvencVerbose', 'NVENC: Verbose Log');
@@ -158,6 +160,7 @@ export function settingUnavailable(setting: SettingPresentation, context: Presen
   if (setting.source === 'settings.json' && !context.settings) return 'Saved driver settings could not be read. Check installation to retry.';
   if (setting.source === 'gui-settings.json' && !context.app) return 'App preferences could not be read. Check installation to retry.';
   if (setting.source === 'settings.json' && !context.driverInstalled) return 'Install the driver to show this control.';
+  if (setting.route === 'debug' && context.settings?.debugMode !== true) return 'Enable Debug Mode in App Settings to show diagnostic controls.';
   if ((setting.vendorOnly || setting.gate === 'vendor') && !context.vendor) return 'This control is available in the Galaxy XR build.';
   const sf = context.settings?.streamFrame;
   const enhancements = imageEnhancementsEnabled(context.settings);

@@ -5,7 +5,7 @@
 import { html, LitElement, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, settingFieldRow, fieldRow, noteRow, sectionRow, fieldStyles } from './page-base';
+import { BasePage, settingFieldRow, fieldRow, noteRow, sectionRow, sectionGroup, fieldStyles } from './page-base';
 import { t, tHtml } from '../locale/i18n';
 import { pageIntro, statusMessage } from '../ui/presentation';
 import '../ui/controls';
@@ -264,9 +264,8 @@ export class DriverSettingsPage extends BasePage {
 
         if (advanced && galaxy.isKalmanMode()) {
           body.push(
-            sectionRow(t('Kalman Advanced Settings'), this.section('kalmanAdv'), 2, () => this.toggleSection('kalmanAdv')),
+            sectionGroup(t('Kalman Advanced Settings'), 2),
           );
-          if (this.section('kalmanAdv')) {
             if (advanced && (settings.velocityFixMode == 'kalmanCA')) {
               body.push(
                 fieldRow(t('Kalman CA Accel Decay τ (ms)'), html`
@@ -325,16 +324,14 @@ export class DriverSettingsPage extends BasePage {
                 reset: { can: settings.kalmanPosFreeze3dof != defaults.kalmanPosFreeze3dof, on: () => galaxy.reset('kalmanPosFreeze3dof') },
               }),
             );
-          }
         }
       }
 
       // ---------- Controllers Advanced ----------
       if (advanced) {
         body.push(
-          sectionRow(t('Controllers Advanced'), this.section('ctrlAdv'), 1, () => this.toggleSection('ctrlAdv')),
+          sectionGroup(t('Controllers Advanced'), 1),
         );
-        if (this.section('ctrlAdv')) {
           if (vendor) {
             body.push(
               settingFieldRow('galaxyXr.controllerBypass', html`<app-switch .checked=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.controllerBypass = e.detail; save(); }}></app-switch>`, {
@@ -432,7 +429,6 @@ export class DriverSettingsPage extends BasePage {
               }
             }
           }
-        }
       }
     }
 

@@ -21,6 +21,9 @@ function Get-FunctionBody([string]$source, [string]$signature) {
     throw "Unbalanced production function: $signature"
 }
 $source = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'GalaxyXRDriver/src/Headsets/GalaxyXR.cpp')
+$extra = Get-FunctionBody $source 'static void ApplyVrlinkExtraKeysIn('
+[IO.File]::WriteAllText((Join-Path $outputDirectory 'VrlinkExtraKeysWriter.generated.h'),
+    "void ApplyVrlinkExtraKeysIn(const char* section) {`n$extra`n}`n", [Text.UTF8Encoding]::new($false))
 $early = Get-FunctionBody $source 'void GalaxyXR_EarlyApplyVrlinkSettings()'
 $activation = Get-FunctionBody $source 'void GalaxyXRHmdShim::PosTrackedDeviceActivate('
 $activationStart = $activation.IndexOf('RestoreInactiveVrlinkSettings(origModelNumber);')

@@ -15,7 +15,16 @@ $exe = Join-Path $build 'ToggleMigrationTest.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Toggle migration test compilation failed.' }
 # Unique test-owned fixtures make the persisted migration marker repeatable.
 $fixtures = Join-Path $build ([Guid]::NewGuid().ToString('N'))
-foreach ($scenario in 0..15) {
+foreach ($scenario in 0..19) {
     & $exe (Join-Path $fixtures $scenario) $scenario
     if ($LASTEXITCODE -ne 0) { throw "Toggle migration scenario $scenario failed." }
 }
+# Successful fixtures are task-owned; keep executables for review until final cleanup.
+$fixtureFullPath = [IO.Path]::GetFullPath($fixtures)
+$buildFullPath = [IO.Path]::GetFullPath($build).TrimEnd('\')
+if (-not $fixtureFullPath.StartsWith($buildFullPath + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    (Split-Path $fixtureFullPath -Leaf) -notmatch '^[a-f0-9]{32}$' -or
+    ((Get-Item -LiteralPath $fixtureFullPath).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Test fixture cleanup boundary verification failed.'
+}
+Remove-Item -LiteralPath $fixtureFullPath -Recurse -Force

@@ -4,6 +4,7 @@
 import type { Settings } from './types';
 
 const nativeDefaults = {
+  "debugMode": false,
   "galaxyXr": {
     "sdr10Baseline": false,
     "sdr10AllowEnhancements": false,

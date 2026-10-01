@@ -55,6 +55,7 @@ function fillDefaults(target: any, defaults: any): any {
 export class GalaxySettingsBase {
   private appSettings: AppSettingService;
   get advancedMode(): boolean { return !!this.appSettings.values()?.advanceMode; }
+  get debugMode(): boolean { return !this.dss.readFileError() && this.dss.values()?.debugMode === true; }
   dss: DriverSettingService;
   dis: DriverInfoService;
 
@@ -115,12 +116,11 @@ export class GalaxySettingsBase {
   matrixText = signal('');
   matrixError = signal('');
 
-  // collapsible section state; debug starts closed, everything else open.
+  // Presentation-only section state; inline Advanced/source groups have no key.
   sections = signal({
-    headset: true, controllers: true, ctrlFix: true, kalmanAdv: false, ctrlAdv: false, ctrlOffsets: true, tipOffset: false,
+    headset: true, controllers: true, ctrlFix: true, ctrlOffsets: true, tipOffset: false,
     processing: true, color: true, enhance: true, distortion: true, eyeAlign: false, share: false,
-    advanced: false, debug: false, graveyard: false,
-    encoderAdv: false, encoderDbg: false,
+    debugImage: true, debugControllers: true, debugEncoder: true, graveyard: false,
   });
 
   constructor(appSettings: AppSettingService, dss: DriverSettingService, dis: DriverInfoService) {
@@ -215,6 +215,12 @@ export class GalaxySettingsBase {
             rc.mirrorOffsetsForRightHand = dc.mirrorOffsetsForRightHand;
           }
           rawSf.streamFrameSchema = 4;
+          queueMicrotask(() => this.save());
+        }
+        // schema-5 policy (2026-10-01): root debugMode defaults OFF through
+        // loading; preserve explicit master and individual diagnostic selections.
+        if (rawSf && canMigrate && (rawSf.streamFrameSchema ?? 1) < 5) {
+          rawSf.streamFrameSchema = 5;
           queueMicrotask(() => this.save());
         }
         // NVENC settings v3 (2026-09-05), preservation fix (2026-09-26):

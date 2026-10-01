@@ -105,6 +105,10 @@ export const fieldStyles = css`
   .section-body > .section-card { margin: 12px 0 8px 12px; border-inline-start-width: 3px;
     border-inline-start-color: var(--colorNeutralStrokeAccessible); }
   .section-body > .section-card > .card-heading .section-title { font-size: 1rem; }
+  .section-group { margin: 12px 0 8px; min-width: 0; }
+  .section-group-label { margin: 0 0 4px; color: var(--colorNeutralForeground2); font-size: 0.95rem; font-weight: 600; }
+  .section-group.source > .section-group-label { color: var(--colorNeutralForeground1); font-size: 1rem; }
+  .section-group > .section-card { margin-inline-start: 12px; }
   .section-card .field { grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr); }
   @media (max-width: 720px) {
     .section-body { padding-inline: 12px; }
@@ -259,7 +263,7 @@ export function noteRow(text: string | TemplateResult): TemplateResult {
 
 /** Section metadata stays with its template: no querying/transplanting DOM nodes,
  * no innerHTML, and no lifecycle changes to nested controls. */
-interface SectionSpec { title: string; depth: number; open: boolean; onToggle?: () => void; key?: string; }
+interface SectionSpec { title: string; depth: number; open: boolean; onToggle?: () => void; key?: string; group?: 'advanced' | 'source'; }
 const sectionSpecs = new WeakMap<TemplateResult, SectionSpec>();
 
 /** Top-level container heading. Collapsible like every other section card:
@@ -274,6 +278,14 @@ export function sectionHeading(title: string, level = 0, id?: string): TemplateR
 export function sectionRow(title: string, open: boolean, level: number, onToggle: () => void): TemplateResult {
   const result = html`<button type="button" aria-expanded=${String(open)} @click=${onToggle}>${title}</button>`;
   sectionSpecs.set(result, { title, open, onToggle, depth: Math.max(0, Math.min(3, level)) });
+  return result;
+}
+
+/** Inline groups keep row ownership without adding another card or collapse
+ * switch. Advanced controls belong beside the settings they extend (2026-10-01). */
+export function sectionGroup(title: string, level = 0, kind: 'advanced' | 'source' = 'advanced'): TemplateResult {
+  const result = html`<div class="section-group-label">${title}</div>`;
+  sectionSpecs.set(result, { title, depth: Math.max(0, Math.min(3, level)), open: true, group: kind });
   return result;
 }
 
@@ -302,11 +314,20 @@ export function sectionCards(rows: readonly TemplateResult[], opts?: SectionCard
       stack.push(card);
     } else (stack.length ? stack[stack.length - 1].children : root).push(row);
   });
-  const renderItem = (item: Card | TemplateResult): TemplateResult => {
+  const renderItem = (item: Card | TemplateResult, cardDepth = 0): TemplateResult => {
     if (!('spec' in item)) return item;
     const { spec, index } = item;
     const label = `settings-section-${index}`;
     const body = `${label}-body`;
+    // A plain group does not count toward the two-card limit (2026-10-01).
+    // Excess hierarchy keeps its fields and label without another border or
+    // collapse switch; the enclosing real cards still control visibility.
+    if (spec.group || cardDepth >= 2) {
+      return html`<div class="section-group ${spec.group ?? 'source'}" role="group" aria-labelledby=${label}>
+        <div class="section-group-label" id=${label}>${spec.title}</div>
+        ${item.children.map(child => renderItem(child, cardDepth))}
+      </div>`;
+    }
     // Heading containers collapse like every other card; their state comes
     // from the shared section record (open by default).
     const key = spec.key;
@@ -321,8 +342,8 @@ export function sectionCards(rows: readonly TemplateResult[], opts?: SectionCard
           <span class="section-label">${spec.title}</span>
         </button>` : html`<div class="section-title" id=${label}><span class="section-label">${spec.title}</span></div>`}
       </div>
-      <div class="section-body" id=${body} ?hidden=${!open}>${open ? item.children.map(renderItem) : html``}</div>
+      <div class="section-body" id=${body} ?hidden=${!open}>${open ? item.children.map(child => renderItem(child, cardDepth + 1)) : html``}</div>
     </section>`;
   };
-  return html`${root.map(renderItem)}`;
+  return html`${root.map(item => renderItem(item))}`;
 }

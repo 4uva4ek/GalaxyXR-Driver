@@ -174,6 +174,21 @@ void DebugEventLog(const vr::VREvent_t& vrevent){
 	}
 }
 
+void GalaxyXRDeviceProvider::RefreshPoseDiagnosticSession(){
+	if(poseDiagnosticGeneration == driverConfig.debugGeneration){ return; }
+	poseDiagnosticGeneration = driverConfig.debugGeneration;
+	poseLogStates.clear();
+	lastReleaseLogTime = 0;
+	lastEdgeLogTime = 0;
+}
+
+void GalaxyXRDeviceProvider::RefreshKalDiagnosticSession(){
+	if(kalDiagnosticGeneration == driverConfig.debugGeneration){ return; }
+	kalDiagnosticGeneration = driverConfig.debugGeneration;
+	for(auto& entry : kalStates){ entry.second.ResetDiagnostics(); }
+	for(auto& entry : deriveFilterStates){ entry.second.lastDirLogTime = 0; }
+}
+
 void GalaxyXRDeviceProvider::RunFrame(){
 	// when locked out by the vendor-neutral driver nothing was initialized, so do nothing
 	if(lockedOut){
@@ -182,6 +197,16 @@ void GalaxyXRDeviceProvider::RunFrame(){
 	
 	// acquire driverConfig.configLock for the duration of this function
 	std::lock_guard<std::mutex> lock(driverConfigLock);
+	// 2026-10-01: a disabled interval must not leak into the next diagnostic
+	// session. Reset telemetry only; preserve estimates and motion clocks.
+	{
+		std::lock_guard<std::mutex> diagnosticLock(poseLogLock);
+		RefreshPoseDiagnosticSession();
+	}
+	{
+		std::lock_guard<std::mutex> diagnosticLock(deriveFilterLock);
+		RefreshKalDiagnosticSession();
+	}
 	// Keep reloads and hook retries working while no eye frames are flowing,
 	// including disabling the tap/post-pack pass before the next connection.
 	FrameProcessSettings settings;
@@ -762,6 +787,7 @@ void GalaxyXRDeviceProvider::OnBooleanComponentUpdated(vr::VRInputComponentHandl
 		bool doLog = false;
 		{
 			std::lock_guard<std::mutex> guard(poseLogLock);
+			RefreshPoseDiagnosticSession();
 			if(now - lastEdgeLogTime >= 0.2){
 				lastEdgeLogTime = now;
 				doLog = true;
@@ -803,6 +829,7 @@ void GalaxyXRDeviceProvider::LogReleaseSnapshot(vr::PropertyContainerHandle_t co
 		double now = std::chrono::duration_cast<std::chrono::microseconds>(
 			std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
 		std::lock_guard<std::mutex> guard(poseLogLock);
+		RefreshPoseDiagnosticSession();
 		if(now - lastReleaseLogTime < 0.05){
 			return; // 20Hz cap
 		}
@@ -845,6 +872,7 @@ void GalaxyXRDeviceProvider::LogReleaseSnapshot(vr::PropertyContainerHandle_t co
 			std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
 		{
 			std::lock_guard<std::mutex> rdGuard(deriveFilterLock);
+			RefreshKalDiagnosticSession();
 			KalState &krs = kalStates[id];
 			// raw-referenced release score (raw peak time is the
 			// receipt-clock center of its secant window; nowRel is the
@@ -1457,16 +1485,20 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 		double lossNow = std::chrono::duration_cast<std::chrono::microseconds>(
 			std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
 		std::lock_guard<std::mutex> lossGuard(deriveFilterLock);
+		RefreshKalDiagnosticSession();
 		KalState &lks = kalStates[openVRID];
 		if(!trackingOk){
 			if(!lks.lost){
 				lks.lost = true;
 				lks.lossStartT = lossNow;
-				lks.lossRuns++;
 				if(driverConfig.streamFrame.poseLogging){
 					DriverLog("PoseLog: KALLOSS id=%u lost (result=%d valid=%d)",
 						openVRID, rawResult, (int)rawPoseValid);
 				}
+			}
+			if(driverConfig.streamFrame.poseLogging && lks.diagLossStartT == 0){
+				lks.diagLossStartT = lossNow;
+				lks.lossRuns++;
 			}
 			// flagged-loss coast: report the state predicted forward for
 			// a bounded window instead of the frozen raw pose. STATELESS:
@@ -1531,7 +1563,10 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 		}else if(lks.lost){
 			lks.lost = false;
 			double lm = (lossNow - lks.lossStartT) * 1000.0;
-			lks.lossMsSum += lm;
+			if(driverConfig.streamFrame.poseLogging && lks.diagLossStartT > 0){
+				lks.lossMsSum += (lossNow - lks.diagLossStartT) * 1000.0;
+			}
+			lks.diagLossStartT = 0;
 			// A short flagged loss is missing measurement time, not a new
 			// trajectory.  The state was deliberately left committed at the
 			// last good measurement while the loss reporter coasted it
@@ -1819,6 +1854,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			double tMeas = devTime ? now + tOff : now;
 			{
 			std::lock_guard<std::mutex> kalGuard(deriveFilterLock);
+			RefreshKalDiagnosticSession();
 			KalState &ks = kalStates[openVRID];
 			// Raw quaternion finite-difference in BOTH conventions:
 			//   q1*q0^-1 -> world/driver-space angular velocity
@@ -1830,7 +1866,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			// Use an orientation-only freshness clock.  Position duplicate
 			// detection is intentionally irrelevant here because GxR can
 			// keep q live while p is frozen.
-			{
+			if(driverConfig.streamFrame.poseLogging){
 				vr::HmdQuaternion_t qNow = pose.qRotation;
 				double qNowN = sqrt(qNow.w * qNow.w + qNow.x * qNow.x
 					+ qNow.y * qNow.y + qNow.z * qNow.z);
@@ -1942,7 +1978,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			// acceleration field probe: raw stream, before any
 			// accept/drop decision (we are probing what vrlink SENDS,
 			// not what the filter uses)
-			{
+			if(driverConfig.streamFrame.poseLogging){
 				double am = sqrt(pose.vecAcceleration[0] * pose.vecAcceleration[0]
 					+ pose.vecAcceleration[1] * pose.vecAcceleration[1]
 					+ pose.vecAcceleration[2] * pose.vecAcceleration[2]);
@@ -1980,8 +2016,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				if(!std::isfinite(qn2g) || qn2g < 0.25 || qn2g > 4.0){ garbage = true; }
 				if(garbage){
 					dropSample = true;
-					ks.garbageN++;
-					if(!ks.garbageRun){
+					if(driverConfig.streamFrame.poseLogging){ ks.garbageN++; }
+					if(driverConfig.streamFrame.poseLogging && !ks.garbageRun){
 						ks.garbageRun = true;
 						if(driverConfig.streamFrame.poseLogging){
 							logGarbage = true;
@@ -2002,7 +2038,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				// late packet is exactly the failure the old dt<=0
 				// reinit would produce once device time is in play.
 				dropSample = true;
-				ks.dtBack++;
+				if(driverConfig.streamFrame.poseLogging){ ks.dtBack++; }
 			}
 			// duplicate detection, BEFORE any clock or state commit: in
 			// drop mode a detected repeat is treated as never having
@@ -2052,7 +2088,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						// frozen position and live rotation is the same
 						// tracker event and deserves the same protection
 						posOnlyFreeze = true;
-						ks.posFreeze3dof++;
+						if(driverConfig.streamFrame.poseLogging){ ks.posFreeze3dof++; }
 						// velocity decay during position-blindness (field
 						// 2026-08-16 out-of-FOV windups): coasting on the
 						// occlusion-entry velocity sails the hand up to 2m
@@ -2096,9 +2132,12 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					double coastLen = now - ks.coastStart + dt;
 					if(coastLen <= coastMax || posOnlyFreeze){
 						dupHit = true;
-						ks.dupSkipped++;
-						double cMs = coastLen * 1000.0;
-						if(cMs > ks.coastMaxMs){ ks.coastMaxMs = cMs; }
+						if(driverConfig.streamFrame.poseLogging){ ks.dupSkipped++; }
+						if(driverConfig.streamFrame.poseLogging){
+							if(ks.diagCoastStart < 0){ ks.diagCoastStart = now; }
+							double cMs = (now - ks.diagCoastStart) * 1000.0;
+							if(cMs > ks.coastMaxMs){ ks.coastMaxMs = cMs; }
+						}
 					}else if((caM || caFull) && !posOnlyFreeze){
 						// a repeat sustained past the cap IS stillness by
 						// this gate's own definition — so the CA accel
@@ -2312,6 +2351,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 									ks.time = now;
 									ks.tMeas = tMeas;
 									ks.coastStart = -1.0;
+									ks.diagCoastStart = -1.0;
 									ks.haveSlow = false;
 									ks.nisEma = 1.0;
 									ks.schedNis = 1.0;
@@ -2394,7 +2434,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					double tdz = pose.vecPosition[2] - ks.lastMeas[2];
 					double stepT = sqrt(tdx * tdx + tdy * tdy + tdz * tdz);
 					if(stepT > telM && stepT > 25.0 * continuityDt){
-						ks.teleports++;
+						if(driverConfig.streamFrame.poseLogging){ ks.teleports++; }
 						// Start one candidate run instead of spamming rejects
 						// until dt crosses 200ms.  While reacqActive is true
 						// the generic reinit branch is unreachable.
@@ -2471,8 +2511,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				// fresh sample: the division stands; record the peaks
 				// here (not at division time) so telemetry reflects
 				// trust actually applied to real measurements
-				if(rDivApplied > ks.rDivPk){ ks.rDivPk = rDivApplied; }
-				if(raDivApplied > ks.rADivPk){ ks.rADivPk = raDivApplied; }
+				if(driverConfig.streamFrame.poseLogging && rDivApplied > ks.rDivPk){ ks.rDivPk = rDivApplied; }
+				if(driverConfig.streamFrame.poseLogging && raDivApplied > ks.rADivPk){ ks.rADivPk = raDivApplied; }
 			}
 			if(dropSample || dupDrop){
 				// state, clocks, and dt statistics untouched. the
@@ -2484,6 +2524,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				ks.time = now;
 				ks.tMeas = tMeas;
 				ks.coastStart = -1.0;
+				ks.diagCoastStart = -1.0;
 				for(int a2 = 0; a2 < 3; a2++){
 					ks.p[a2] = pose.vecPosition[a2];
 					ks.v[a2] = 0;
@@ -2518,9 +2559,11 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			}else{
 				ks.time = now;
 				ks.tMeas = tMeas;
-				ks.dtSumMs += dt * 1000.0;
-				ks.dtN++;
-				if(dt * 1000.0 > ks.dtMaxMs){ ks.dtMaxMs = dt * 1000.0; }
+				if(driverConfig.streamFrame.poseLogging){
+					ks.dtSumMs += dt * 1000.0;
+					ks.dtN++;
+					if(dt * 1000.0 > ks.dtMaxMs){ ks.dtMaxMs = dt * 1000.0; }
+				}
 				double dt2 = dt * dt;
 				// dup decision was made above (coast and soft reach
 				// here; drop never does — it exits via the drop path)
@@ -2535,6 +2578,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					// dupRepeat bug-fix note above) instead of
 					// restarting the soft-inflation cycle.
 					ks.coastStart = -1.0;
+					ks.diagCoastStart = -1.0;
 				}
 				if(dupCoast){
 					// coast: advance both estimators along their state,
@@ -2620,7 +2664,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 								QuatRotateVector(dqt, aIn, aRot);
 								ks.ca[0] = aRot[0]; ks.ca[1] = aRot[1]; ks.ca[2] = aRot[2];
 							}
-							ks.turnCoastSteps++;
+							if(driverConfig.streamFrame.poseLogging){ ks.turnCoastSteps++; }
 						}
 					}
 				}
@@ -2641,8 +2685,10 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 								ks.p[a2], ks.v[a2], ks.ca[a2], ks.P6[a2]);
 						}
 					}
-					double caMagNow = sqrt(ks.ca[0] * ks.ca[0] + ks.ca[1] * ks.ca[1] + ks.ca[2] * ks.ca[2]);
-					if(caMagNow > ks.caAccPk){ ks.caAccPk = caMagNow; }
+					if(driverConfig.streamFrame.poseLogging){
+						double caMagNow = sqrt(ks.ca[0] * ks.ca[0] + ks.ca[1] * ks.ca[1] + ks.ca[2] * ks.ca[2]);
+						if(caMagNow > ks.caAccPk){ ks.caAccPk = caMagNow; }
+					}
 				}else
 				for(int a2 = 0; a2 < 3; a2++){
 					ks.p[a2] += ks.v[a2] * dt;
@@ -2668,7 +2714,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					}
 				}
 				if(!linearMeasurementMissing){
-					ks.nisEma += 0.1 * (nisAccum / 3.0 - ks.nisEma);
+					if(driverConfig.streamFrame.poseLogging){ ks.nisEma += 0.1 * (nisAccum / 3.0 - ks.nisEma); }
 					// The linear scheduler must learn only from a real
 					// positional measurement.  A p3d callback has live
 					// orientation but no new translational observation.
@@ -2684,9 +2730,11 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						double dy = pose.vecPosition[1] - ks.lastMeas[1];
 						double dz = pose.vecPosition[2] - ks.lastMeas[2];
 						double step = sqrt(dx * dx + dy * dy + dz * dz);
-						if(step > ks.stepMax){ ks.stepMax = step; }
-						double stSpeed = sqrt(ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2]);
-						if(step < 0.0003 && stSpeed > 0.7){ ks.stepFrozen++; }
+						if(driverConfig.streamFrame.poseLogging){
+							if(step > ks.stepMax){ ks.stepMax = step; }
+							double stSpeed = sqrt(ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2]);
+							if(step < 0.0003 && stSpeed > 0.7){ ks.stepFrozen++; }
+						}
 						// fresh-to-fresh clock: time between DISTINCT
 						// raw samples on the measurement clock — the
 						// tracker's true cadence (~8.3ms expected),
@@ -2694,7 +2742,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						// mode-independent by design; also the
 						// instrument for any transport-side fix.
 						if(step >= 0.0003){
-							if(ks.tFresh > 0){
+							if(driverConfig.streamFrame.poseLogging && ks.diagFreshHave && ks.tFresh > 0){
 								double fdt = (tMeas - ks.tFresh) * 1000.0;
 								if(fdt > 0){
 									ks.fdtSumMs += fdt;
@@ -2703,12 +2751,14 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 								}
 							}
 							ks.tFresh = tMeas;
+							if(driverConfig.streamFrame.poseLogging){ ks.diagFreshHave = true; }
 							// raw reference ring: fresh samples only (see
 							// KalState::rawRingN). secant over the full ring
 							// attributed to the window CENTER, so its peak
 							// time is an unbiased estimate of the true peak
 							// instant (a windowed average lags by half its
 							// span; centering removes that).
+							if(driverConfig.streamFrame.poseLogging){
 							ks.rawT[ks.rawHead] = tMeas;
 							ks.rawTr[ks.rawHead] = now;
 							ks.rawP[ks.rawHead][0] = pose.vecPosition[0];
@@ -2767,6 +2817,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 									}
 								}
 							}
+							}
 						}
 					}else{
 						// Seed the distinct-position clock with the first accepted
@@ -2809,8 +2860,10 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 									ks.pF[a2], ks.vF[a2], ks.caF[a2], ks.PF6[a2]);
 							}
 						}
-						double caFMag = sqrt(ks.caF[0] * ks.caF[0] + ks.caF[1] * ks.caF[1] + ks.caF[2] * ks.caF[2]);
-						if(caFMag > ks.caAccPk){ ks.caAccPk = caFMag; }
+						if(driverConfig.streamFrame.poseLogging){
+							double caFMag = sqrt(ks.caF[0] * ks.caF[0] + ks.caF[1] * ks.caF[1] + ks.caF[2] * ks.caF[2]);
+							if(caFMag > ks.caAccPk){ ks.caAccPk = caFMag; }
+						}
 					}
 				}else if(!caFull){
 					double qaF = driverConfig.streamFrame.kalmanMagAccel;
@@ -2864,8 +2917,10 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						ks.caW[a2] *= caBeta;
 						CaCovPredict(dt, caJA, caTau, caBeta, caExactCov, ks.Pa6[a2]);
 					}
-					double caWMag = sqrt(ks.caW[0] * ks.caW[0] + ks.caW[1] * ks.caW[1] + ks.caW[2] * ks.caW[2]);
-					if(caWMag > ks.caWAccPk){ ks.caWAccPk = caWMag; }
+					if(driverConfig.streamFrame.poseLogging){
+						double caWMag = sqrt(ks.caW[0] * ks.caW[0] + ks.caW[1] * ks.caW[1] + ks.caW[2] * ks.caW[2]);
+						if(caWMag > ks.caWAccPk){ ks.caWAccPk = caWMag; }
+					}
 				}
 				vr::HmdQuaternion_t qPred = QuatMultiply(dq, ks.q);
 				double qn = sqrt(qPred.w * qPred.w + qPred.x * qPred.x + qPred.y * qPred.y + qPred.z * qPred.z);
@@ -2903,7 +2958,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					ks.Pa[a2][1] = (1.0 - Kp) * Ppv;
 					ks.Pa[a2][2] = Pvv - Kv * Ppv;
 				}
-				ks.nisAEma += 0.1 * (aNisAccum / 3.0 - ks.nisAEma);
+				if(driverConfig.streamFrame.poseLogging){ ks.nisAEma += 0.1 * (aNisAccum / 3.0 - ks.nisAEma); }
 				// same repeat exclusion as the linear scheduler
 				if(!dupHit){
 					ks.schedANis += 0.3 * (aNisBaseAccum / 3.0 - ks.schedANis);
@@ -3011,10 +3066,12 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			}
 			// PEAKDIAG scratch: this frame's per-channel speeds, read by
 			// the post-DeriveMotion gesture scorer under the same lock
-			ks.diagCalmSp = sqrt(ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2]);
-			ks.diagMagSp = ks.haveFast
-				? sqrt(ks.vF[0] * ks.vF[0] + ks.vF[1] * ks.vF[1] + ks.vF[2] * ks.vF[2])
-				: ks.diagCalmSp;
+			if(driverConfig.streamFrame.poseLogging){
+				ks.diagCalmSp = sqrt(ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2]);
+				ks.diagMagSp = ks.haveFast
+					? sqrt(ks.vF[0] * ks.vF[0] + ks.vF[1] * ks.vF[1] + ks.vF[2] * ks.vF[2])
+					: ks.diagCalmSp;
+			}
 			double vRep[3] = { vOutState[0], vOutState[1], vOutState[2] };
 			double wRep[3] = { ks.w[0], ks.w[1], ks.w[2] };
 			double ksOutP[3] = {0, 0, 0};
@@ -3165,80 +3222,82 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						}
 					}
 				}
-				for(int a2 = 0; a2 < 3; a2++){
-					diagPostTdV[a2] = vRep[a2];
-					diagKalW[a2] = ks.w[a2];
-				}
-				double bendNow = vecAngleDeg(diagPreTdV, diagPostTdV);
-				if(bendNow >= 0){ diagTdBendDeg = bendNow; }
+				if(driverConfig.streamFrame.poseLogging){
+					for(int a2 = 0; a2 < 3; a2++){
+						diagPostTdV[a2] = vRep[a2];
+						diagKalW[a2] = ks.w[a2];
+					}
+					double bendNow = vecAngleDeg(diagPreTdV, diagPostTdV);
+					if(bendNow >= 0){ diagTdBendDeg = bendNow; }
 
-				// Controller local basis expressed in driver/world space.
-				// We log all three axes rather than assume which physical
-				// controller axis is the palm normal.
-				const double lx[3] = {1, 0, 0};
-				const double ly[3] = {0, 1, 0};
-				const double lz[3] = {0, 0, 1};
-				QuatRotateVector(ks.q, lx, diagLocalX);
-				QuatRotateVector(ks.q, ly, diagLocalY);
-				QuatRotateVector(ks.q, lz, diagLocalZ);
+					// Controller local basis expressed in driver/world space.
+					// We log all three axes rather than assume which physical
+					// controller axis is the palm normal.
+					const double lx[3] = {1, 0, 0};
+					const double ly[3] = {0, 1, 0};
+					const double lz[3] = {0, 0, 1};
+					QuatRotateVector(ks.q, lx, diagLocalX);
+					QuatRotateVector(ks.q, ly, diagLocalY);
+					QuatRotateVector(ks.q, lz, diagLocalZ);
 
-				// Translational curvature angular velocity, observe-only:
-				// omega_curve = (v x a) / |v|^2.  If this aligns with throw
-				// correction better than controller w, it supports replacing
-				// Td's wrist-axis rotation with a trajectory-derived axis.
-				double kv2 = ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2];
-				if(caFull && kv2 > 0.25){
-					diagCurveW[0] = (ks.v[1] * ks.ca[2] - ks.v[2] * ks.ca[1]) / kv2;
-					diagCurveW[1] = (ks.v[2] * ks.ca[0] - ks.v[0] * ks.ca[2]) / kv2;
-					diagCurveW[2] = (ks.v[0] * ks.ca[1] - ks.v[1] * ks.ca[0]) / kv2;
-					diagCurveVsKalDeg = vecAngleDeg(diagCurveW, diagKalW);
-				}
-				// Source linear velocity diagnostics.  fdV is available only
-				// on a genuinely fresh positional measurement.  During p3d /
-				// reacquisition it intentionally becomes NA while srcV and
-				// kalV keep logging, letting the field trace show whether the
-				// upstream velocity still carries useful unseen-motion data.
-				diagSrcKalDeg = vecAngleDeg(diagSrcV, ks.v);
-				diagP3dNow = posOnlyFreeze ? 1 : 0;
-				diagReacqNow = ks.reacqActive ? 1 : 0;
-				for(int a2 = 0; a2 < 3; a2++){
-					diagKalV[a2] = ks.v[a2];
-				}
-				diagFdTrusted = rawFdValid && !ks.reacqActive && !posOnlyFreeze;
-				// Normalize WorldFromDriver before using it as a rotation. Test
-				// both directions because the OpenVR pose transform convention and
-				// vrlink's velocity convention are exactly what this probe is
-				// intended to adjudicate in the field.
-				double qwdN = sqrt(diagQwd.w * diagQwd.w + diagQwd.x * diagQwd.x
-					+ diagQwd.y * diagQwd.y + diagQwd.z * diagQwd.z);
-				if(qwdN > 1e-9){
-					diagQwd.w /= qwdN; diagQwd.x /= qwdN; diagQwd.y /= qwdN; diagQwd.z /= qwdN;
-					double qwAbs = fabs(diagQwd.w);
-					if(qwAbs > 1.0){ qwAbs = 1.0; }
-					diagQwdAngleDeg = 2.0 * acos(qwAbs) * 180.0 / 3.14159265358979323846;
-					QuatRotateVector(diagQwd, diagSrcV, diagSrcVQwd);
-					vr::HmdQuaternion_t qwdInv = {diagQwd.w, -diagQwd.x, -diagQwd.y, -diagQwd.z};
-					QuatRotateVector(qwdInv, diagSrcV, diagSrcVQwdInv);
-				}
-				if(diagFdTrusted){
-					diagSrcFdDeg = vecAngleDeg(diagSrcV, diagFdV);
-					diagSrcQwdFdDeg = vecAngleDeg(diagSrcVQwd, diagFdV);
-					diagSrcQwdInvFdDeg = vecAngleDeg(diagSrcVQwdInv, diagFdV);
-					double srcM = sqrt(diagSrcV[0]*diagSrcV[0] + diagSrcV[1]*diagSrcV[1] + diagSrcV[2]*diagSrcV[2]);
-					double fdM = sqrt(diagFdV[0]*diagFdV[0] + diagFdV[1]*diagFdV[1] + diagFdV[2]*diagFdV[2]);
-					if(fdM > 0.05){ diagSrcFdMagRatio = srcM / fdM; }
-				}
-				if(diagQRateValid){
-					diagSrcWorldDeg = vecAngleDeg(diagSrcW, diagQWorldW);
-					diagSrcBodyDeg = vecAngleDeg(diagSrcW, diagQBodyW);
-					diagKalWorldDeg = vecAngleDeg(diagKalW, diagQWorldW);
-					diagKalBodyDeg = vecAngleDeg(diagKalW, diagQBodyW);
-					double qwm = sqrt(diagQWorldW[0] * diagQWorldW[0] + diagQWorldW[1] * diagQWorldW[1] + diagQWorldW[2] * diagQWorldW[2]);
-					double vm = sqrt(diagPostTdV[0] * diagPostTdV[0] + diagPostTdV[1] * diagPostTdV[1] + diagPostTdV[2] * diagPostTdV[2]);
-					if(driverConfig.streamFrame.poseLogging && now - ks.diagSpaceLastLog >= 0.05
-							&& (qwm > 1.0 || vm > 0.5)){
-						ks.diagSpaceLastLog = now;
-						logSpace = true;
+					// Translational curvature angular velocity, observe-only:
+					// omega_curve = (v x a) / |v|^2.  If this aligns with throw
+					// correction better than controller w, it supports replacing
+					// Td's wrist-axis rotation with a trajectory-derived axis.
+					double kv2 = ks.v[0] * ks.v[0] + ks.v[1] * ks.v[1] + ks.v[2] * ks.v[2];
+					if(caFull && kv2 > 0.25){
+						diagCurveW[0] = (ks.v[1] * ks.ca[2] - ks.v[2] * ks.ca[1]) / kv2;
+						diagCurveW[1] = (ks.v[2] * ks.ca[0] - ks.v[0] * ks.ca[2]) / kv2;
+						diagCurveW[2] = (ks.v[0] * ks.ca[1] - ks.v[1] * ks.ca[0]) / kv2;
+						diagCurveVsKalDeg = vecAngleDeg(diagCurveW, diagKalW);
+					}
+					// Source linear velocity diagnostics.  fdV is available only
+					// on a genuinely fresh positional measurement.  During p3d /
+					// reacquisition it intentionally becomes NA while srcV and
+					// kalV keep logging, letting the field trace show whether the
+					// upstream velocity still carries useful unseen-motion data.
+					diagSrcKalDeg = vecAngleDeg(diagSrcV, ks.v);
+					diagP3dNow = posOnlyFreeze ? 1 : 0;
+					diagReacqNow = ks.reacqActive ? 1 : 0;
+					for(int a2 = 0; a2 < 3; a2++){
+						diagKalV[a2] = ks.v[a2];
+					}
+					diagFdTrusted = rawFdValid && !ks.reacqActive && !posOnlyFreeze;
+					// Normalize WorldFromDriver before using it as a rotation. Test
+					// both directions because the OpenVR pose transform convention and
+					// vrlink's velocity convention are exactly what this probe is
+					// intended to adjudicate in the field.
+					double qwdN = sqrt(diagQwd.w * diagQwd.w + diagQwd.x * diagQwd.x
+						+ diagQwd.y * diagQwd.y + diagQwd.z * diagQwd.z);
+					if(qwdN > 1e-9){
+						diagQwd.w /= qwdN; diagQwd.x /= qwdN; diagQwd.y /= qwdN; diagQwd.z /= qwdN;
+						double qwAbs = fabs(diagQwd.w);
+						if(qwAbs > 1.0){ qwAbs = 1.0; }
+						diagQwdAngleDeg = 2.0 * acos(qwAbs) * 180.0 / 3.14159265358979323846;
+						QuatRotateVector(diagQwd, diagSrcV, diagSrcVQwd);
+						vr::HmdQuaternion_t qwdInv = {diagQwd.w, -diagQwd.x, -diagQwd.y, -diagQwd.z};
+						QuatRotateVector(qwdInv, diagSrcV, diagSrcVQwdInv);
+					}
+					if(diagFdTrusted){
+						diagSrcFdDeg = vecAngleDeg(diagSrcV, diagFdV);
+						diagSrcQwdFdDeg = vecAngleDeg(diagSrcVQwd, diagFdV);
+						diagSrcQwdInvFdDeg = vecAngleDeg(diagSrcVQwdInv, diagFdV);
+						double srcM = sqrt(diagSrcV[0]*diagSrcV[0] + diagSrcV[1]*diagSrcV[1] + diagSrcV[2]*diagSrcV[2]);
+						double fdM = sqrt(diagFdV[0]*diagFdV[0] + diagFdV[1]*diagFdV[1] + diagFdV[2]*diagFdV[2]);
+						if(fdM > 0.05){ diagSrcFdMagRatio = srcM / fdM; }
+					}
+					if(diagQRateValid){
+						diagSrcWorldDeg = vecAngleDeg(diagSrcW, diagQWorldW);
+						diagSrcBodyDeg = vecAngleDeg(diagSrcW, diagQBodyW);
+						diagKalWorldDeg = vecAngleDeg(diagKalW, diagQWorldW);
+						diagKalBodyDeg = vecAngleDeg(diagKalW, diagQBodyW);
+						double qwm = sqrt(diagQWorldW[0] * diagQWorldW[0] + diagQWorldW[1] * diagQWorldW[1] + diagQWorldW[2] * diagQWorldW[2]);
+						double vm = sqrt(diagPostTdV[0] * diagPostTdV[0] + diagPostTdV[1] * diagPostTdV[1] + diagPostTdV[2] * diagPostTdV[2]);
+						if(driverConfig.streamFrame.poseLogging && now - ks.diagSpaceLastLog >= 0.05
+								&& (qwm > 1.0 || vm > 0.5)){
+							ks.diagSpaceLastLog = now;
+							logSpace = true;
+						}
 					}
 				}
 			}
@@ -3294,10 +3353,10 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 								if(nn > 1e-6){
 									for(int a2 = 0; a2 < 3; a2++){ vRep[a2] = nd[a2] / nn * mV; }
 								}
-								ks.gazeBends++;
+								if(driverConfig.streamFrame.poseLogging){ ks.gazeBends++; }
 								double bendDeg = bend * 180.0 / 3.14159265358979323846;
-								ks.gazeBendSum += bendDeg;
-								if(bendDeg > ks.gazeBendMax){ ks.gazeBendMax = bendDeg; }
+								if(driverConfig.streamFrame.poseLogging){ ks.gazeBendSum += bendDeg; }
+								if(driverConfig.streamFrame.poseLogging && bendDeg > ks.gazeBendMax){ ks.gazeBendMax = bendDeg; }
 								if(!gazeAssistAnnounced){
 									gazeAssistAnnounced = true;
 									announceGaze = true;
@@ -3315,7 +3374,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			double rtsEpochOff = 0; // reported epoch relative to tMeas (<= 0)
 			if(caFull && smoothLag > 0.001){
 				// ---- fixed-lag RTS (see KalState::rtsN) ----
-				ks.rtsRepFrames++;
+				if(driverConfig.streamFrame.poseLogging){ ks.rtsRepFrames++; }
 				int newest = (ks.rtsHead - 1 + KalState::rtsN) % KalState::rtsN;
 				double tTargetD = tMeas - smoothLag;
 				// find m: newest entry with rtsT[m] <= tTargetD
@@ -3384,8 +3443,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						xs[a2][0] = xsv[0]; xs[a2][1] = xsv[1]; xs[a2][2] = xsv[2];
 					}
 					if(ok){
-						ks.rtsFrames++;
-						ks.rtsDepthSum += depth;
+						if(driverConfig.streamFrame.poseLogging){ ks.rtsFrames++; }
+						if(driverConfig.streamFrame.poseLogging){ ks.rtsDepthSum += depth; }
 						double dtf = tTargetD - ks.rtsT[m];
 						double wS[3];
 						for(int a2 = 0; a2 < 3; a2++){
@@ -3484,11 +3543,11 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				double vm2 = vRep[0] * vRep[0] + vRep[1] * vRep[1] + vRep[2] * vRep[2];
 				if(!std::isfinite(vm2)){
 					vRep[0] = 0; vRep[1] = 0; vRep[2] = 0;
-					ks.vClampN++;
+					if(driverConfig.streamFrame.poseLogging){ ks.vClampN++; }
 				}else if(vm2 > 50.0 * 50.0){
 					double sc = 50.0 / sqrt(vm2);
 					vRep[0] *= sc; vRep[1] *= sc; vRep[2] *= sc;
-					ks.vClampN++;
+					if(driverConfig.streamFrame.poseLogging){ ks.vClampN++; }
 				}
 			}
 			// Capture the raw input before replacing DriverPose_t below.
@@ -3517,13 +3576,15 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				diagAccSigma = sqrt(aVar / 3.0);
 			}
 
-			ks.repHave = true;
+			ks.repHave = driverConfig.streamFrame.poseLogging;
 			for(int a2 = 0; a2 < 3; a2++){
 				pose.vecPosition[a2] = (useSmoothOut ? ksOutP[a2] : ks.p[a2]) + ks.v[a2] * lead;
 				pose.vecVelocity[a2] = vRep[a2];
 				pose.vecAngularVelocity[a2] = wRep[a2];
-				ks.repV[a2] = vRep[a2];
-				ks.repW[a2] = wRep[a2];
+				if(driverConfig.streamFrame.poseLogging){
+					ks.repV[a2] = vRep[a2];
+					ks.repW[a2] = wRep[a2];
+				}
 				diagStateP[a2] = ks.p[a2];
 				diagStateV[a2] = ks.v[a2];
 				diagStateA[a2] = caFull ? ks.ca[a2] : 0.0;
@@ -3607,7 +3668,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			// submitted-position ring (receipt clock): what a pose-history
 			// throw estimator sees from the driver side (before the
 			// runtime's own photon prediction). read by RELDIAG.
-			{
+			if(driverConfig.streamFrame.poseLogging){
 				int sh = ks.subHead;
 				ks.subT[sh] = now;
 				for(int a2 = 0; a2 < 3; a2++){ ks.subP[sh][a2] = pose.vecPosition[a2]; }
@@ -3615,7 +3676,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				if(ks.subCount < KalState::subN){ ks.subCount++; }
 			}
 
-			if(rawFdValid){
+			if(driverConfig.streamFrame.poseLogging && rawFdValid){
 				double outXZ2 = vRep[0] * vRep[0] + vRep[2] * vRep[2];
 				if(outXZ2 > 0.25){
 					double dotXZ = rawFd[0] * vRep[0] + rawFd[2] * vRep[2];
@@ -3925,6 +3986,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					double diagAngOut[3] = {0, 0, 0};
 					{
 						std::lock_guard<std::mutex> filterGuard(deriveFilterLock);
+						RefreshKalDiagnosticSession();
 						DeriveFilterState &fs = deriveFilterStates[openVRID];
 						double fdt = now - fs.time;
 						if(!fs.have || fdt <= 0 || fdt > 0.1){
@@ -4416,6 +4478,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				double pkRawSec = -1, pkRawDirOff = -1, pkRawLagLin = -9999, pkRawLagAng = -9999, pkRawAngSec = -1;
 				{
 					std::lock_guard<std::mutex> pkGuard(deriveFilterLock);
+					RefreshKalDiagnosticSession();
 					KalState &pks = kalStates[openVRID];
 					// release-instant snapshot: shaped output + secant,
 					// every frame, read by RELDIAG at the release edge
@@ -4967,6 +5030,7 @@ void GalaxyXRDeviceProvider::LogDevicePose(uint32_t openVRID, const vr::DriverPo
 	bool streamedForSnapshot = driverConfig.streamFrame.velocityFixMode == 2
 		? IsStreamedController(openVRID) : false;
 	std::lock_guard<std::mutex> guard(poseLogLock);
+	RefreshPoseDiagnosticSession();
 		PoseLogState &state = poseLogStates[openVRID];
 		if(!state.announced){
 			state.announced = true;

@@ -12,6 +12,7 @@ export type DistortionProfileConfig = {
  * See the c++ documentation for documentation on what the settings are for
  */
 export type Settings = {
+	debugMode: boolean,
   generalHeadset: GeneralHeadsetConfig,
   customShader: CustomShaderConfig,
   streamFrame?: StreamFrameConfig,

@@ -17,8 +17,8 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 }));
 
 let service: DriverSettingService;
-async function load(streamFrame?: object, galaxyXr: object = { sdr10SettingsVersion: 2 }) {
-  if (streamFrame !== undefined) disk.content = JSON.stringify({ streamFrame, galaxyXr });
+async function load(streamFrame?: object, galaxyXr: object = { sdr10SettingsVersion: 2 }, root: object = {}) {
+  if (streamFrame !== undefined) disk.content = JSON.stringify({ ...root, streamFrame, galaxyXr });
   const info = { values: () => undefined };
   service = new DriverSettingService(
     { settingPath: '/test/settings.json', appDataDirPath: '/test' } as any,
@@ -32,8 +32,75 @@ beforeEach(() => { vi.useFakeTimers(); disk.attempts = 0; disk.rejectWrites = fa
 afterEach(() => { service?.dispose(); vi.useRealTimers(); });
 
 describe('first-load settings application', () => {
+  const selectedDiagnostics = {
+    hitchDiag: true, poseLogging: false, poseLogBurst: true, nvencVerbose: true,
+    eyeGaze: { debugRing: true, predictionMs: 35 },
+    blackFloor: { rampBar: true, blackPointCode: 7 },
+    gamma: 1.8, nvencPreset: 3, nvencForceFps: 72,
+  };
+  // The false native default is omitted on disk and restored by the loader.
+  const { poseLogging: defaultPoseLogging, ...sparseDiagnostics } = selectedDiagnostics;
+
+  it('loads a missing Debug Mode as Off without rewriting selected diagnostics', async () => {
+    const state = await load({ streamFrameSchema: 5, nvencSettingsVersion: 4, ...selectedDiagnostics });
+    const originalDisk = disk.content;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(service.values()?.debugMode).toBe(false);
+    expect(state.debugMode).toBe(false);
+    expect(state.settings).toMatchObject(selectedDiagnostics);
+    expect(disk.content).toBe(originalDisk);
+    expect(disk.attempts).toBe(0);
+  });
+
+  it.each([false, true])('round-trips master=%s through schema 5 and sparse saves without changing tuning', async debugMode => {
+    let state = await load({ streamFrameSchema: 4, nvencSettingsVersion: 4, ...selectedDiagnostics },
+      { sdr10SettingsVersion: 2, vrlinkDebugOverlay: true }, { debugMode });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(disk.attempts).toBe(1);
+    expect(JSON.parse(disk.content).streamFrame).toMatchObject({ streamFrameSchema: 5, ...sparseDiagnostics });
+    expect(JSON.parse(disk.content).streamFrame.poseLogging ?? driverDefaults.streamFrame!.poseLogging).toBe(defaultPoseLogging);
+    expect(JSON.parse(disk.content).debugMode ?? false).toBe(debugMode);
+    expect(state.debugMode).toBe(debugMode);
+    const save = service.save({ ...service.values()!, debugMode: !debugMode });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await save).toBe(true);
+    const saved = JSON.parse(disk.content);
+    expect(saved.debugMode ?? false).toBe(!debugMode);
+    expect(Object.hasOwn(saved, 'debugMode')).toBe(!debugMode);
+    expect(saved.streamFrame).toMatchObject(sparseDiagnostics);
+    expect(saved.streamFrame.poseLogging ?? driverDefaults.streamFrame!.poseLogging).toBe(defaultPoseLogging);
+    expect(saved.galaxyXr.vrlinkDebugOverlay).toBe(true);
+    const stableDisk = disk.content;
+    service.dispose();
+    state = await load();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(state.debugMode).toBe(!debugMode);
+    expect(state.settings).toMatchObject(selectedDiagnostics);
+    expect(state.galaxyXr.vrlinkDebugOverlay).toBe(true);
+    expect(disk.content).toBe(stableDisk);
+    expect(disk.attempts).toBe(2);
+  });
+
+  it.each([false, true])('rolls back a failed master change from %s while keeping stored selections', async debugMode => {
+    const state = await load({ streamFrameSchema: 5, nvencSettingsVersion: 4, ...selectedDiagnostics },
+      { sdr10SettingsVersion: 2, vrlinkDebugOverlay: true }, { debugMode });
+    await vi.advanceTimersByTimeAsync(1000);
+    const stableDisk = disk.content;
+    disk.rejectWrites = true;
+    const save = service.save({ ...service.values()!, debugMode: !debugMode });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await save).toBe(false);
+    expect(service.writeFileError()).toContain('read-only');
+    expect(state.debugMode).toBe(debugMode);
+    expect(state.settings).toMatchObject(selectedDiagnostics);
+    expect(state.galaxyXr.vrlinkDebugOverlay).toBe(true);
+    expect(disk.content).toBe(stableDisk);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(disk.attempts).toBe(1);
+  });
+
   it('persists the SDR10 migration and keeps its version after a default-diff save', async () => {
-    await load({ streamFrameSchema: 4, nvencSettingsVersion: 4, gamma: 1.8 }, {});
+    await load({ streamFrameSchema: 5, nvencSettingsVersion: 4, gamma: 1.8 }, {});
     await vi.advanceTimersByTimeAsync(1000);
     expect(disk.attempts).toBe(1);
     const saved = JSON.parse(disk.content);
@@ -47,7 +114,7 @@ describe('first-load settings application', () => {
 
   it('stops automatic migration retries on a write error and permits explicit recovery', async () => {
     disk.rejectWrites = true;
-    await load({ streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true, cas: { enable: true, strength: 0.83 } });
+    await load({ streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true, cas: { enable: true, strength: 0.83 } });
     await vi.advanceTimersByTimeAsync(1000);
     expect(disk.attempts).toBe(1);
     expect(service.writeFileError()).toContain('read-only');
@@ -69,7 +136,7 @@ describe('first-load settings application', () => {
 
   it('loads current explicit Off choices and exact tuning without saving or toggling', async () => {
     const state = await load({
-      streamFrameSchema: 4, nvencSettingsVersion: 4, enable: false, nvencTap: false,
+      streamFrameSchema: 5, nvencSettingsVersion: 4, enable: false, nvencTap: false,
       cas: { enable: false, strength: 0.63 }, postPack: { enable: false, casEnable: false },
     });
     await vi.advanceTimersByTimeAsync(1000);
@@ -86,14 +153,14 @@ describe('first-load settings application', () => {
       nvencBitrateScale: false, nvencPresetMerge: false,
     };
     let state = await load({
-      streamFrameSchema: 4, nvencSettingsVersion: 2, ...off,
+      streamFrameSchema: 5, nvencSettingsVersion: 2, ...off,
       cas: { enable: false, strength: 0.79 }, postPack: { enable: false, casEnable: false },
     }, { sdr10SettingsVersion: 2, vrlinkHeadsetProfile: false });
     await vi.advanceTimersByTimeAsync(1000);
     expect(disk.attempts).toBe(1);
     expect(state.settings).toMatchObject({ ...off, nvencSettingsVersion: 4 });
     const saved = JSON.parse(disk.content);
-    expect(saved.streamFrame).toMatchObject({ ...off, streamFrameSchema: 4, nvencSettingsVersion: 4 });
+    expect(saved.streamFrame).toMatchObject({ ...off, streamFrameSchema: 5, nvencSettingsVersion: 4 });
     expect(saved.streamFrame.postPack).toMatchObject({ enable: false, casEnable: false });
     expect(saved.galaxyXr.vrlinkHeadsetProfile).toBe(false);
     const stableDisk = disk.content;
@@ -109,7 +176,7 @@ describe('first-load settings application', () => {
   });
 
   it('keeps defaults for missing pre-v3 switches instead of treating filled values as explicit', async () => {
-    const state = await load({ streamFrameSchema: 4, nvencSettingsVersion: 2 });
+    const state = await load({ streamFrameSchema: 5, nvencSettingsVersion: 2 });
     await vi.advanceTimersByTimeAsync(1000);
     for (const key of ['nvencTap', 'nvencFixLevel', 'nvencForceCbr', 'nvencBitrateScale', 'nvencPresetMerge'] as const) {
       expect(state.settings?.[key], key).toBe(driverDefaults.streamFrame![key]);
@@ -121,7 +188,7 @@ describe('first-load settings application', () => {
 
   it.each([{ enable: false }, { casEnable: false }])('persists a partial explicit post-pack Off mode %j', async mode => {
     let state = await load({
-      streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+      streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
       cas: { enable: true, strength: 0.91 }, postPack: { ...mode, foveaStrength: 0.23 },
     });
     await vi.advanceTimersByTimeAsync(1000);
@@ -138,7 +205,7 @@ describe('first-load settings application', () => {
 
   it.each([false, true])('persists legacy CAS Off while retaining independent limitedRange=%s', async limitedRange => {
     let state = await load({
-      streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+      streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
       cas: { enable: false, strength: 0.87 }, postPack: { limitedRange },
     });
     await vi.advanceTimersByTimeAsync(1000);
@@ -156,7 +223,7 @@ describe('first-load settings application', () => {
 
   it('migrates enabled pre-encode CAS despite post-pack defaults filled by the service', async () => {
     const state = await load({
-      streamFrameSchema: 4, nvencSettingsVersion: 3, nvencTap: true,
+      streamFrameSchema: 5, nvencSettingsVersion: 3, nvencTap: true,
       cas: { enable: true, strength: 0.91 },
     });
     await vi.advanceTimersByTimeAsync(1000);

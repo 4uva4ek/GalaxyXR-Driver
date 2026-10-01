@@ -2,6 +2,8 @@
 // Tests ordering and reload decisions only; never accesses SteamVR or user files.
 #include "../src/Config/Config.h"
 #include "../src/Config/SdrColorPolicy.h"
+#include "../src/Config/VrlinkSettingsRouting.h"
+#include "openvr_driver.h"
 #include <cstdlib>
 #include <iostream>
 #include <map>
@@ -40,15 +42,17 @@ void ApplyHeadsetProfileSetting(const std::string&, const gxr::Sdr10BaselinePoli
     values["debugRegionColoring"] = driverConfig.galaxyXr.vrlinkDebugOverlay;
     values["showAdvancedGraphs"] = driverConfig.galaxyXr.vrlinkDebugOverlay;
 }
-void ApplyVrlinkExtraKeys() {
-    calls += 'E';
-    values["maxVideoQueueLatencyUs"] = driverConfig.galaxyXr.vrlinkMaxVideoQueueLatencyUs;
-    values["backoffRecoveryCoefficient"] = driverConfig.galaxyXr.vrlinkBackoffRecoveryCoefficient;
-    for(const auto& entry : driverConfig.galaxyXr.vrlinkExtraKeys) {
-        if(std::get<1>(entry) == 'x') values.erase(std::get<0>(entry));
-        else values[std::get<0>(entry)] = std::get<2>(entry);
-    }
+namespace gxrsettings {
+void SetInt32(const char*, const char* key, int32_t value) { values[key] = value; }
+void SetFloat(const char*, const char* key, float value) { values[key] = value; }
+void SetBool(const char*, const char* key, bool value) { values[key] = value; }
+void RestoreOwnedKey(const char*, const char* key) { values.erase(key); }
+void RemoveKeyInSection(const char*, const char* key, vr::EVRSettingsError* error) { values.erase(key); *error = vr::VRSettingsError_None; }
 }
+void SetBoolIfDifferent(const char*, const char* key, bool value) { values[key] = value; }
+// Execute the production extra-key policy; only its external writers are fake.
+#include "VrlinkExtraKeysWriter.generated.h"
+void ApplyVrlinkExtraKeys() { calls += 'E'; ApplyVrlinkExtraKeysIn("driver_vrlink"); }
 
 struct PriorityShim {
     bool active = true;
@@ -59,6 +63,7 @@ struct PriorityShim {
     int appliedProfileMaxSfw = 0;
     bool appliedProfile10bit = false;
     bool appliedDebugOverlay = false;
+    bool appliedDebugMode = false;
     std::string appliedStreamQuality;
     int appliedCustomEncodeWidth = 0, appliedCustomStreamFormatWidth = 0, appliedCustomBandwidthMbit = 0;
     int appliedBandwidthOverride = 0;
@@ -93,6 +98,7 @@ void CheckOverlayRemoved(const char* label) {
 }
 
 int main() {
+    driverConfig.debugMode = true;
     auto& config = driverConfig.galaxyXr;
     config.nativeResolution = true;
     config.streamQuality = "custom";
@@ -208,6 +214,24 @@ int main() {
     Check(calls == "RNPSE", "route change reapplies unchanged overlay removals");
     CheckOverlayRemoved("expert removal after route change");
     CheckOverrides("overlay route reload", 4200);
+
+    // The normal overlay is false in both snapshots: the master transition
+    // still must suppress expert overlay values and then restore their choices.
+    config.vrlinkDebugOverlay = false;
+    config.vrlinkExtraKeys[overlayExtraStart] = {"debugRegionColoring", 'b', 1};
+    config.vrlinkExtraKeys[overlayExtraStart + 1] = {"showAdvancedGraphs", 'b', 1};
+    calls.clear(); shim.RunFrameSettings();
+    CheckOverlay(true, true, "expert overlay before master OFF");
+    const auto selectedExtras = config.vrlinkExtraKeys;
+    driverConfig.debugMode = false;
+    calls.clear(); shim.RunFrameSettings();
+    Check(calls == "PE", "master OFF invalidates unchanged effective overlay cache");
+    CheckOverlay(false, false, "master OFF overrides expert overlays");
+    Check(config.vrlinkExtraKeys == selectedExtras, "master OFF preserves expert selections");
+    driverConfig.debugMode = true;
+    calls.clear(); shim.RunFrameSettings();
+    Check(calls == "PE", "master ON reapplies stored expert choices");
+    CheckOverlay(true, true, "master ON restores expert overlays");
 
     shim.active = false;
     config.nativeResolution = true; config.customBandwidthMbit = 500;

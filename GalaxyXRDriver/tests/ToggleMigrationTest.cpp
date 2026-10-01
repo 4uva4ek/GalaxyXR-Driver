@@ -2,6 +2,7 @@
 // process models a fresh install; the runner never reads live settings.
 #include "Config/Config.h"
 #include "Config/SdrColorPolicy.h"
+#include "Config/DebugModePolicy.h"
 #include "Config/StreamTiers.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
         sf["postPack"] = {{"casEnable",false},{"limitedRange",true}};
     } else if (scenario >= 9 && scenario <= 11) {
         sf["nvencSettingsVersion"] = 4;
+        input["debugMode"] = scenario == 11;
         if (scenario != 9) sf["hitchDiag"] = scenario == 11;
     } else if (scenario == 12) {
         // An explicitly saved legacy stock-encoder profile is still a user
@@ -100,6 +102,16 @@ int main(int argc, char** argv) {
         driverConfig.streamFrame.eyeGaze.calibDot = true;
         driverConfig.streamFrame.eyeGaze.probeCapture = true;
         driverConfig.customShader.enable = true;
+    } else if (scenario >= 16 && scenario <= 19) {
+        sf["nvencSettingsVersion"] = 4;
+        sf.update(customTuning);
+        sf["hitchDiag"] = sf["poseLogging"] = sf["poseLogBurst"] = sf["nvencVerbose"] = true;
+        sf["eyeGaze"]["debugRing"] = true;
+        sf["blackFloor"] = {{"rampBar",true},{"blackPointCode",3.5}};
+        input["galaxyXr"]["vrlinkDebugOverlay"] = true;
+        if (scenario == 17) input["debugMode"] = false;
+        if (scenario == 18) input["debugMode"] = true;
+        if (scenario == 19) input["debugMode"] = "true";
     } else return 2;
     const auto path = testFolder + "settings.json";
     { std::ofstream out(path); out << input.dump(); }
@@ -107,7 +119,20 @@ int main(int argc, char** argv) {
     auto checkExpected = [&] {
         const auto &s = driverConfig.streamFrame;
         Check(s.nvencSettingsVersion == 4, "version reaches current schema");
-        Check(s.hitchDiag == (scenario == 11), "hitch diagnostics defaults OFF and preserves explicit choices");
+        Check(s.hitchDiag == (scenario == 11 || scenario == 18), "hitch diagnostics require master and preserve explicit choices");
+        Check(s.streamFrameSchema == 5, "debug policy version stamp reaches schema 5");
+        if (scenario >= 16) {
+            const bool enabled = scenario == 18;
+            Check(driverConfig.debugMode == enabled, "master is strictly boolean and defaults OFF");
+            Check(s.blackFloor.rampBar == enabled && s.eyeGaze.debugRing == enabled
+                && s.poseLogging == enabled && s.poseLogBurst == enabled && s.nvencVerbose == enabled
+                && driverConfig.galaxyXr.vrlinkDebugOverlay == enabled, "all seven diagnostics use effective master");
+            Check(s.blackFloor.blackPointCode == 3.5 && s.nvencFixLevel && s.nvencForceFps == 72
+                && s.nvencBitrateMbit == 123 && s.nvencMaxBitrateHeadroomPct == 20,
+                "picture and encoder compatibility/rate tuning remains effective");
+            json stored; { std::ifstream in(path); in >> stored; }
+            Check(stored == input, "runtime masking never rewrites saved diagnostic choices");
+        }
         if (customUpgrade) {
             Check(!s.nvencTap && !s.nvencFixLevel && !s.nvencForceCbr
                 && !s.nvencBitrateScale && !s.nvencPresetMerge, "all explicit encoder OFF choices preserved");
@@ -178,6 +203,18 @@ int main(int argc, char** argv) {
     json reopened;
     { std::ifstream in(path); in >> reopened; }
     Check(reopened == persisted, "repeated load does not rewrite the migrated file");
+    if(scenario == 18) {
+        const auto generation = driverConfig.debugGeneration;
+        json disabled = input; disabled["debugMode"] = false;
+        { std::ofstream out(path); out << disabled.dump(); }
+        ParseConfig();
+        Check(!driverConfig.streamFrame.poseLogging && !driverConfig.streamFrame.hitchDiag,
+            "live master OFF applies diagnostic policy");
+        { std::ofstream out(path); out << input.dump(); }
+        ParseConfig();
+        Check(driverConfig.debugGeneration == generation + 2, "runtime generation retains both transitions without scene frames");
+        checkExpected();
+    }
     std::cout << "Toggle migration scenario " << scenario << ": " << checks << " checks, " << failures << " failures\n";
     return failures ? 1 : 0;
 }

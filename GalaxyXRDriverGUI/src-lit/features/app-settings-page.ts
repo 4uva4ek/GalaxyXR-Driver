@@ -3,7 +3,7 @@
 import { html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { css } from 'lit';
-import { BasePage, settingFieldRow, fieldRow, noteRow, sectionHeading, fieldStyles } from './page-base';
+import { BasePage, settingFieldRow, fieldRow, noteRow, sectionHeading, sectionGroup, fieldStyles } from './page-base';
 import { t } from '../locale/i18n';
 import type { AppSetting } from '../domain/types';
 import { driverAvailable } from '../domain/navigation';
@@ -78,9 +78,22 @@ export class AppSettingsPage extends BasePage {
         <app-switch .known=${!appSetting.readFileError()} .disabled=${!!appSetting.readFileError()}
           .checked=${!!appSetting.values().advanceMode} @change=${(e: CustomEvent) => save({ advanceMode: e.detail })}></app-switch>
       `),
-      noteRow(t('Show encoder, controller, calibration, and diagnostic controls. Hiding them keeps their values.')),
+      noteRow(t('Show encoder, controller, and calibration controls. Hiding them keeps their values.')),
+      settingFieldRow('debugMode', html`
+        <app-switch .known=${known} .disabled=${!installed || !known || busy}
+          .checked=${galaxy.debugMode} @change=${async (e: CustomEvent<boolean>) => {
+            const control = e.currentTarget as HTMLElement & { checked: boolean };
+            control.checked = galaxy.debugMode;
+            const settings = this.ctx.dss.values();
+            if (!settings || !installed || !known || busy) return;
+            await this.ctx.dss.save({ ...settings, debugMode: e.detail });
+            control.checked = galaxy.debugMode;
+            this.requestUpdate();
+          }}></app-switch>
+      `, { tip: t('Show the Debug tab and allow its selected diagnostic overlays and logging. Turning this off stops diagnostic effects while keeping their saved selections. Black-point correction and encoder compatibility/rate tuning remain active. Requires a SteamVR restart and reconnect for the vrlink Debug Overlay.') }),
     ];
     if (appSetting.values().advanceMode || this.revealAdvanced) {
+      body.push(sectionGroup(t('Advanced'), 1));
       body.push(fieldRow(t('Update Mode'), html`
         <app-select .value=${appSetting.values().updateMode} .options=${[
           { value: 'replace', label: t('Replace') }, { value: 'rewrite', label: t('Rewrite') },

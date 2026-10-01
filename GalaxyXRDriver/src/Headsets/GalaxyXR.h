@@ -61,6 +61,7 @@ private:
 	int appliedProfileMaxSfw = 0;
 	bool appliedProfile10bit = false;
 	bool appliedDebugOverlay = false;
+	bool appliedDebugMode = false;
 	std::string appliedStreamQuality;
 	// custom tier values as last applied, for hot-reload change detection
 	int appliedCustomEncodeWidth = 0, appliedCustomStreamFormatWidth = 0, appliedCustomBandwidthMbit = 0;

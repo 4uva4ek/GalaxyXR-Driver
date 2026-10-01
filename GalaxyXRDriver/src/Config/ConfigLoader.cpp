@@ -9,6 +9,7 @@
 #include "../Driver/DriverLog.h"
 #include "StreamTiers.h"
 #include "SdrColorPolicy.h"
+#include "DebugModePolicy.h"
 #include "../Distortion/DistortionProfileConstructor.h"
 #ifdef _WIN32
 #include "Windows.h"
@@ -259,6 +260,9 @@ void ConfigLoader::ParseConfig(){
 		// parse with support for comments
 		json data = json::parse(configFile, nullptr, true, true);
 		Config newConfig = {};
+		if(data["debugMode"].is_boolean()){
+			newConfig.debugMode = data["debugMode"].get<bool>();
+		}
 		if(data["generalHeadset"].is_object()){
 			json generalHeadsetData = data["generalHeadset"];
 			if(generalHeadsetData["useViveBluetooth"].is_boolean()){
@@ -1560,10 +1564,17 @@ void ConfigLoader::ParseConfig(){
 		// default with baseline OFF. Like streamFrame schema migrations, this
 		// upgrades the runtime snapshot; Companion persists the version on save.
 		gxr::MigrateSdr10Settings(newConfig.galaxyXr);
+		// schema-5 policy (2026-10-01): missing master is OFF; do not rewrite
+		// saved diagnostic selections or tuning. Match Companion's version stamp.
+		if(newConfig.streamFrame.streamFrameSchema < 5){
+			newConfig.streamFrame.streamFrameSchema = 5;
+		}
+		gxr::ApplyDebugModePolicy(newConfig);
 		// write to global config
 		{
 			std::lock_guard<std::mutex> lock(driverConfigLock);
 			driverConfigOld = driverConfig;
+			newConfig.debugGeneration = driverConfig.debugGeneration + (gxr::DebugModeChanged(driverConfig, newConfig) ? 1 : 0);
 			driverConfig = newConfig;
 		}
 	}catch(const std::exception& e){
@@ -1703,6 +1714,7 @@ void ConfigLoader::WriteInfo(){
 	ordered_json data = {
 		{"about", "This file is not for configuration. It provides info from the driver for other utilities to use."},
 		{"defaultSettings", {
+			{"debugMode", defaultSettings.debugMode},
 			{"galaxyXr", {
 				{"sdr10Baseline", defaultSettings.galaxyXr.sdr10Baseline},
 				{"sdr10AllowEnhancements", defaultSettings.galaxyXr.sdr10AllowEnhancements},

@@ -18,23 +18,48 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
  function children(t){return Array.isArray(t.values?.at(-1))?t.values.at(-1):[];}
  function flatten(v){if(Array.isArray(v))return v.map(flatten).join('');if(v?.strings)return v.strings.reduce((s,text,i)=>s+text+flatten(v.values[i]),'');if(typeof v==='function'||v==null)return '';return String(v);}
  function handlers(v){if(Array.isArray(v))return v.flatMap(handlers);if(typeof v==='function')return [v];return v?.values?handlers(v.values):[];}
+ function maxCardDepth(v,depth=0){if(Array.isArray(v))return Math.max(depth,...v.map(child=>maxCardDepth(child,depth)));if(!v?.strings)return depth;const next=depth+(v.strings[0].includes('<section class="section-card')?1:0);return Math.max(next,...v.values.map(child=>maxCardDepth(child,next)));}
  const parentRow=h.fieldRow('Official Controller Input Profile',html`<input type="checkbox" aria-label="Official Controller Input Profile">`);
  const childRow=h.fieldRow('Grip Convention',html`<input type="checkbox" checked aria-label="Grip Convention">`);
  const deepRow=h.fieldRow('Prediction strength',html`<input type="number" value="1.15" aria-label="Prediction strength">`);
  const imageRow=h.fieldRow('Brightness',html`<input type="number" value="1" aria-label="Brightness">`);
+ const bypassRow=h.fieldRow('Controller Bypass',html`<input type="checkbox">`);
+ const offsetRow=h.fieldRow('Rotation Offset',html`<input type="number">`);
  let clicks=0;
- const cards=h.sectionCards([h.sectionRow('Controllers',true,0,()=>clicks++),parentRow,h.sectionRow('Controller Fix',true,1,()=>clicks++),childRow,h.sectionRow('Controller Advanced',true,2,()=>clicks++),deepRow,h.sectionHeading('Image Processing'),h.sectionRow('Color',true,1,()=>clicks++),imageRow]);
+ const cards=h.sectionCards([h.sectionRow('Controllers',true,0,()=>clicks++),parentRow,h.sectionRow('Controller Fix',true,1,()=>clicks++),childRow,h.sectionGroup('Kalman Advanced Settings',2),deepRow,h.sectionGroup('Controllers Advanced',1),bypassRow,h.sectionRow('Controller Offsets',true,2,()=>clicks++),offsetRow,h.sectionHeading('Image Processing'),h.sectionRow('Color',true,1,()=>clicks++),imageRow]);
  const roots=cards.values[0];
  test('Top-level headings produce separate cards',()=>assert.equal(roots.length,2));
  test('Parent controls belong to their parent card body',()=>assert.equal(children(roots[0])[0],parentRow));
  test('Child controls are nested inside a second card, not flat siblings',()=>assert.equal(children(children(roots[0])[1])[0],childRow));
- test('Deep sections add another ownership level',()=>assert.equal(children(children(children(roots[0])[1])[1])[0],deepRow));
+ test('Kalman advanced fields retain ownership in a plain labeled group',()=>{
+   const group=children(children(roots[0])[1])[1];assert.equal(children(group)[0],deepRow);
+   assert.match(flatten(group),/class="section-group advanced"/);assert.match(flatten(group),/Kalman Advanced Settings/);
+   assert.doesNotMatch(flatten(group),/section-card|aria-expanded|chevron/);assert.equal(handlers(group).length,0);
+ });
+ test('Controllers Advanced belongs beside Controller Fix and owns its offset fields',()=>{
+   const controllerChildren=children(roots[0]),advanced=controllerChildren[2];
+   assert.equal(controllerChildren.length,3);assert.equal(children(advanced)[0],bypassRow);
+   assert.equal(children(children(advanced)[1])[0],offsetRow);
+   assert.doesNotMatch(flatten(controllerChildren[1]),/Controller Bypass|Rotation Offset/);
+ });
+ test('Inline ownership groups never add a third nested card',()=>assert.equal(maxCardDepth(cards),2));
+ test('Excess card hierarchy becomes a plain visible group',()=>{
+   const nested=h.sectionCards([h.sectionRow('One',true,0,()=>clicks++),h.sectionRow('Two',true,1,()=>clicks++),h.sectionRow('Three',false,2,()=>clicks++),deepRow]);
+   assert.equal(maxCardDepth(nested),2);assert.match(flatten(nested),/class="section-group source"/);
+   assert.match(flatten(nested),/Prediction strength/);assert.equal(handlers(nested).length,2);
+ });
+ test('Source labels group diagnostics without introducing a card or collapse action',()=>{
+   const source=h.sectionCards([h.sectionGroup('Controllers',0,'source'),deepRow]);
+   assert.equal(maxCardDepth(source),0);assert.equal(handlers(source).length,0);
+   assert.match(flatten(source),/class="section-group source"/);assert.match(flatten(source),/Prediction strength/);
+ });
  test('Image Processing owns its Color section',()=>assert.equal(children(children(roots[1])[0])[0],imageRow));
  test('Header rendering never calls feature actions or saves settings',()=>assert.equal(clicks,0));
  test('Collapsing removes descendant controls but keeps an accessible header',()=>{const t=h.sectionCards([h.sectionRow('Closed',false,0,()=>{}),childRow]);const text=flatten(t);assert.ok(!text.includes('Grip Convention'));assert.match(text,/aria-expanded=false/);assert.match(text,/aria-controls=settings-section-0-body/);});
+ test('Closing a parent card also hides its inline advanced controls',()=>{const t=h.sectionCards([h.sectionRow('Controllers',false,0,()=>{}),h.sectionGroup('Controllers Advanced',1),bypassRow]);assert.doesNotMatch(flatten(t),/Controllers Advanced|Controller Bypass/);});
  test('No redundant Expand or Collapse labels remain',()=>assert.doesNotMatch(flatten(cards),/>\s*(Expand|Collapse)\s*</));
  test('Rows before the first heading stay outside section cards',()=>{const t=h.sectionCards([parentRow,h.sectionHeading('Section'),childRow]);assert.equal(t.values[0][0],parentRow);assert.equal(children(t.values[0][1])[0],childRow);});
- test('All six pages use the shared state-aware grouping helper',()=>{for(const file of ['driver-settings-page','stream-frame-page','distortion-profile-page','app-settings-page','about-page','setup-page'])assert.match(fs.readFileSync(root+'/src-lit/features/'+file+'.ts','utf8'),/this\.sectionCardsFor\((body|parts|\[)/,file);});
+ test('All seven pages use the shared state-aware grouping helper',()=>{for(const file of ['driver-settings-page','stream-frame-page','debug-page','distortion-profile-page','app-settings-page','about-page','setup-page'])assert.match(fs.readFileSync(root+'/src-lit/features/'+file+'.ts','utf8'),/this\.sectionCardsFor\((body|parts|\[)/,file);});
  test('Page grouping uses saved heading state and toggles without saving driver settings',()=>{
    let state={'heading:Image Processing':false},updates=0;
    const page={ctx:{galaxy:{sections:Object.assign(()=>state,{set:next=>{state=next;updates++;}})}},toggleSection:h.BasePage.prototype.toggleSection};
@@ -89,7 +114,7 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
  // write is provided: revealing a destination must only touch presentation.
  {
    const defaults=load(root+'/src-lit/domain/driver-defaults.ts').driverDefaults;
-   const snapshot=JSON.stringify(defaults);let state={encoderAdv:false},focused='',scrolled=false,updates=0;
+   const snapshot=JSON.stringify(defaults);let state={},focused='',scrolled=false,updates=0;
    const page={
      ctx:{dss:{values:()=>defaults},appSetting:{values:()=>({advanceMode:false}),readFileError:()=>undefined},sds:{driverInstalled:()=> '1.2.3'},
        galaxy:{vendor:'galaxyxr',sections:Object.assign(()=>state,{set:next=>{state=next;updates++;}})}},
@@ -98,7 +123,7 @@ const ts=process.env.FLUENT_TEST_TYPESCRIPT?require(process.env.FLUENT_TEST_TYPE
    };
    const reason=await h.BasePage.prototype.showSetting.call(page,'streamFrame.nvencForceCbr');
    test('Show setting expands stable ancestors and focuses the field without saving',()=>{
-     assert.equal(reason,undefined);assert.equal(state['heading:encoder'],true);assert.equal(state.encoderAdv,true);
+     assert.equal(reason,undefined);assert.equal(state['heading:encoder'],true);assert.equal(Object.hasOwn(state,'encoderAdv'),false);
      assert.equal(focused,'setting-streamFrame.nvencForceCbr');assert.equal(scrolled,true);assert.equal(page.revealAdvanced,true);
      assert.equal(page.ctx.appSetting.values().advanceMode,false);assert.equal(JSON.stringify(defaults),snapshot);
    });

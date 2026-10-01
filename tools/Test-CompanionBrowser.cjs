@@ -23,8 +23,13 @@ function fixture() {
   };
   const data = '/roaming/GalaxyXR/CustomHeadset';
   const initial = {
-    [data + '/gui-settings.json']: JSON.stringify({ colorScheme: 'light', advanceMode: true }),
-    [data + '/settings.json']: JSON.stringify({ galaxyXr: { nativeIdentity: true }, streamFrame: { enable: true } }),
+    [data + '/gui-settings.json']: JSON.stringify({ colorScheme: 'light', advanceMode: false }),
+    [data + '/settings.json']: JSON.stringify({ debugMode: false,
+      galaxyXr: { nativeIdentity: true, sdr10SettingsVersion: 2, vrlinkDebugOverlay: true },
+      streamFrame: { enable: true, streamFrameSchema: 5, nvencSettingsVersion: 4,
+        hitchDiag: true, poseLogging: true, poseLogBurst: true, nvencVerbose: true,
+        eyeGaze: { debugRing: true }, blackFloor: { rampBar: true, blackPointCode: 7 },
+        nvencPreset: 3, nvencForceFps: 72, gamma: 1.8 } }),
     [data + '/info.json']: JSON.stringify({ driverVersion: '1.2.13' }),
     [data + '/Distortion/kept.json']: '{"name":"kept-profile"}',
     '/local/openvr/openvrpaths.vrpath': JSON.stringify({ runtime: ['/SteamVR'], config: ['/SteamConfig'], external_drivers: ['/managed/GalaxyXRNative'] }),
@@ -172,6 +177,129 @@ function fixture() {
       await page.evaluate(route => { location.hash = '/' + route; }, route);
       await page.locator(`app-${route}-page`).getByRole('heading', { level: 1 }).waitFor();
     };
+    const debugSelections = () => page.evaluate(() => {
+      const settings = appContext.dss.values(), sf = settings.streamFrame;
+      return { hitchDiag: sf.hitchDiag, poseLogging: sf.poseLogging, poseLogBurst: sf.poseLogBurst,
+        nvencVerbose: sf.nvencVerbose, debugRing: sf.eyeGaze.debugRing, rampBar: sf.blackFloor.rampBar,
+        blackPointCode: sf.blackFloor.blackPointCode, nvencPreset: sf.nvencPreset,
+        nvencForceFps: sf.nvencForceFps, gamma: sf.gamma, vrlinkDebugOverlay: settings.galaxyXr.vrlinkDebugOverlay };
+    });
+    const assertCardDepth = async route => {
+      const deepest = await page.locator(`app-${route}-page`).evaluate(host => {
+        let maximum = 0;
+        for (const card of host.shadowRoot.querySelectorAll('.section-card')) {
+          let depth = 0;
+          for (let node = card; node; node = node.parentElement) if (node.classList.contains('section-card')) depth++;
+          maximum = Math.max(maximum, depth);
+        }
+        return maximum;
+      });
+      assert.ok(deepest <= 2, `${route} renders ${deepest} stacked cards`);
+    };
+    assert.equal(await page.locator('#tab-debug').count(), 0);
+    assert.equal(await page.evaluate(() => appContext.galaxy.debugMode), false);
+    const selectedBeforeDebug = await debugSelections();
+    await openRoute('app-settings');
+    await page.locator('[data-setting-id="debugMode"] fluent-switch').click();
+    await page.waitForFunction(() => appContext.galaxy.debugMode);
+    await page.evaluate(() => appContext.dss.flush());
+    await page.locator('#tab-debug').waitFor();
+    assert.equal(await page.evaluate(() => appContext.appSetting.values().advanceMode), false);
+    await openRoute('debug');
+    const debug = page.locator('app-debug-page');
+    assert.deepEqual(await debug.locator('.section-group.source > .section-group-label').allTextContents(),
+      ['Image Processing', 'Controllers', 'Encoder']);
+    assert.equal(await debug.locator('.section-group.source > .section-group-label').evaluateAll(labels =>
+      labels.every(label => label.tagName === 'DIV' && !label.hasAttribute('aria-expanded'))), true);
+    const imageDiagnostics = debug.locator('.section-card .section-title').first();
+    await imageDiagnostics.click();
+    await debug.locator('[data-setting-id="streamFrame.hitchDiag"]').waitFor({ state: 'detached' });
+    await imageDiagnostics.click();
+    await debug.locator('[data-setting-id="streamFrame.hitchDiag"]').waitFor();
+    assert.deepEqual(await debugSelections(), selectedBeforeDebug);
+    results.push('Debug defaults hidden, opens from App preferences independently of Advanced Mode, and groups collapsible diagnostics under plain source labels');
+
+    await page.reload();
+    await page.waitForFunction(() => window.appContext?.sds.driverState() === 'installed');
+    await debug.getByRole('heading', { name: 'Debug', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => appContext.galaxy.debugMode), true);
+    assert.equal(await page.evaluate(() => appContext.appSetting.values().advanceMode), false);
+    assert.deepEqual(await debugSelections(), selectedBeforeDebug);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(async theme => {
+        await appContext.appSetting.save({ ...appContext.appSetting.values(), colorScheme: theme });
+      }, theme);
+      for (const width of [1100, 600]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.screenshot({ path: path.join(out, `debug-${theme}-${width}.png`), animations: 'disabled' });
+        await assertCardDepth('debug');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      }
+    }
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.evaluate(async () => {
+      await appContext.appSetting.save({ ...appContext.appSetting.values(), advanceMode: true });
+      appContext.galaxy.sections.set(Object.fromEntries(Object.entries(appContext.galaxy.sections()).map(([key]) => [key, true])));
+    });
+    for (const route of ['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings', 'setup', 'about']) {
+      await openRoute(route);
+      await assertCardDepth(route);
+      assert.equal(await page.locator(`app-${route}-page .section-group.advanced > .section-group-label`).evaluateAll(labels =>
+        labels.every(label => label.tagName === 'DIV' && !label.hasAttribute('aria-expanded'))), true);
+    }
+    await openRoute('driver-settings');
+    assert.equal(await page.locator('app-driver-settings-page .section-group.advanced').count(), 2);
+    await openRoute('stream-frame');
+    assert.equal(await page.locator('app-stream-frame-page .section-group.advanced').count(), 2);
+    results.push('All seven pages keep at most two real nested cards with Advanced controls open; Debug captured at wide/narrow widths in both themes');
+
+    await openRoute('debug');
+    await page.evaluate(async () => {
+      await appContext.dss.save({ ...appContext.dss.values(), debugMode: false });
+      await appContext.dss.flush();
+    });
+    await page.locator('app-app-settings-page').getByRole('heading', { level: 1 }).waitFor();
+    assert.equal(await page.locator('#tab-debug').count(), 0);
+    assert.equal(await page.locator('app-debug-page').count(), 0);
+    assert.equal(new URL(page.url()).hash, '#/app-settings');
+    assert.deepEqual(await debugSelections(), selectedBeforeDebug);
+    await page.reload();
+    await page.waitForFunction(() => window.appContext?.sds.driverState() === 'installed');
+    assert.equal(await page.evaluate(() => appContext.galaxy.debugMode), false);
+    assert.equal(await page.locator('#tab-debug').count(), 0);
+    assert.deepEqual(await debugSelections(), selectedBeforeDebug);
+    for (const hash of ['#/debug?setting=streamFrame.hitchDiag', '#/stream-frame?setting=streamFrame.hitchDiag']) {
+      const beforeGuardedLink = await mutations();
+      await page.evaluate(hash => { location.hash = hash; }, hash);
+      await page.waitForFunction(() => location.hash === '#/app-settings');
+      await page.locator('app-app-settings-page').getByRole('heading', { level: 1 }).waitFor();
+      await page.locator('app-shell fluent-message-bar').filter({ hasText: 'Enable Debug Mode in App Settings to show diagnostic controls.' }).waitFor();
+      assert.equal(new URL(page.url()).hash, '#/app-settings');
+      assert.equal(await page.locator('#tab-debug').count(), 0);
+      assert.equal(await mutations(), beforeGuardedLink);
+    }
+    await page.locator('[data-setting-id="debugMode"] fluent-switch').click();
+    await page.waitForFunction(() => appContext.galaxy.debugMode);
+    await page.evaluate(() => appContext.dss.flush());
+    for (const hash of ['#/debug?setting=streamFrame.hitchDiag', '#/stream-frame?setting=streamFrame.hitchDiag']) {
+      const beforeEnabledLink = await mutations();
+      await page.evaluate(hash => { location.hash = hash; }, hash);
+      await page.waitForFunction(() => location.hash === '#/debug?setting=streamFrame.hitchDiag');
+      await debug.locator('[data-setting-id="streamFrame.hitchDiag"]').waitFor();
+      assert.equal(new URL(page.url()).hash, '#/debug?setting=streamFrame.hitchDiag');
+      await page.waitForFunction(() => {
+        let active = document.activeElement;
+        while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+        return active?.getAttribute('data-setting-id') === 'streamFrame.hitchDiag';
+      });
+      assert.equal(await mutations(), beforeEnabledLink);
+    }
+    await openRoute('app-settings');
+    await page.locator('[data-setting-id="debugMode"] fluent-switch').click();
+    await page.waitForFunction(() => !appContext.galaxy.debugMode);
+    await page.evaluate(() => appContext.dss.flush());
+    assert.deepEqual(await debugSelections(), selectedBeforeDebug);
+    results.push('Debug master On/Off survives reload, active Off returns to App Settings, and current/legacy setting links honor the gate without writes or tuning changes');
     for (const theme of ['light','dark']) {
       await page.evaluate(async theme => {
         const app = window.appContext.appSetting;

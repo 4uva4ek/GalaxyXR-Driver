@@ -22,6 +22,7 @@
 // settings snapshot copied from driverConfig once per frame
 struct FrameProcessSettings{
 	StreamFrameConfig config = {};
+	uint64_t debugGeneration = 0;
 	// 2026-09-19 SDR10 baseline: effective color/post-pack/VUI policy for
 	// this frame, resolved ONCE under driverConfigLock from the same
 	// snapshot as config (gxr::ResolveSdr10Policy). both eyes and the
@@ -244,6 +245,7 @@ private:
 	// outlier gap self-attribute to what the PREVIOUS frame did.
 	// Latched at frame start for helpers without a settings parameter.
 	bool cfgHitchDiag = false;
+	uint64_t cfgDebugGeneration = 0;
 	static uint64_t NowUs();
 	uint64_t hdLastFrameStartUs = 0;
 	uint64_t hdWindowStartUs = 0;
