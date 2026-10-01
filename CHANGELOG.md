@@ -6,6 +6,20 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.4.0] - 2026-09-30
+
+### Features
+
+- restore Steam Link encoder behaviour with strict NVENC OFF bypass (`2880be2`)
+
+### Fixes
+
+- synchronize NVENC hook installation with OFF confirmation (`fe8b58e`)
+
+### Other changes
+
+- docs: explain NVENC installation snapshot locking (`7d80533`)
+
 ## [1.3.0] - 2026-09-26
 
 ### Features
