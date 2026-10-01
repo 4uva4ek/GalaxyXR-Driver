@@ -28,13 +28,39 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
 
 (async () => {
   const nav = harness().source('domain/navigation');
+  const installedRoutes = ['driver-settings', 'stream-frame', 'distortion-profile', 'app-settings', 'setup', 'about'];
+  const debugRoutes = ['driver-settings', 'stream-frame', 'debug', 'distortion-profile', 'app-settings', 'setup', 'about'];
+  const uninstalledRoutes = ['app-settings', 'setup', 'about'];
   for (const [state, version, available] of [
     ['checking', undefined, false], ['not-installed', undefined, false], ['unknown', '1.2.3', false],
     ['installed', undefined, false], ['installed', '1.2.3', true], ['checking', '1.2.3', true],
   ]) await test(`Navigation: ${state}, ${version ?? 'no verified version'}`, () => {
     assert.equal(nav.driverAvailable(version, state), available);
-    assert.deepEqual(clone(nav.visibleRoutes(available)), available ? clone(nav.ROUTES) : ['app-settings', 'setup', 'about']);
-    for (const route of nav.ROUTES) assert.equal(nav.permittedRoute(route, available), available || ['app-settings', 'setup', 'about'].includes(route) ? route : 'setup');
+    assert.deepEqual(clone(nav.visibleRoutes(available)), available ? installedRoutes : uninstalledRoutes);
+    for (const debugMode of [false, true]) {
+      assert.deepEqual(clone(nav.visibleRoutes(available, debugMode)), available ? debugMode ? debugRoutes : installedRoutes : uninstalledRoutes);
+      for (const route of debugRoutes) {
+        const expected = !available && !uninstalledRoutes.includes(route) ? 'setup'
+          : route === 'debug' && !debugMode ? 'app-settings' : route;
+        assert.equal(nav.permittedRoute(route, available, debugMode), expected);
+      }
+    }
+    assert.equal(nav.permittedRoute('debug', available), available ? 'app-settings' : 'setup');
+  });
+  await test('Debug deep links and setting links obey both installation and Debug Mode gates', () => {
+    const setting = 'streamFrame.hitchDiag';
+    const settingLink = nav.settingHref('debug', setting);
+    assert.equal(settingLink, '#/debug?setting=streamFrame.hitchDiag');
+    assert.equal(nav.parseSettingTarget(settingLink), setting);
+    for (const hash of ['#/debug', '#debug', settingLink]) {
+      for (const available of [false, true]) {
+        assert.equal(nav.parseRoute(hash, available), 'debug');
+        for (const debugMode of [false, true]) {
+          assert.equal(nav.permittedRoute(nav.parseRoute(hash, available), available, debugMode),
+            !available ? 'setup' : debugMode ? 'debug' : 'app-settings');
+        }
+      }
+    }
   });
   await test('Deep links are recognized but cannot bypass the installation gate', () => {
     for (const hash of ['#/driver-settings', '#stream-frame', '#/distortion-profile']) {
@@ -46,6 +72,36 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     assert.equal(nav.permittedRoute(nav.parseRoute('#/setup'), false), 'setup');
     assert.equal(nav.permittedRoute(nav.parseRoute('#/about'), false), 'about');
   });
+  await test('Saved Debug Mode controls routes independently of Advanced Mode and survives reload', async () => scenario(s => {
+    s.debugMode = false; s.streamFrame.hitchDiag = true;
+  }, async (h, c) => {
+    const available = () => nav.driverAvailable(c.sds.driverInstalled(), c.sds.driverState());
+    assert.equal(await c.appSetting.save({ ...clone(c.appSetting.values()), advanceMode: false }), true);
+    assert.equal(c.galaxy.advancedMode, false);
+    assert.equal(c.galaxy.debugMode, false);
+    assert.deepEqual(clone(nav.visibleRoutes(available(), c.galaxy.debugMode)), installedRoutes);
+    assert.equal(await c.dss.save({ ...clone(c.dss.values()), debugMode: true }), true);
+    await c.checks.refresh();
+    assert.equal(JSON.parse(h.fixture.files.get(h.fixture.data + '/settings.json')).debugMode, true);
+    assert.equal(c.galaxy.advancedMode, false); assert.equal(c.galaxy.debugMode, true);
+    assert.deepEqual(clone(nav.visibleRoutes(available(), c.galaxy.debugMode)), debugRoutes);
+    assert.equal(nav.permittedRoute('debug', available(), c.galaxy.debugMode), 'debug');
+    assert.equal(await c.dss.save({ ...clone(c.dss.values()), debugMode: false }), true);
+    await c.checks.refresh();
+    assert.equal(c.galaxy.debugMode, false);
+    assert.equal(c.dss.values().streamFrame.hitchDiag, true, 'hiding Debug retains the selected diagnostic');
+    assert.deepEqual(clone(nav.visibleRoutes(available(), c.galaxy.debugMode)), installedRoutes);
+    assert.equal(nav.permittedRoute('debug', available(), c.galaxy.debugMode), 'app-settings');
+  }));
+  await test('Unreadable driver settings revoke Debug visibility even after it was enabled', async () => scenario(s => {
+    s.debugMode = true;
+  }, async (h, c) => {
+    assert.equal(c.galaxy.debugMode, true);
+    h.fixture.put(h.fixture.data + '/settings.json', '{broken json'); await c.checks.refresh();
+    assert.ok(c.dss.readFileError()); assert.equal(c.galaxy.debugMode, false);
+    assert.deepEqual(clone(nav.visibleRoutes(true, c.galaxy.debugMode)), installedRoutes);
+    assert.equal(nav.permittedRoute('debug', true, c.galaxy.debugMode), 'app-settings');
+  }));
   await test('Baseline reset is immutable and preserves unrelated and unknown settings', async () => scenario(s => {
     s.streamFrame.enable = false;
     s.streamFrame.brightness = 0.42; s.streamFrame.gamma = 1.8; s.streamFrame.saturation = 12;
@@ -201,13 +257,15 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     h.fixture.put(h.fixture.data + '/settings.json', values); await c.checks.refresh();
     assert.equal(c.galaxy.baselineRequested, true); assert.equal(c.galaxy.imageEnhancementsEnabled, false);
   }));
-  await test('Driver removal retains App Settings, Setup, and About', async () => scenario(() => {}, async (h, c) => {
+  await test('Driver removal retains App Settings, Setup, and About even with Debug Mode selected', async () => scenario(s => { s.debugMode = true; }, async (h, c) => {
     assert.equal(nav.driverAvailable(c.sds.driverInstalled(), c.sds.driverState()), true);
     h.fixture.files.delete(h.fixture.runtime + '/drivers/GalaxyXRNative/bin/win64/driver_GalaxyXRNative.dll');
     await c.checks.refresh();
     assert.equal(nav.driverAvailable(c.sds.driverInstalled(), c.sds.driverState()), false);
     assert.equal(nav.permittedRoute('about', false), 'about');
     assert.deepEqual(clone(nav.visibleRoutes(false)), ['app-settings', 'setup', 'about']);
+    assert.deepEqual(clone(nav.visibleRoutes(false, c.galaxy.debugMode)), uninstalledRoutes);
+    assert.equal(nav.permittedRoute('debug', false, c.galaxy.debugMode), 'setup');
     assert.equal(nav.permittedRoute('setup', false), 'setup');
   }));
   await test('Installed but SteamVR-disabled driver retains all tabs', async () => scenario(() => {}, async (h, c) => {
