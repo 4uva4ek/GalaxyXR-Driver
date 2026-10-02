@@ -38,7 +38,7 @@ Configure the driver in **Galaxy XR Companion 1.2.0**, using Driver Settings, Im
 
 Older copies of this fork that were installed into `SteamVR\drivers\CustomHeadsetOpenVR` are removed automatically on the first install, and their settings and distortion profiles are copied into the new settings folder.
 
-![Installation Tutorial](Docs/Media/GalaxyXRDriverInstall.webp)
+<img width="800" height="593" alt="ezgif-6a5d9e716801cdcd" src="https://github.com/user-attachments/assets/ec53a04e-e266-4f65-b705-188aeabd86bc" />
 
 ## Building or applying a source update
 
