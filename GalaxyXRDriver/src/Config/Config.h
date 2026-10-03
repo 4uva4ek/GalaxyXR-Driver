@@ -1410,7 +1410,7 @@ struct StreamFrameConfig{
 	// complaint: fast throws and wrist flicks fly past the stop point and
 	// snap back. at J=4 the state carries ~60ms of velocity lag through
 	// an abrupt stop and vrserver extrapolates it further (offline: a
-	// 5 m/s throw stopping in 70ms overshoots ~16cm rendered, a 1 m/s
+	// 5 m/s throw stopping in 70ms overshoots ~17cm rendered, a 1 m/s
 	// wrist arc ~3cm). when on, J is multiplied (up to Max) only while
 	// consecutive FRESH samples show a large same-direction innovation
 	// (3-axis NIS above Nis); it relaxes back with Release ms. repeats
@@ -1422,6 +1422,12 @@ struct StreamFrameConfig{
 	double kalmanAdaptiveJerkMax = 25.0;
 	double kalmanAdaptiveJerkNis = 6.0;
 	double kalmanAdaptiveJerkReleaseMs = 60.0;
+	// headset test 2026-10-03: a constant J=100 shook badly at rest; most
+	// of that is vrserver extrapolating the noisier velocity. while the
+	// boost is raised, a reported velocity below ~sqrt(k) of its own
+	// sigma is shrunk toward zero (offline: post-stop shake 8.5 -> 3.5mm,
+	// throws untouched). 0 = off.
+	double kalmanAdaptiveJerkVelShrink = 25.0;
 	// ==== grip-point velocity compensator ====
 	// the estimator honestly reports the TRACKED ORIGIN's velocity; during
 	// a wrist snap that includes the origin's tangential velocity w x r

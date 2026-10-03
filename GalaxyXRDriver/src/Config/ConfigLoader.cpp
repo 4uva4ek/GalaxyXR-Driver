@@ -1224,6 +1224,9 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["kalmanAdaptiveJerkReleaseMs"].is_number()){
 				newConfig.streamFrame.kalmanAdaptiveJerkReleaseMs = streamFrameData["kalmanAdaptiveJerkReleaseMs"].get<double>();
 			}
+			if(streamFrameData["kalmanAdaptiveJerkVelShrink"].is_number()){
+				newConfig.streamFrame.kalmanAdaptiveJerkVelShrink = streamFrameData["kalmanAdaptiveJerkVelShrink"].get<double>();
+			}
 			if(streamFrameData["kalmanGripEnable"].is_boolean()){
 				newConfig.streamFrame.kalmanGripEnable = streamFrameData["kalmanGripEnable"].get<bool>();
 			}
@@ -2017,6 +2020,7 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanAdaptiveJerkMax", defaultSettings.streamFrame.kalmanAdaptiveJerkMax},
 				{"kalmanAdaptiveJerkNis", defaultSettings.streamFrame.kalmanAdaptiveJerkNis},
 				{"kalmanAdaptiveJerkReleaseMs", defaultSettings.streamFrame.kalmanAdaptiveJerkReleaseMs},
+				{"kalmanAdaptiveJerkVelShrink", defaultSettings.streamFrame.kalmanAdaptiveJerkVelShrink},
 				{"kalmanGripEnable", defaultSettings.streamFrame.kalmanGripEnable},
 				{"kalmanGripBlend", defaultSettings.streamFrame.kalmanGripBlend},
 				{"kalmanGripLeftCm", {

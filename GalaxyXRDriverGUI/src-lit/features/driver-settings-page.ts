@@ -281,15 +281,16 @@ export class DriverSettingsPage extends BasePage {
               );
               if (settings.kalmanAdaptiveJerk) {
                 body.push(
-                  fieldRow(t('Adaptive Jerk Tuning (max ×J, NIS threshold, release ms)'), html`
+                  fieldRow(t('Adaptive Jerk Tuning (max ×J, NIS threshold, release ms, velocity shrink)'), html`
                     <span>Max</span><app-number .value=${settings.kalmanAdaptiveJerkMax} step="5" min="1" max="200" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkMax = e.detail; save(); } }}></app-number>
                     <span>NIS</span><app-number .value=${settings.kalmanAdaptiveJerkNis} step="1" min="1" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkNis = e.detail; save(); } }}></app-number>
                     <span>Rel</span><app-number .value=${settings.kalmanAdaptiveJerkReleaseMs} step="10" min="5" max="1000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkReleaseMs = e.detail; save(); } }}></app-number>
+                    <span>Vs</span><app-number .value=${settings.kalmanAdaptiveJerkVelShrink} step="5" min="0" max="400" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkVelShrink = e.detail; save(); } }}></app-number>
                   `, {
-                    tip: "Tune how strongly and how easily the stop-overshoot fix reacts. The defaults suit most players.\n\nMax caps the J multiplier during a detected maneuver (1 turns the boost off; 25 lifts J=4 to 100). NIS is the evidence threshold, relative to the tracker's learned noise: lower reacts to gentler motions, higher only to hard ones. Rel is how quickly J returns to the calm base after the motion ends.",
+                    tip: "Tune how strongly and how easily the stop-overshoot fix reacts. The defaults suit most players.\n\nMax caps the J multiplier during a detected maneuver (1 turns the boost off; 25 lifts J=4 to 100). NIS is the evidence threshold, relative to the tracker's learned noise: lower reacts to gentler motions, higher only to hard ones. Rel is how quickly J returns to the calm base after the motion ends. Vs calms the hand right after a hard stop: while J is raised, a reported speed that is not clearly above its own noise is reduced before SteamVR's prediction extrapolates it (0 turns it off; higher calms more).",
                     reset: {
-                      can: settings.kalmanAdaptiveJerkMax != defaults.kalmanAdaptiveJerkMax || settings.kalmanAdaptiveJerkNis != defaults.kalmanAdaptiveJerkNis || settings.kalmanAdaptiveJerkReleaseMs != defaults.kalmanAdaptiveJerkReleaseMs,
-                      on: () => { galaxy.reset('kalmanAdaptiveJerkMax'); galaxy.reset('kalmanAdaptiveJerkNis'); galaxy.reset('kalmanAdaptiveJerkReleaseMs'); },
+                      can: settings.kalmanAdaptiveJerkMax != defaults.kalmanAdaptiveJerkMax || settings.kalmanAdaptiveJerkNis != defaults.kalmanAdaptiveJerkNis || settings.kalmanAdaptiveJerkReleaseMs != defaults.kalmanAdaptiveJerkReleaseMs || settings.kalmanAdaptiveJerkVelShrink != defaults.kalmanAdaptiveJerkVelShrink,
+                      on: () => { galaxy.reset('kalmanAdaptiveJerkMax'); galaxy.reset('kalmanAdaptiveJerkNis'); galaxy.reset('kalmanAdaptiveJerkReleaseMs'); galaxy.reset('kalmanAdaptiveJerkVelShrink'); },
                     },
                   }),
                 );

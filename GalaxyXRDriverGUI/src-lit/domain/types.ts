@@ -322,6 +322,7 @@ export type StreamFrameConfig = {
   kalmanAdaptiveJerkMax: number;
   kalmanAdaptiveJerkNis: number;
   kalmanAdaptiveJerkReleaseMs: number;
+  kalmanAdaptiveJerkVelShrink: number;
   kalmanGripEnable: boolean;
   kalmanGripBlend: number;
   kalmanGripLeftCm: { x: number, y: number, z: number };
