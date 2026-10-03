@@ -280,6 +280,7 @@ export type StreamFrameConfig = {
   kalmanProcessAngAccel: number;
   kalmanOriNoiseDeg: number;
   kalmanLeadMs: number;
+  kalmanCaPredictTrimMs: number;
   kalmanReleaseRewindMs: number;
   kalmanRewindHoldMs: number;
   kalmanDirSmoothMs: number;

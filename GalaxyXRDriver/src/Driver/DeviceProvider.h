@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "openvr_driver.h"
+#include "StopBrake.h"
 
 class ShimDefinition;
 
@@ -258,6 +259,8 @@ private:
 		// fresh-to-fresh clock: device-time stamp of last DISTINCT raw
 		// sample + per-window stats of the tracker's true cadence
 		double tFresh = 0;
+		// stop brake (Kalman CA, see StopBrake.h): the last fresh raw samples
+		gxr::StopBrakeRing brakeLin, brakeAng;
 		bool diagFreshHave = false;
 		double fdtSumMs = 0;
 		int fdtN = 0;

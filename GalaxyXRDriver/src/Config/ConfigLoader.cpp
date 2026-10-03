@@ -1081,6 +1081,9 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["kalmanOriNoiseDeg"].is_number()){
 				newConfig.streamFrame.kalmanOriNoiseDeg = streamFrameData["kalmanOriNoiseDeg"].get<double>();
 			}
+			if(streamFrameData["kalmanCaPredictTrimMs"].is_number()){
+				newConfig.streamFrame.kalmanCaPredictTrimMs = streamFrameData["kalmanCaPredictTrimMs"].get<double>();
+			}
 			if(streamFrameData["kalmanLeadMs"].is_number()){
 				newConfig.streamFrame.kalmanLeadMs = streamFrameData["kalmanLeadMs"].get<double>();
 			}
@@ -1960,6 +1963,7 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanProcessAngAccel", defaultSettings.streamFrame.kalmanProcessAngAccel},
 				{"kalmanOriNoiseDeg", defaultSettings.streamFrame.kalmanOriNoiseDeg},
 				{"kalmanLeadMs", defaultSettings.streamFrame.kalmanLeadMs},
+				{"kalmanCaPredictTrimMs", defaultSettings.streamFrame.kalmanCaPredictTrimMs},
 				{"kalmanReleaseRewindMs", defaultSettings.streamFrame.kalmanReleaseRewindMs},
 				{"kalmanRewindHoldMs", defaultSettings.streamFrame.kalmanRewindHoldMs},
 				{"kalmanDirSmoothMs", defaultSettings.streamFrame.kalmanDirSmoothMs},

@@ -2742,6 +2742,12 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 						// mode-independent by design; also the
 						// instrument for any transport-side fix.
 						if(step >= 0.0003){
+							// stop brake: the filter may not move faster along its
+							// own velocity than the fresh samples show
+							if(caFull){
+								double bp[3] = {pose.vecPosition[0], pose.vecPosition[1], pose.vecPosition[2]};
+								gxr::StopBrakeLinear(ks.brakeLin, tMeas, bp, ks.v, ks.ca);
+							}
 							if(driverConfig.streamFrame.poseLogging && ks.diagFreshHave && ks.tFresh > 0){
 								double fdt = (tMeas - ks.tFresh) * 1000.0;
 								if(fdt > 0){
@@ -2967,6 +2973,15 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				ks.q = QuatMultiply(qCorr, qPred);
 				double qn2 = sqrt(ks.q.w * ks.q.w + ks.q.x * ks.q.x + ks.q.y * ks.q.y + ks.q.z * ks.q.z);
 				if(qn2 > 1e-9){ ks.q.w /= qn2; ks.q.x /= qn2; ks.q.y /= qn2; ks.q.z /= qn2; }
+				// stop brake on the angular state: fresh orientation payloads
+				// only (a vrlink repeat carries the same quaternion)
+				if(caFull){
+					double bq[4] = {pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z};
+					const double *lq = ks.brakeAng.x[0];
+					if(ks.brakeAng.n == 0 || bq[0] != lq[0] || bq[1] != lq[1] || bq[2] != lq[2] || bq[3] != lq[3]){
+						gxr::StopBrakeAngular(ks.brakeAng, tMeas, bq, ks.w, ks.caW);
+					}
+				}
 				}
 			}
 			// STUCKDIAG watchdog: state position vs THIS measurement (pose
@@ -3663,7 +3678,16 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			}else{
 				pose.poseTimeOffset = lead;
 			}
-			diagOffsetOut = pose.poseTimeOffset;
+			// kalmanCaPredictTrimMs (see Config.h): the pose is stamped this much
+		// later than it is, so the runtime extrapolates it over a shorter
+		// horizon. the pose and the reported velocities are not touched.
+		if(caFull){
+			double trim = driverConfig.streamFrame.kalmanCaPredictTrimMs / 1000.0;
+			if(trim < 0){ trim = 0; }
+			if(trim > 0.05){ trim = 0.05; }
+			pose.poseTimeOffset += trim;
+		}
+		diagOffsetOut = pose.poseTimeOffset;
 			for(int a2 = 0; a2 < 3; a2++){ diagSubmitP[a2] = pose.vecPosition[a2]; }
 			// submitted-position ring (receipt clock): what a pose-history
 			// throw estimator sees from the driver side (before the
@@ -3694,6 +3718,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					+ driverConfig.streamFrame.kalmanProcessAngAccel * 1e5
 					+ driverConfig.streamFrame.kalmanOriNoiseDeg * 1e8
 					+ driverConfig.streamFrame.kalmanLeadMs * 1e10
+				+ driverConfig.streamFrame.kalmanCaPredictTrimMs * 1e9
 					+ driverConfig.streamFrame.kalmanDupMode * 1e12
 					+ driverConfig.streamFrame.kalmanDupRScale * 1e13
 					+ (driverConfig.streamFrame.kalmanDeviceTime ? 1e15 : 0)

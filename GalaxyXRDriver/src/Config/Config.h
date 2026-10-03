@@ -1395,6 +1395,18 @@ struct StreamFrameConfig{
 	// latency — but it doubles prediction overshoot risk, hence its own
 	// toggle, off for the first clean A/B.
 	bool kalmanCaReportAccel = false;
+	// runtime prediction trim (2026-10-04). vrserver extrapolates every
+	// reported pose by its velocity over the photon horizon; while the hand
+	// brakes that constant-velocity guess lands past the stop and comes
+	// back - the "rubber band", worst on wrist twists (offline, 40ms
+	// horizon: a 10 rad/s twist over-rotates 16deg, a 1.5 m/s stop
+	// overshoots 75mm). stamping the pose this many ms later makes the
+	// runtime extrapolate over a horizon that much shorter; with the stop
+	// brake (Driver/StopBrake.h) 20ms brings those to 5deg / 20mm. the pose
+	// and the reported velocity stay as they are (throws keep their
+	// strength); the cost is the hand trailing fast motion by trim x speed.
+	// 0 = off (the stamp as before).
+	double kalmanCaPredictTrimMs = 20.0;
 	// A/B experiment: propagate the CA covariance with the SAME Singer
 	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
 	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance
