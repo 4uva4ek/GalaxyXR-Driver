@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "openvr_driver.h"
+#include "CaKalman.h"
 
 class ShimDefinition;
 
@@ -360,6 +361,11 @@ private:
 		// (KALDIAG: watch for phantom accel during coasts/stops)
 		double caAccPk = 0;
 		double caWAccPk = 0;
+		// maneuver-adaptive jerk (kalmanAdaptiveJerk, 2026-10-03): the J
+		// multiplier the next fresh linear prediction applies, and its
+		// per-window peak for KALDIAG (ajPk)
+		gxr::AdaptiveJerkState aj;
+		double ajBoostPk = 1.0;
 		// STUCKDIAG state-vs-measurement divergence watchdog (2026-08-14):
 		// the stuck-hand adjudicator. |state p - measurement| > 0.25m
 		// opens a run, closing under 0.10m logs duration + max + entry
@@ -537,6 +543,7 @@ private:
 			lossRuns = 0; lossMsSum = 0; diagLossStartT = 0; teleports = 0;
 			gazeBends = 0; turnCoastSteps = 0; gazeBendSum = 0; gazeBendMax = 0;
 			caAccPk = 0; caWAccPk = 0;
+			ajBoostPk = 1.0;
 			stuckRun = false; stuckStartT = 0; stuckMax = 0; stuckV0 = 0;
 			garbageN = 0; garbageRun = false; vClampN = 0;
 			relSnapHave = false; repHave = false;

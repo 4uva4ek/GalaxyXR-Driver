@@ -1211,82 +1211,11 @@ void GalaxyXRDeviceProvider::AnchorReleaseGesture(uint32_t openVRID){
 	state.anchorHasValue = false; // next pose update seeds it
 }
 
-// ---- constant-acceleration (Singer) per-axis kalman helpers ----
-// state [p, v, a] with white-jerk process noise (sigmaJ, m/s^3) and an
-// exponential decay of the acceleration state toward zero (beta =
-// exp(-dt/tau)): pure CA at tau -> inf; the decay is what bounds phantom
-// integration across dup coasts and abrupt stops. covariance layout:
-// [P00 P01 P02 P11 P12 P22] (symmetric upper triangle).
-static void CaStatePredict(double dt, double tau, double &p, double &v, double &a){
-	// exact Singer discretization: the acceleration decays DURING the
-	// interval, so position/velocity integrate its true average
-	// a * (tau/dt)(1 - e^(-dt/tau)) rather than the full initial value.
-	// for dt << tau this matches the naive form; for the long-dt case
-	// (a gap of missed samples resuming with a hot accel state) the
-	// naive form applies the whole stale acceleration across the whole
-	// gap and can overshoot position by a meter — the field-observed
-	// "hand sits wrong for a moment after a throw" transient.
-	if(dt <= 0){ return; }
-	double e = exp(-dt / tau);
-	double aAvg = a * (tau / dt) * (1.0 - e);
-	p += v * dt + 0.5 * aAvg * dt * dt;
-	v += aAvg * dt;
-	a *= e;
-}
-static void CaCovPredict(double dt, double sigmaJ, double tau, double beta, bool exactCov, double P[6]){
-	double q = sigmaJ * sigmaJ;
-	double dt2 = dt * dt, dt3 = dt2 * dt, dt4 = dt3 * dt, dt5 = dt4 * dt;
-	double P00 = P[0], P01 = P[1], P02 = P[2], P11 = P[3], P12 = P[4], P22 = P[5];
-	if(exactCov){
-		// consistency pass (A/B knob kalmanCaExactCov): propagate the
-		// covariance with the SAME transition CaStatePredict implements —
-		// F12 = tau(1 - e^(-dt/tau)) (exact Singer velocity gain) and
-		// F02 = dt*F12/2 (the implemented conservative position gain) —
-		// instead of the naive dt / dt^2/2. at tau near the 20ms floor
-		// with ~8-11ms dt the naive form overstates how much accel
-		// uncertainty flows into v/p by up to ~25%, over-weighting
-		// measurements relative to the model. Q is intentionally kept in
-		// the naive white-jerk form in BOTH branches (second order in
-		// dt/tau) so the A/B isolates the transition alone.
-		double gv = tau * (1.0 - beta);
-		double gp = 0.5 * dt * gv;
-		double A0 = P00 + dt * P01 + gp * P02;
-		double A1 = P01 + dt * P11 + gp * P12;
-		double A2 = P02 + dt * P12 + gp * P22;
-		double B1 = P11 + gv * P12;
-		double B2 = P12 + gv * P22;
-		P[0] = A0 + dt * A1 + gp * A2 + q * dt5 / 20.0;
-		P[1] = A1 + gv * A2 + q * dt4 / 8.0;
-		P[2] = beta * A2 + q * dt3 / 6.0;
-		P[3] = B1 + gv * B2 + q * dt3 / 3.0;
-		P[4] = beta * B2 + q * dt2 / 2.0;
-		P[5] = beta * beta * P22 + q * dt;
-		return;
-	}
-	double h = 0.5 * dt2;
-	P[0] = P00 + 2.0 * dt * P01 + 2.0 * h * P02 + dt2 * P11 + 2.0 * dt * h * P12 + h * h * P22 + q * dt5 / 20.0;
-	P[1] = P01 + dt * P11 + h * P12 + dt * P02 + dt2 * P12 + dt * h * P22 + q * dt4 / 8.0;
-	P[2] = beta * (P02 + dt * P12 + h * P22) + q * dt3 / 6.0;
-	P[3] = P11 + 2.0 * dt * P12 + dt2 * P22 + q * dt3 / 3.0;
-	P[4] = beta * (P12 + dt * P22) + q * dt2 / 2.0;
-	P[5] = beta * beta * P22 + q * dt;
-}
-// scalar position-measurement update; y is the innovation. returns this
-// axis' normalized innovation squared contribution (NIS telemetry). for
-// the angular MEKF the "p" slot is a zero-seeded error scratch whose
-// post-update value IS the orientation correction (K0 * residual).
-static double CaUpdate(double y, double R, double &p, double &v, double &a, double P[6]){
-	double S = P[0] + R;
-	double K0 = P[0] / S, K1 = P[1] / S, K2 = P[2] / S;
-	p += K0 * y; v += K1 * y; a += K2 * y;
-	double P00 = P[0], P01 = P[1], P02 = P[2];
-	P[0] = (1.0 - K0) * P00; P[1] = (1.0 - K0) * P01; P[2] = (1.0 - K0) * P02;
-	P[3] = P[3] - K1 * P01; P[4] = P[4] - K1 * P02; P[5] = P[5] - K2 * P02;
-	return y * y / S;
-}
-static void CaInit(double P[6], double p0Var, double v0Var, double a0Var){
-	P[0] = p0Var; P[1] = 0; P[2] = 0; P[3] = v0Var; P[4] = 0; P[5] = a0Var;
-}
+// CA (Singer) helpers and the maneuver-adaptive jerk live in CaKalman.h
+using gxr::CaStatePredict;
+using gxr::CaCovPredict;
+using gxr::CaUpdate;
+using gxr::CaInit;
 
 bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::DriverPose_t &pose){
 	// Native hand devices are published by vrlink with Controller class but
@@ -1774,6 +1703,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			double diagRDiv = 1.0;
 			double diagRADiv = 1.0;
 			double diagCaAcc = 0;
+			double diagAjPk = 1.0;
 			double diagCaWAcc = 0;
 			// Epoch/state observability.  These are copied while the Kalman
 			// lock is held and emitted with KALDIAG outside the lock.
@@ -2386,6 +2316,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 									ks.reacqActive = false;
 									ks.reacqCount = 0;
 									ks.reacqHavePrevStepV = false;
+									ks.aj.Reset();
 									if(driverConfig.streamFrame.poseLogging){
 										DriverLog("PoseLog: KALREACQ id=%u PROMOTE n=%d span=%.1fms seedV=%.2fm/s seed=(%.2f,%.2f,%.2f) fit=%.1fmm dCarry=%.2fm/s",
 											openVRID, KalState::reacqFitN, span * 1000.0, seedSpeed,
@@ -2540,6 +2471,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					CaInit(ks.Pa6[a2], 0.05, 10.0, 40000.0);
 				}
 				ks.q = pose.qRotation;
+				ks.aj.Reset();
 				// reinit invalidates the dup/teleport baseline: without
 				// this, the teleport guard compares every subsequent
 				// sample against the PRE-teleport lastMeas and
@@ -2672,18 +2604,46 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				double nisAccum = 0;
 				double nisBaseAccum = 0;
 				if(caFull){
+					// maneuver-adaptive jerk (kalmanAdaptiveJerk, see
+					// CaKalman.h): applied to and fed by FRESH positional
+					// samples only. a soft-dedup repeat, a sub-gate repeat
+					// (position unchanged) or a 3dof position freeze keeps
+					// the base J and teaches the detector nothing, so the
+					// raised trust never lands on stale payloads.
+					bool ajFresh = false;
+					if(driverConfig.streamFrame.kalmanAdaptiveJerk && !linearMeasurementMissing
+							&& !dupHit && !dupRepeat && ks.haveMeas){
+						double fx = pose.vecPosition[0] - ks.lastMeas[0];
+						double fy = pose.vecPosition[1] - ks.lastMeas[1];
+						double fz = pose.vecPosition[2] - ks.lastMeas[2];
+						ajFresh = fx * fx + fy * fy + fz * fz >= 0.0003 * 0.0003;
+					}
+					double caJStep = ajFresh ? caJ * ks.aj.boost : caJ;
+					if(caJStep > 50000.0){ caJStep = 50000.0; }
+					double ajY[3] = {0, 0, 0};
+					double ajS[3] = {0, 0, 0};
 					for(int a2 = 0; a2 < 3; a2++){
 						CaStatePredict(dt, caTau, ks.p[a2], ks.v[a2], ks.ca[a2]);
-						CaCovPredict(dt, caJ, caTau, caBeta, caExactCov, ks.P6[a2]);
+						CaCovPredict(dt, caJStep, caTau, caBeta, caExactCov, ks.P6[a2]);
 						rtsStep = true;
 						rtsPredX[a2][0] = ks.p[a2]; rtsPredX[a2][1] = ks.v[a2]; rtsPredX[a2][2] = ks.ca[a2];
 						for(int c6 = 0; c6 < 6; c6++){ rtsPredP[a2][c6] = ks.P6[a2][c6]; }
 						if(!linearMeasurementMissing){
 							double yv = pose.vecPosition[a2] - ks.p[a2];
+							ajY[a2] = yv;
+							ajS[a2] = ks.P6[a2][0] + RbaseSched;
 							nisBaseAccum += yv * yv / (ks.P6[a2][0] + RbaseSched);
 							nisAccum += CaUpdate(yv, R,
 								ks.p[a2], ks.v[a2], ks.ca[a2], ks.P6[a2]);
 						}
+					}
+					if(ajFresh){
+						gxr::AdaptiveJerkParams ajPrm;
+						ajPrm.maxBoost = driverConfig.streamFrame.kalmanAdaptiveJerkMax;
+						ajPrm.nisThreshold = driverConfig.streamFrame.kalmanAdaptiveJerkNis;
+						ajPrm.releaseSec = driverConfig.streamFrame.kalmanAdaptiveJerkReleaseMs / 1000.0;
+						gxr::AdaptiveJerkObserve(ks.aj, ajPrm, tMeas, ajY, ajS);
+						if(driverConfig.streamFrame.poseLogging && ks.aj.boost > ks.ajBoostPk){ ks.ajBoostPk = ks.aj.boost; }
 					}
 					if(driverConfig.streamFrame.poseLogging){
 						double caMagNow = sqrt(ks.ca[0] * ks.ca[0] + ks.ca[1] * ks.ca[1] + ks.ca[2] * ks.ca[2]);
@@ -3765,6 +3725,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				diagLossMs = ks.lossMsSum;
 				diagTeleports = ks.teleports;
 				diagCaAcc = ks.caAccPk;
+				diagAjPk = ks.ajBoostPk;
+				ks.ajBoostPk = 1.0;
 				diagCaWAcc = ks.caWAccPk;
 				diagGarbage = ks.garbageN;
 				diagVClamp = ks.vClampN;
@@ -3845,7 +3807,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					driverConfig.streamFrame.kalmanAdaptiveRMaxDiv);
 			}
 			if(velocityFixMode >= 5){
-				DriverLog("VelocityFix: CA %s active id=%u J=%.2f Ja=%.0f caP=%.2fmm caO=%.2fdeg tau=%.0fms magJ=%.0f magTau=%.0fms reportAccel=%d excov=%d",
+				DriverLog("VelocityFix: CA %s active id=%u J=%.2f Ja=%.0f caP=%.2fmm caO=%.2fdeg tau=%.0fms magJ=%.0f magTau=%.0fms reportAccel=%d excov=%d adaptiveJ=%d max=%.1f nis=%.1f rel=%.0fms",
 					velocityFixMode == 6 ? "FULL" : "MAGNITUDE",
 					openVRID,
 					driverConfig.streamFrame.kalmanCaJerk,
@@ -3856,7 +3818,11 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					driverConfig.streamFrame.kalmanCaMagJerk,
 					driverConfig.streamFrame.kalmanCaMagAccelTauMs,
 					driverConfig.streamFrame.kalmanCaReportAccel ? 1 : 0,
-					driverConfig.streamFrame.kalmanCaExactCov ? 1 : 0);
+					driverConfig.streamFrame.kalmanCaExactCov ? 1 : 0,
+					driverConfig.streamFrame.kalmanAdaptiveJerk ? 1 : 0,
+					driverConfig.streamFrame.kalmanAdaptiveJerkMax,
+					driverConfig.streamFrame.kalmanAdaptiveJerkNis,
+					driverConfig.streamFrame.kalmanAdaptiveJerkReleaseMs);
 			}
 			if(gripHave || driverConfig.streamFrame.kalmanGripEnable){
 				DriverLog("VelocityFix: GRIP compensator id=%u %s blend=%.2f r=(%.2f, %.2f, %.2f)cm |r|=%.1fcm%s",
@@ -3911,7 +3877,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			if(logKalDiag){
 				// tuning guide: NIS ~ 1 means the noise models match
 				// reality; sustained > 3 = too stiff; < 0.3 = too loose
-				DriverLog("PoseLog: KALDIAG id=%u nis=%.2f aNis=%.2f stepMax=%.1fmm frozenSteps=%d dupSkipped=%d dtBack=%d dtMean=%.2fms dtMax=%.1fms fdtMean=%.2fms fdtMax=%.1fms coastMax=%.0fms gazeBends=%d bendMean=%.1fdeg bendMax=%.1fdeg accMax=%.2f wAccMax=%.1f accNZ=%d loss=%d lossMs=%.0f tp=%d caAcc=%.1f caWAcc=%.1f garbage=%d vClamp=%d rDiv=%.1f rADiv=%.1f p3d=%d rts=%d/%d rtsDepth=%.1f turn=%d", openVRID, diagNis, diagANis, diagStepMax * 1000.0, diagFrozen, diagDup, diagDtBack, diagDtMean, diagDtMax, diagFdtMean, diagFdtMax, diagCoastMax, diagBends, diagBendMean, diagBendMax, diagAccMax, diagWAccMax, diagAccNZ, diagLossRuns, diagLossMs, diagTeleports, diagCaAcc, diagCaWAcc, diagGarbage, diagVClamp, diagRDiv, diagRADiv, diagP3d, diagRtsFrames, diagRtsRep, diagRtsDepth, diagTurnSteps);
+				DriverLog("PoseLog: KALDIAG id=%u nis=%.2f aNis=%.2f stepMax=%.1fmm frozenSteps=%d dupSkipped=%d dtBack=%d dtMean=%.2fms dtMax=%.1fms fdtMean=%.2fms fdtMax=%.1fms coastMax=%.0fms gazeBends=%d bendMean=%.1fdeg bendMax=%.1fdeg accMax=%.2f wAccMax=%.1f accNZ=%d loss=%d lossMs=%.0f tp=%d caAcc=%.1f caWAcc=%.1f garbage=%d vClamp=%d rDiv=%.1f rADiv=%.1f p3d=%d rts=%d/%d rtsDepth=%.1f turn=%d ajPk=%.1f", openVRID, diagNis, diagANis, diagStepMax * 1000.0, diagFrozen, diagDup, diagDtBack, diagDtMean, diagDtMax, diagFdtMean, diagFdtMax, diagCoastMax, diagBends, diagBendMean, diagBendMax, diagAccMax, diagWAccMax, diagAccNZ, diagLossRuns, diagLossMs, diagTeleports, diagCaAcc, diagCaWAcc, diagGarbage, diagVClamp, diagRDiv, diagRADiv, diagP3d, diagRtsFrames, diagRtsRep, diagRtsDepth, diagTurnSteps, diagAjPk);
 				DriverLog("PoseLog: KALEPOCH id=%u fresh=%d tMeas=%.6f offIn=%.2fms offOut=%.2fms raw=(%.4f,%.4f,%.4f) stateP=(%.4f,%.4f,%.4f) submitP=(%.4f,%.4f,%.4f) submitQ=(%.5f,%.5f,%.5f,%.5f) stateV=(%.3f,%.3f,%.3f) stateA=(%.1f,%.1f,%.1f) sigP=%.2fmm sigV=%.3fm/s sigA=%.1fm/s2 dirYaw=%s%.2fdeg",
 					openVRID, diagFresh, diagTMeas, diagOffsetIn * 1000.0, diagOffsetOut * 1000.0,
 					diagRawPos[0], diagRawPos[1], diagRawPos[2],

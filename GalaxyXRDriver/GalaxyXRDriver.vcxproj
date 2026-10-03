@@ -22,6 +22,7 @@
     <ClInclude Include="src\Distortion\DistortionProfile.h" />
     <ClInclude Include="src\Distortion\NoneDistortionProfile.h" />
     <ClInclude Include="src\Distortion\RadialBezierDistortionProfile.h" />
+    <ClInclude Include="src\Driver\CaKalman.h" />
     <ClInclude Include="src\Driver\DeviceProvider.h" />
     <ClInclude Include="src\Driver\DeviceShim.h" />
     <ClInclude Include="src\Driver\FrameComponentShim.h" />
