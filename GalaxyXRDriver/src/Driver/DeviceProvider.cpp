@@ -3491,6 +3491,15 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					useSmoothOut = true;
 				}
 			}
+			// adaptive jerk velocity attenuation (CaKalman.h): only while
+			// the boost is raised; at base J the reported velocity is
+			// untouched. the state is never modified.
+			if(caFull && driverConfig.streamFrame.kalmanAdaptiveJerk && ks.aj.boost > 1.0){
+				double velVar = ks.P6[0][3] + ks.P6[1][3] + ks.P6[2][3];
+				double gV = gxr::AdaptiveVelocityGain(vRep, velVar, ks.aj.boost,
+					driverConfig.streamFrame.kalmanAdaptiveJerkVelShrink);
+				vRep[0] *= gV; vRep[1] *= gV; vRep[2] *= gV;
+			}
 			// reported-velocity sanity clamp (belt and suspenders behind
 			// the payload gate): no human hand exceeds 25 m/s (the
 			// teleport guard's own constant); 50 m/s is double that
@@ -3807,7 +3816,7 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					driverConfig.streamFrame.kalmanAdaptiveRMaxDiv);
 			}
 			if(velocityFixMode >= 5){
-				DriverLog("VelocityFix: CA %s active id=%u J=%.2f Ja=%.0f caP=%.2fmm caO=%.2fdeg tau=%.0fms magJ=%.0f magTau=%.0fms reportAccel=%d excov=%d adaptiveJ=%d max=%.1f nis=%.1f rel=%.0fms",
+				DriverLog("VelocityFix: CA %s active id=%u J=%.2f Ja=%.0f caP=%.2fmm caO=%.2fdeg tau=%.0fms magJ=%.0f magTau=%.0fms reportAccel=%d excov=%d adaptiveJ=%d max=%.1f nis=%.1f rel=%.0fms vshrink=%.0f",
 					velocityFixMode == 6 ? "FULL" : "MAGNITUDE",
 					openVRID,
 					driverConfig.streamFrame.kalmanCaJerk,
@@ -3822,7 +3831,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 					driverConfig.streamFrame.kalmanAdaptiveJerk ? 1 : 0,
 					driverConfig.streamFrame.kalmanAdaptiveJerkMax,
 					driverConfig.streamFrame.kalmanAdaptiveJerkNis,
-					driverConfig.streamFrame.kalmanAdaptiveJerkReleaseMs);
+					driverConfig.streamFrame.kalmanAdaptiveJerkReleaseMs,
+					driverConfig.streamFrame.kalmanAdaptiveJerkVelShrink);
 			}
 			if(gripHave || driverConfig.streamFrame.kalmanGripEnable){
 				DriverLog("VelocityFix: GRIP compensator id=%u %s blend=%.2f r=(%.2f, %.2f, %.2f)cm |r|=%.1fcm%s",

@@ -1081,8 +1081,8 @@
       <trans-unit id="fluent-fix-903911a507ed3a58" datatype="html">
         <source>Adaptive Jerk (Stop Overshoot Fix)</source>
       </trans-unit>
-      <trans-unit id="fluent-fix-917f1bda40421b79" datatype="html">
-        <source>Adaptive Jerk Tuning (max ×J, NIS threshold, release ms)</source>
+      <trans-unit id="fluent-fix-4a695695616943ad" datatype="html">
+        <source>Adaptive Jerk Tuning (max ×J, NIS threshold, release ms, velocity shrink)</source>
       </trans-unit>
       <trans-unit id="fluent-fix-0ad5815853141ab2" datatype="html">
         <source>Experimental: Simulate Oculus Touch</source>

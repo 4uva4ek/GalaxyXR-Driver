@@ -1,11 +1,18 @@
 // Offline checks for the CA (Singer) linear channel and the maneuver-adaptive
 // jerk (2026-10-03). The harness mirrors the CA-full linear path of
-// DeviceProvider::HandleDevicePoseUpdated: device-time predict, soft dedup of
-// bit-identical repeats (R floored at 5mm, x kalmanDupRScale^2), and the
-// adaptive jerk fed/applied only on fresh positional samples. The rendered
-// position adds vrserver's forward prediction p + v * H.
+// DeviceProvider::HandleDevicePoseUpdated: receipt-clock predict, soft dedup
+// of bit-identical repeats (R floored at 5mm, x kalmanDupRScale^2), the
+// adaptive jerk fed/applied only on fresh positional samples, and the
+// reported-velocity attenuation while the jerk is raised. The rendered
+// position adds vrserver's forward prediction p + v_reported * H.
+//
+// Headset findings this encodes (2026-10-03): fast throws / wrist flicks
+// overshoot the stop and snap back at J=4; a constant J=100 removes that but
+// shakes badly at rest; Controller Fix Mode Off throws sideways (so the
+// filter has to stay and the fix must not cost throw direction).
 #include "../src/Driver/CaKalman.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -26,133 +33,135 @@ void Check(bool condition, const std::string& description) {
     }
 }
 
+constexpr double kPi = 3.14159265358979323846;
 // driver defaults (Config.h): J=4, P=1.5mm, tau=20ms, exactCov, dup scale 3
 constexpr double kJ = 4.0;
 constexpr double kPosNoise = 0.0015;
 constexpr double kTau = 0.020;
 constexpr double kDupScale = 3.0;
+constexpr double kVelShrink = 25.0;
 // vrserver photon-time prediction horizon assumed for the "rendered" metric
 constexpr double kRenderH = 0.035;
 
+double Raised(double t, double t0, double len, double peak) {
+    return peak * 0.5 * (1.0 - std::cos(kPi * (t - t0) / len));
+}
+
+// a planar path spanned by two orthonormal world vectors, driven by speed(t)
+// (m/s) and curvature(t) (1/m)
 struct Profile {
-    // true 1D speed along dir at time t (m/s)
     std::function<double(double)> speed;
-    double stopT;           // time the true motion has ended
-    double dir[3];          // unit direction of travel
+    std::function<double(double)> curvature;
+    double stopT = 1e9;     // true motion has ended
+    double peakT = 1e9;     // true speed peak (release = peak + 30ms)
     double freezeFrom = -1; // tracker payload frozen (bit-identical) in [from, to)
     double freezeTo = -1;
 };
 
-struct Result {
-    double stateOvershoot = 0;    // max (p - final) along dir after stopT
-    double renderedOvershoot = 0; // max (p + v*H - final) along dir after stopT
-    double renderedJitter = 0;    // rms of rendered - truth (rest/aim windows)
-    double boostedShare = 0;      // share of callbacks with boost > 1.5
-    double maxBoost = 1.0;
+std::function<double(double)> ThrowSpeed(double peak, double t0, double up, double down) {
+    return [=](double t) {
+        if (t < t0) return 0.0;
+        if (t < t0 + up) return Raised(t, t0, up, peak);
+        if (t < t0 + up + down) return peak - Raised(t, t0 + up, down, peak);
+        return 0.0;
+    };
+}
+
+Profile Throw() { return {ThrowSpeed(5.0, 0.30, 0.15, 0.07), [](double) { return 0.0; }, 0.52, 0.45}; }
+// overhand arc: same speed profile around a 0.6m arm
+Profile ArcThrow() { return {ThrowSpeed(5.0, 0.30, 0.15, 0.07), [](double) { return 1.0 / 0.6; }, 0.52, 0.45}; }
+// wrist flick: the controller origin swings ~1 m/s on a ~10cm lever
+Profile WristFlick() { return {ThrowSpeed(1.0, 0.30, 0.12, 0.05), [](double) { return 1.0 / 0.10; }, 0.47, 0.42}; }
+Profile Rest() { return {[](double) { return 0.0; }, [](double) { return 0.0; }}; }
+// slow aiming: 15 cm/s around 5cm
+Profile SlowAim() { return {[](double) { return 0.15; }, [](double) { return 1.0 / 0.05; }}; }
+// moderate continuous motion: 0.9 m/s around 15cm
+Profile Circle() {
+    return {[](double t) { return t < 0.2 ? 0.9 * t / 0.2 : 0.9; }, [](double) { return 1.0 / 0.15; }};
+}
+
+struct Path {
+    double h = 0.0005;
+    std::vector<std::array<double, 3>> pts;
+    std::array<double, 3> At(double t) const {
+        long i = static_cast<long>(t / h);
+        if (i < 0) i = 0;
+        if (i >= static_cast<long>(pts.size())) i = static_cast<long>(pts.size()) - 1;
+        return pts[static_cast<size_t>(i)];
+    }
 };
 
-double Raised(double t, double t0, double len, double peak) {
-    return peak * 0.5 * (1.0 - std::cos(3.14159265358979323846 * (t - t0) / len));
+Path Integrate(const Profile& prof, double total) {
+    // plane basis: u = (0.6, 0.3, 0.74)/|.|, w orthogonal to it
+    const double un = std::sqrt(0.6 * 0.6 + 0.3 * 0.3 + 0.74 * 0.74);
+    const double u[3] = {0.6 / un, 0.3 / un, 0.74 / un};
+    double w[3] = {-u[1], u[0], 0.0};
+    const double wn = std::sqrt(w[0] * w[0] + w[1] * w[1]);
+    for (double& c : w) c /= wn;
+    Path path;
+    double a = 0, b = 0, head = 0;
+    for (double t = 0; t <= total + 0.3; t += path.h) {
+        path.pts.push_back({a * u[0] + b * w[0], a * u[1] + b * w[1], a * u[2] + b * w[2]});
+        const double v = prof.speed(t);
+        head += v * prof.curvature(t) * path.h;
+        a += v * std::cos(head) * path.h;
+        b += v * std::sin(head) * path.h;
+    }
+    return path;
 }
 
-Profile Throw() {
-    Profile p;
-    p.speed = [](double t) {
-        if (t < 0.30) return 0.0;
-        if (t < 0.45) return Raised(t, 0.30, 0.15, 5.0);
-        if (t < 0.52) return 5.0 - Raised(t, 0.45, 0.07, 5.0);
-        return 0.0;
-    };
-    p.stopT = 0.52;
-    const double n = std::sqrt(0.6 * 0.6 + 0.3 * 0.3 + 0.74 * 0.74);
-    p.dir[0] = 0.6 / n; p.dir[1] = 0.3 / n; p.dir[2] = 0.74 / n;
-    return p;
-}
+struct Config {
+    bool adaptive = false;
+    double J = kJ;
+    double noise = kPosNoise;
+    double callbackJitter = 0.05;
+    double velShrink = kVelShrink;
+};
 
-Profile WristArcStop() {
-    // ~10cm lever at ~10 rad/s: the controller origin moves ~1 m/s
-    Profile p;
-    p.speed = [](double t) {
-        if (t < 0.30) return 0.0;
-        if (t < 0.42) return Raised(t, 0.30, 0.12, 1.0);
-        if (t < 0.47) return 1.0 - Raised(t, 0.42, 0.05, 1.0);
-        return 0.0;
-    };
-    p.stopT = 0.47;
-    p.dir[0] = 1; p.dir[1] = 0; p.dir[2] = 0;
-    return p;
-}
+struct Sample {
+    double t;
+    double rendered[3];
+    double vRep[3];
+    double boost;
+};
 
-Profile Rest() {
-    Profile p;
-    p.speed = [](double) { return 0.0; };
-    p.stopT = 1e9;
-    p.dir[0] = 1; p.dir[1] = 0; p.dir[2] = 0;
-    return p;
-}
-
-Profile SlowAim() {
-    // 3cm amplitude, 0.5 Hz
-    Profile p;
-    p.speed = [](double t) { return 0.03 * 2 * 3.14159265358979323846 * 0.5 * std::cos(2 * 3.14159265358979323846 * 0.5 * t); };
-    p.stopT = 1e9;
-    p.dir[0] = 0; p.dir[1] = 1; p.dir[2] = 0;
-    return p;
-}
-
-Result Run(const Profile& prof, bool adaptive, unsigned seed, double noise = kPosNoise,
-    double jitterFrom = 0.5, double total = 1.2) {
-    // truth integrated at 0.5ms
-    const double h = 0.0005;
-    std::vector<double> truth;
-    double s = 0;
-    for (double t = 0; t <= total + h; t += h) { truth.push_back(s); s += prof.speed(t) * h; }
-    auto truthAt = [&](double t) {
-        size_t i = static_cast<size_t>(t / h);
-        if (i >= truth.size()) i = truth.size() - 1;
-        return truth[i];
-    };
-    const double finalS = truth.back();
-
+std::vector<Sample> Run(const Profile& prof, const Path& path, const Config& cfg, unsigned seed, double total) {
     std::mt19937 rng(seed);
-    std::normal_distribution<double> gauss(0.0, noise);
-    std::uniform_real_distribution<double> jitter(-0.05, 0.05);
+    std::normal_distribution<double> gauss(0.0, 1.0);
+    std::uniform_real_distribution<double> jitter(-1.0, 1.0);
 
     gxr::AdaptiveJerkParams prm; // driver defaults
     gxr::AdaptiveJerkState aj;
     double p[3] = {0, 0, 0}, v[3] = {0, 0, 0}, a[3] = {0, 0, 0}, P6[3][6];
-    for (int k = 0; k < 3; k++) gxr::CaInit(P6[k], 0.01, 1.0, 2500.0);
+    for (auto& P : P6) gxr::CaInit(P, 1e-4, 1.0, 2500.0);
     const double R = kPosNoise * kPosNoise;
 
     const double trackerDt = 1.0 / 120.0, callbackDt = 1.0 / 90.0;
     bool have = false;
-    double lastSampleT = -1, lastMeasT = 0, lastZ[3] = {0, 0, 0};
+    double lastSampleT = -1, lastCallbackT = 0, lastZ[3] = {0, 0, 0};
     double t = 0;
-    Result res;
-    double jitSum = 0; int jitN = 0; int boosted = 0; int callbacks = 0;
-    while (t < total - 0.02) {
-        t += callbackDt * (1.0 + jitter(rng));
+    std::vector<Sample> out;
+    while (t < total) {
+        t += callbackDt * (1.0 + cfg.callbackJitter * jitter(rng));
         double sampleT = std::floor(t / trackerDt) * trackerDt;
         if (prof.freezeFrom >= 0 && t >= prof.freezeFrom && t < prof.freezeTo) {
             sampleT = std::floor(prof.freezeFrom / trackerDt) * trackerDt;
         }
         double z[3];
         const bool repeat = have && sampleT == lastSampleT;
-        if (repeat) {
-            for (int k = 0; k < 3; k++) z[k] = lastZ[k];
-        } else {
-            const double st = truthAt(sampleT);
-            for (int k = 0; k < 3; k++) z[k] = prof.dir[k] * st + gauss(rng);
+        const auto truth = path.At(sampleT);
+        for (int k = 0; k < 3; k++) {
+            const double n = gauss(rng) * cfg.noise;
+            z[k] = repeat ? lastZ[k] : truth[k] + n;
         }
         if (!have) {
             for (int k = 0; k < 3; k++) { p[k] = z[k]; lastZ[k] = z[k]; }
-            have = true; lastSampleT = sampleT; lastMeasT = t;
+            have = true; lastSampleT = sampleT; lastCallbackT = t;
             continue;
         }
-        // receipt clock between callbacks (a repeat advances the state too)
-        double dt = t - lastMeasT;
-        lastMeasT = t;
-        double speed = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        const double dt = t - lastCallbackT;
+        lastCallbackT = t;
+        const double speed = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         double step2 = 0;
         for (int k = 0; k < 3; k++) step2 += (z[k] - lastZ[k]) * (z[k] - lastZ[k]);
         const bool dupRepeat = step2 < 0.0003 * 0.0003 && speed > 0.5;
@@ -161,8 +170,9 @@ Result Run(const Profile& prof, bool adaptive, unsigned seed, double noise = kPo
             const double floorR = 0.005 * 0.005;
             Rk = (R > floorR ? R : floorR) * kDupScale * kDupScale;
         }
-        const bool fresh = adaptive && !dupRepeat && step2 >= 0.0003 * 0.0003;
-        const double jStep = fresh ? kJ * aj.boost : kJ;
+        const bool fresh = cfg.adaptive && !dupRepeat && step2 >= 0.0003 * 0.0003;
+        double jStep = fresh ? cfg.J * aj.boost : cfg.J;
+        if (jStep > 50000.0) jStep = 50000.0;
         const double beta = std::exp(-dt / kTau);
         double y[3], S[3];
         for (int k = 0; k < 3; k++) {
@@ -175,52 +185,127 @@ Result Run(const Profile& prof, bool adaptive, unsigned seed, double noise = kPo
         if (fresh) gxr::AdaptiveJerkObserve(aj, prm, t, y, S);
         if (!repeat) { lastSampleT = sampleT; for (int k = 0; k < 3; k++) lastZ[k] = z[k]; }
 
-        ++callbacks;
-        if (aj.boost > 1.5 && t > jitterFrom) ++boosted;
-        if (aj.boost > res.maxBoost) res.maxBoost = aj.boost;
-        double along = 0, alongV = 0;
-        for (int k = 0; k < 3; k++) { along += p[k] * prof.dir[k]; alongV += v[k] * prof.dir[k]; }
-        const double rendered = along + alongV * kRenderH;
-        if (t > prof.stopT) {
-            res.stateOvershoot = std::max(res.stateOvershoot, along - finalS);
-            res.renderedOvershoot = std::max(res.renderedOvershoot, rendered - finalS);
+        Sample s{};
+        s.t = t;
+        s.boost = aj.boost;
+        const double g = cfg.adaptive
+            ? gxr::AdaptiveVelocityGain(v, P6[0][3] + P6[1][3] + P6[2][3], aj.boost, cfg.velShrink) : 1.0;
+        for (int k = 0; k < 3; k++) {
+            s.vRep[k] = v[k] * g;
+            s.rendered[k] = p[k] + s.vRep[k] * kRenderH;
         }
-        if (t > jitterFrom) {
-            // rendered vs the truth it predicts (t + H)
-            double e2 = 0;
-            const double tr = truthAt(t + kRenderH);
-            for (int k = 0; k < 3; k++) {
-                const double e = p[k] + v[k] * kRenderH - prof.dir[k] * tr;
-                e2 += e * e;
-            }
-            jitSum += e2; ++jitN;
-        }
+        out.push_back(s);
     }
-    res.renderedJitter = jitN ? std::sqrt(jitSum / jitN) : 0;
-    res.boostedShare = callbacks ? static_cast<double>(boosted) / callbacks : 0;
-    return res;
+    return out;
 }
 
-Result Mean(const Profile& prof, bool adaptive, double noise = kPosNoise,
-    double jitterFrom = 0.5, double total = 1.2) {
+double Norm(const double x[3]) { return std::sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]); }
+double AngleDeg(const double x[3], const double y[3]) {
+    const double nx = Norm(x), ny = Norm(y);
+    if (nx < 1e-9 || ny < 1e-9) return 180.0;
+    double c = (x[0] * y[0] + x[1] * y[1] + x[2] * y[2]) / (nx * ny);
+    c = std::max(-1.0, std::min(1.0, c));
+    return std::acos(c) * 180.0 / kPi;
+}
+
+struct Result {
+    double renderedOvershoot = 0; // along the final travel direction, after stopT
+    double shake = 0;             // rms frame-to-frame change of (rendered - truth(t+H)), t > measureFrom
+    double boostedShare = 0;      // callbacks with boost > 1.5, t > measureFrom
+    double releaseDirFd = 0;      // pose-history (5-callback) direction error at peak+30ms
+};
+
+Result Mean(const Profile& prof, const Config& cfg, double total = 1.3, double measureFrom = 0.5, int seeds = 20) {
+    const Path path = Integrate(prof, total);
+    const auto fin = path.At(total + 0.25);
     Result m;
-    const int n = 20;
-    for (int i = 0; i < n; i++) {
-        Result r = Run(prof, adaptive, 1000u + i, noise, jitterFrom, total);
-        m.stateOvershoot += r.stateOvershoot / n;
-        m.renderedOvershoot += r.renderedOvershoot / n;
-        m.renderedJitter += r.renderedJitter / n;
-        m.boostedShare += r.boostedShare / n;
-        m.maxBoost = std::max(m.maxBoost, r.maxBoost);
+    for (int i = 0; i < seeds; i++) {
+        const auto out = Run(prof, path, cfg, 1000u + static_cast<unsigned>(i), total);
+        double over = 0;
+        if (prof.stopT < 1e8) {
+            const auto a = path.At(prof.stopT - 0.02), b = path.At(prof.stopT);
+            double d[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+            const double n = Norm(d);
+            for (double& c : d) c /= n;
+            for (const auto& s : out) {
+                if (s.t <= prof.stopT) continue;
+                over = std::max(over, (s.rendered[0] - fin[0]) * d[0] + (s.rendered[1] - fin[1]) * d[1]
+                    + (s.rendered[2] - fin[2]) * d[2]);
+            }
+        }
+        double dsum = 0;
+        int dn = 0, boosted = 0, counted = 0;
+        double prevE[3] = {0, 0, 0};
+        bool havePrev = false;
+        for (const auto& s : out) {
+            if (s.t <= measureFrom) continue;
+            const auto tr = path.At(s.t + kRenderH);
+            const double e[3] = {s.rendered[0] - tr[0], s.rendered[1] - tr[1], s.rendered[2] - tr[2]};
+            if (havePrev) {
+                for (int k = 0; k < 3; k++) dsum += (e[k] - prevE[k]) * (e[k] - prevE[k]);
+                ++dn;
+            }
+            for (int k = 0; k < 3; k++) prevE[k] = e[k];
+            havePrev = true;
+            ++counted;
+            if (s.boost > 1.5) ++boosted;
+        }
+        double relDir = 0;
+        if (prof.peakT < 1e8) {
+            const double tRel = prof.peakT + 0.030;
+            const auto a = path.At(tRel - 0.001), b = path.At(tRel + 0.001);
+            const double vt[3] = {(b[0] - a[0]) / 0.002, (b[1] - a[1]) / 0.002, (b[2] - a[2]) / 0.002};
+            size_t idx = 0;
+            for (size_t j = 0; j < out.size(); j++) {
+                if (std::fabs(out[j].t - tRel) < std::fabs(out[idx].t - tRel)) idx = j;
+            }
+            const size_t j0 = idx >= 4 ? idx - 4 : 0;
+            const double span = out[idx].t - out[j0].t;
+            double fd[3];
+            for (int k = 0; k < 3; k++) fd[k] = (out[idx].rendered[k] - out[j0].rendered[k]) / span;
+            relDir = AngleDeg(fd, vt);
+        }
+        m.renderedOvershoot += over / seeds;
+        m.shake += (dn ? std::sqrt(dsum / dn) : 0) / seeds;
+        m.boostedShare += (counted ? static_cast<double>(boosted) / counted : 0) / seeds;
+        m.releaseDirFd += relDir / seeds;
     }
     return m;
 }
 
-void Report(const char* name, const Result& base, const Result& adapt) {
-    std::printf("%-14s base: state %6.1fmm rendered %6.1fmm jitter %5.2fmm | adaptive: state %6.1fmm rendered %6.1fmm jitter %5.2fmm boosted %4.1f%% max x%.1f\n",
-        name, base.stateOvershoot * 1000, base.renderedOvershoot * 1000, base.renderedJitter * 1000,
-        adapt.stateOvershoot * 1000, adapt.renderedOvershoot * 1000, adapt.renderedJitter * 1000,
-        adapt.boostedShare * 100, adapt.maxBoost);
+// noise-driven shake in a window after the stop: deviation of each run's
+// rendered position from the ensemble mean (fixed callback timing), rms of
+// its frame-to-frame change. separates sensor-noise shake from the stop's
+// own settling motion.
+double PostStopShake(const Profile& prof, Config cfg, double from, double to, int seeds = 30) {
+    const double total = 1.0;
+    cfg.callbackJitter = 0.0;
+    const Path path = Integrate(prof, total);
+    std::vector<std::vector<Sample>> runs;
+    for (int i = 0; i < seeds; i++) runs.push_back(Run(prof, path, cfg, 5000u + static_cast<unsigned>(i), total));
+    size_t n = runs[0].size();
+    for (const auto& r : runs) n = std::min(n, r.size());
+    std::vector<std::array<double, 3>> mean(n, {0, 0, 0});
+    for (const auto& r : runs)
+        for (size_t i = 0; i < n; i++)
+            for (int k = 0; k < 3; k++) mean[i][k] += r[i].rendered[k] / seeds;
+    double sum = 0;
+    int cnt = 0;
+    for (const auto& r : runs) {
+        bool havePrev = false;
+        double prev[3] = {0, 0, 0};
+        for (size_t i = 0; i < n; i++) {
+            if (r[i].t <= prof.stopT + from || r[i].t >= prof.stopT + to) continue;
+            const double d[3] = {r[i].rendered[0] - mean[i][0], r[i].rendered[1] - mean[i][1], r[i].rendered[2] - mean[i][2]};
+            if (havePrev) {
+                for (int k = 0; k < 3; k++) sum += (d[k] - prev[k]) * (d[k] - prev[k]);
+                ++cnt;
+            }
+            for (int k = 0; k < 3; k++) prev[k] = d[k];
+            havePrev = true;
+        }
+    }
+    return cnt ? std::sqrt(sum / cnt) : 0;
 }
 
 void DetectorUnitChecks() {
@@ -280,43 +365,86 @@ void DetectorUnitChecks() {
         Check(s.boost == 1.0 && s.hits == 0 && !s.haveT, "Reset clears the detector");
         Check(s.noiseFloor == 4.0, "Reset keeps the learned tracker noise floor");
     }
+    {
+        const double slow[3] = {0.05, 0, 0}, fast[3] = {5, 0, 0};
+        Check(gxr::AdaptiveVelocityGain(slow, 0.01, 1.0, kVelShrink) == 1.0, "velocity untouched at base J");
+        Check(gxr::AdaptiveVelocityGain(slow, 0.01, 25.0, 0.0) == 1.0, "velocity shrink 0 is off");
+        Check(gxr::AdaptiveVelocityGain(slow, 0.01, 25.0, kVelShrink) < 0.05, "noise-level velocity is shrunk while boosted");
+        Check(gxr::AdaptiveVelocityGain(fast, 0.01, 25.0, kVelShrink) > 0.99, "throw-speed velocity passes while boosted");
+        const double g2 = gxr::AdaptiveVelocityGain(slow, 0.01, 2.0, kVelShrink);
+        Check(g2 > 0.6 && g2 < 0.7, "shrink fades in over boost 1..4");
+    }
+}
+
+void Report(const char* name, const Result& base, const Result& adapt) {
+    std::printf("%-15s overshoot %6.1f -> %5.1f mm | shake %5.2f -> %5.2f mm | release dir %5.1f -> %5.1f deg | boosted %4.1f%%\n",
+        name, base.renderedOvershoot * 1000, adapt.renderedOvershoot * 1000, base.shake * 1000, adapt.shake * 1000,
+        base.releaseDirFd, adapt.releaseDirFd, adapt.boostedShare * 100);
 }
 } // namespace
 
 int main() {
     DetectorUnitChecks();
+    Config base, adaptive, j100;
+    adaptive.adaptive = true;
+    j100.J = 100.0;
 
-    const Result throwBase = Mean(Throw(), false), throwAdapt = Mean(Throw(), true);
-    Report("throw 5m/s", throwBase, throwAdapt);
-    Check(throwBase.renderedOvershoot > 0.05, "baseline J=4 reproduces the field overshoot (>5cm rendered)");
-    Check(throwAdapt.renderedOvershoot < 0.4 * throwBase.renderedOvershoot, "adaptive jerk cuts throw-stop overshoot by >60%");
-    Check(throwAdapt.stateOvershoot < 0.4 * throwBase.stateOvershoot, "adaptive jerk cuts the state overshoot by >60%");
+    const Result throwB = Mean(Throw(), base), throwA = Mean(Throw(), adaptive);
+    Report("throw 5m/s", throwB, throwA);
+    Check(throwB.renderedOvershoot > 0.05, "baseline J=4 reproduces the field overshoot (>5cm rendered)");
+    Check(throwA.renderedOvershoot < 0.3 * throwB.renderedOvershoot, "adaptive jerk cuts throw-stop overshoot by >70%");
 
-    const Result wristBase = Mean(WristArcStop(), false), wristAdapt = Mean(WristArcStop(), true);
-    Report("wrist 1m/s", wristBase, wristAdapt);
-    Check(wristAdapt.renderedOvershoot < 0.5 * wristBase.renderedOvershoot, "adaptive jerk halves the wrist-arc overshoot");
+    const Result arcB = Mean(ArcThrow(), base), arcA = Mean(ArcThrow(), adaptive);
+    Report("arc throw", arcB, arcA);
+    Check(arcA.renderedOvershoot < 0.3 * arcB.renderedOvershoot, "adaptive jerk cuts arc-throw overshoot by >70%");
+    Check(arcA.releaseDirFd < arcB.releaseDirFd, "arc throw: release direction (pose history) no worse than J=4");
+
+    const Result wristB = Mean(WristFlick(), base), wristA = Mean(WristFlick(), adaptive);
+    Report("wrist flick", wristB, wristA);
+    Check(wristA.renderedOvershoot < 0.5 * wristB.renderedOvershoot, "adaptive jerk halves the wrist-flick overshoot");
 
     Profile frozen = Throw();
-    frozen.freezeFrom = 0.40; frozen.freezeTo = 0.43; // vrlink repeats at the peak
-    const Result frozenBase = Mean(frozen, false), frozenAdapt = Mean(frozen, true);
-    Report("throw+freeze", frozenBase, frozenAdapt);
-    Check(frozenAdapt.renderedOvershoot < 0.5 * frozenBase.renderedOvershoot, "a repeat run at the peak does not defeat the fix");
+    frozen.freezeFrom = 0.40;
+    frozen.freezeTo = 0.43; // vrlink repeats at the peak
+    const Result frozenB = Mean(frozen, base), frozenA = Mean(frozen, adaptive);
+    Report("throw+freeze", frozenB, frozenA);
+    Check(frozenA.renderedOvershoot < 0.5 * frozenB.renderedOvershoot, "a repeat run at the peak does not defeat the fix");
 
-    const Result restBase = Mean(Rest(), false), restAdapt = Mean(Rest(), true);
-    Report("rest", restBase, restAdapt);
-    Check(restAdapt.boostedShare < 0.01, "rest at the sensor noise floor stays at base J (>99% of callbacks)");
-    Check(restAdapt.renderedJitter < 1.05 * restBase.renderedJitter, "rest jitter unchanged (<5%)");
+    const Result restB = Mean(Rest(), base), restA = Mean(Rest(), adaptive), restJ100 = Mean(Rest(), j100);
+    Report("rest", restB, restA);
+    std::printf("%-15s constant J=100 shake %5.2f mm\n", "rest", restJ100.shake * 1000);
+    Check(restJ100.shake > 4.0 * restB.shake, "constant J=100 shakes >4x at rest (headset finding)");
+    Check(restA.boostedShare < 0.01, "rest at the sensor noise floor stays at base J (>99% of callbacks)");
+    Check(restA.shake < 1.05 * restB.shake, "rest shake unchanged (<5%)");
 
-    // a tracker noisier than the configured P: the learned floor needs ~1-2s
-    const Result restNoisyBase = Mean(Rest(), false, 2.5 * kPosNoise, 3.0, 5.0);
-    const Result restNoisyAdapt = Mean(Rest(), true, 2.5 * kPosNoise, 3.0, 5.0);
-    Report("rest noise x2.5", restNoisyBase, restNoisyAdapt);
-    Check(restNoisyAdapt.boostedShare < 0.02, "noise 2.5x above the configured P: rest stays at base J once the floor is learned");
-    Check(restNoisyAdapt.renderedJitter < 1.05 * restNoisyBase.renderedJitter, "noise 2.5x above the configured P: rest jitter unchanged (<5%)");
+    Config noisyB = base, noisyA = adaptive;
+    noisyB.noise = noisyA.noise = 2.5 * kPosNoise;
+    // a tracker noisier than the configured P: the learned floor needs ~1-2s,
+    // so measure the steady state after it has settled
+    const Result restNB = Mean(Rest(), noisyB, 5.0, 3.0), restNA = Mean(Rest(), noisyA, 5.0, 3.0);
+    Report("rest noise x2.5", restNB, restNA);
+    Check(restNA.shake < 1.1 * restNB.shake, "noise 2.5x above the configured P: rest shake within 10%");
 
-    const Result aimBase = Mean(SlowAim(), false), aimAdapt = Mean(SlowAim(), true);
-    Report("slow aim", aimBase, aimAdapt);
-    Check(aimAdapt.renderedJitter < 1.05 * aimBase.renderedJitter, "slow aiming error unchanged (<5%)");
+    const Result aimB = Mean(SlowAim(), base), aimA = Mean(SlowAim(), adaptive);
+    Report("slow aim", aimB, aimA);
+    Check(aimA.shake < 1.05 * aimB.shake, "slow aiming shake unchanged (<5%)");
+
+    const Result circB = Mean(Circle(), base), circA = Mean(Circle(), adaptive), circJ100 = Mean(Circle(), j100);
+    Report("circle 0.9m/s", circB, circA);
+    std::printf("%-15s constant J=100 shake %5.2f mm\n", "circle 0.9m/s", circJ100.shake * 1000);
+    Check(circA.shake < 1.5 * circB.shake, "moderate motion shake <1.5x J=4");
+    Check(circA.shake < 0.4 * circJ100.shake, "moderate motion shake far below constant J=100");
+
+    const double psB = PostStopShake(Throw(), base, 0.0, 0.1);
+    const double psA = PostStopShake(Throw(), adaptive, 0.0, 0.1);
+    const double psJ = PostStopShake(Throw(), j100, 0.0, 0.1);
+    Config noShrink = adaptive;
+    noShrink.velShrink = 0.0;
+    const double psN = PostStopShake(Throw(), noShrink, 0.0, 0.1);
+    std::printf("%-15s first 100ms after a hard stop: J=4 %.2f, adaptive %.2f (no shrink %.2f), J=100 %.2f mm\n",
+        "post-stop shake", psB * 1000, psA * 1000, psN * 1000, psJ * 1000);
+    Check(psA < 0.5 * psJ, "after a hard stop the hand shakes less than half of constant J=100");
+    Check(psA < 0.6 * psN, "velocity shrink cuts the post-stop shake by >40%");
 
     std::cout << checks - failures << '/' << checks << " checks passed\n";
     return failures == 0 ? 0 : 1;

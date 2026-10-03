@@ -196,4 +196,26 @@ inline void AdaptiveJerkObserve(AdaptiveJerkState &s, const AdaptiveJerkParams &
 	s.haveT = true;
 }
 
+// reported-velocity attenuation while the jerk is raised (2026-10-03).
+// headset test: a constant J=100 shook badly at rest. offline, that
+// shake is mostly vrserver extrapolating the noisier velocity over its
+// photon horizon, not the position itself (rest, rms frame-to-frame:
+// 10.7mm rendered vs 2.6mm for the filtered position). the boost is what
+// makes the velocity noisy, so while it is raised a velocity that does
+// not clearly stand out from its own uncertainty is shrunk toward zero
+// before it is reported:
+// g = |v|^2 / (|v|^2 + k * sum(sigma_v^2)), faded in over boost 1..4 so
+// the base-J output is untouched. a throw (|v| >> sigma_v) passes as is;
+// the first ~100ms after a hard stop no longer shakes like J=100.
+// velVarSum is the sum of the per-axis velocity variances (P11).
+inline double AdaptiveVelocityGain(const double v[3], double velVarSum, double boost, double k){
+	if(!(k > 0) || !(boost > 1.0)){ return 1.0; }
+	double v2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+	double var = velVarSum > 0 ? velVarSum : 0.0;
+	double g = v2 > 0 ? v2 / (v2 + k * var) : 0.0;
+	double w = (boost - 1.0) / 3.0;
+	if(w > 1.0){ w = 1.0; }
+	return 1.0 - w * (1.0 - g);
+}
+
 } // namespace gxr

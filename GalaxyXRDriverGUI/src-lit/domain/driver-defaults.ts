@@ -362,6 +362,7 @@ const nativeDefaults = {
     "kalmanAdaptiveJerkMax": 25.0,
     "kalmanAdaptiveJerkNis": 6.0,
     "kalmanAdaptiveJerkReleaseMs": 60.0,
+    "kalmanAdaptiveJerkVelShrink": 25.0,
     "kalmanGripEnable": false,
     "kalmanGripBlend": 1.0,
     "kalmanGripLeftCm": {
