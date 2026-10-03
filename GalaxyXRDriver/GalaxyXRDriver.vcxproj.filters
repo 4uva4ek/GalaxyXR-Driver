@@ -27,6 +27,9 @@
     <ClInclude Include="src\Distortion\RadialBezierDistortionProfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Driver\CaKalman.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\Driver\DeviceProvider.h">
       <Filter>Header Files</Filter>
     </ClInclude>

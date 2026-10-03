@@ -1212,6 +1212,18 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["kalmanCaExactCov"].is_boolean()){
 				newConfig.streamFrame.kalmanCaExactCov = streamFrameData["kalmanCaExactCov"].get<bool>();
 			}
+			if(streamFrameData["kalmanAdaptiveJerk"].is_boolean()){
+				newConfig.streamFrame.kalmanAdaptiveJerk = streamFrameData["kalmanAdaptiveJerk"].get<bool>();
+			}
+			if(streamFrameData["kalmanAdaptiveJerkMax"].is_number()){
+				newConfig.streamFrame.kalmanAdaptiveJerkMax = streamFrameData["kalmanAdaptiveJerkMax"].get<double>();
+			}
+			if(streamFrameData["kalmanAdaptiveJerkNis"].is_number()){
+				newConfig.streamFrame.kalmanAdaptiveJerkNis = streamFrameData["kalmanAdaptiveJerkNis"].get<double>();
+			}
+			if(streamFrameData["kalmanAdaptiveJerkReleaseMs"].is_number()){
+				newConfig.streamFrame.kalmanAdaptiveJerkReleaseMs = streamFrameData["kalmanAdaptiveJerkReleaseMs"].get<double>();
+			}
 			if(streamFrameData["kalmanGripEnable"].is_boolean()){
 				newConfig.streamFrame.kalmanGripEnable = streamFrameData["kalmanGripEnable"].get<bool>();
 			}
@@ -2001,6 +2013,10 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanCaMagAccelTauMs", defaultSettings.streamFrame.kalmanCaMagAccelTauMs},
 				{"kalmanCaReportAccel", defaultSettings.streamFrame.kalmanCaReportAccel},
 				{"kalmanCaExactCov", defaultSettings.streamFrame.kalmanCaExactCov},
+				{"kalmanAdaptiveJerk", defaultSettings.streamFrame.kalmanAdaptiveJerk},
+				{"kalmanAdaptiveJerkMax", defaultSettings.streamFrame.kalmanAdaptiveJerkMax},
+				{"kalmanAdaptiveJerkNis", defaultSettings.streamFrame.kalmanAdaptiveJerkNis},
+				{"kalmanAdaptiveJerkReleaseMs", defaultSettings.streamFrame.kalmanAdaptiveJerkReleaseMs},
 				{"kalmanGripEnable", defaultSettings.streamFrame.kalmanGripEnable},
 				{"kalmanGripBlend", defaultSettings.streamFrame.kalmanGripBlend},
 				{"kalmanGripLeftCm", {

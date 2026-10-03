@@ -38,6 +38,7 @@ controllers('galaxyXr.officialComponents', 'Official Pose Components');
 group('driver-settings', ['Controllers', 'Controller Fix'], ['controllers', 'ctrlFix'], false, 'vendor')('galaxyXr.gripConvention', 'Grip Convention');
 const kalman = group('driver-settings', ['Controllers', 'Controller Fix', 'Kalman Advanced Settings'], ['controllers', 'ctrlFix'], true, 'kalman');
 kalman('streamFrame.kalmanCaExactCov', 'Exact Covariance Transition (A/B)', { gate: 'kalman-ca' });
+kalman('streamFrame.kalmanAdaptiveJerk', 'Adaptive Jerk (Stop Overshoot Fix)', { gate: 'kalman-ca' });
 kalman('streamFrame.kalmanDeviceTime', 'Kalman Device-Time Measurements');
 kalman('streamFrame.kalmanPosFreeze3dof', 'Position-Freeze Protection (3dof Fallback)');
 group('driver-settings', ['Controllers', 'Controllers Advanced'], ['controllers'], true, 'vendor')('galaxyXr.controllerBypass', 'Controller Bypass');

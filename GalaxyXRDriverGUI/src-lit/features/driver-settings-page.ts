@@ -274,7 +274,26 @@ export class DriverSettingsPage extends BasePage {
                   tip: "Set how quickly the filter stops trusting an earlier acceleration estimate. Shorter persistence can reduce overshoot but changes the feel of motion.\n\nThe acceleration state decays toward zero with this time constant (Singer model). It bounds phantom speed during repeated-sample coasts and abrupt stops.",
                   reset: { can: settings.kalmanCaAccelTauMs != defaults.kalmanCaAccelTauMs, on: () => galaxy.reset('kalmanCaAccelTauMs') },
                 }),
+                settingFieldRow('streamFrame.kalmanAdaptiveJerk', html`<app-switch .checked=${!!settings.kalmanAdaptiveJerk} @change=${(e: CustomEvent) => { settings.kalmanAdaptiveJerk = e.detail; save(); }}></app-switch>`, {
+                  tip: "Stop fast throws and wrist flicks from flying past where your hand stopped and snapping back. Leave on unless a game's throws feel weaker than you want.\n\nThe calm default J lags fast motion by tens of milliseconds, so on an abrupt stop the reported hand keeps moving and SteamVR's prediction pushes it further, then it returns. When on, J is raised only while consecutive fresh tracking samples clearly disagree with the prediction in the same direction (a real throw, stop or turn), then relaxes back. Resting and slow aiming keep the calm base J, and repeated stale samples never get the raised trust. Games that compute throws from hand position history lose part of the extra post-peak momentum the lag used to add.",
+                  reset: { can: settings.kalmanAdaptiveJerk != defaults.kalmanAdaptiveJerk, on: () => galaxy.reset('kalmanAdaptiveJerk') },
+                }),
               );
+              if (settings.kalmanAdaptiveJerk) {
+                body.push(
+                  fieldRow(t('Adaptive Jerk Tuning (max ×J, NIS threshold, release ms)'), html`
+                    <span>Max</span><app-number .value=${settings.kalmanAdaptiveJerkMax} step="5" min="1" max="200" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkMax = e.detail; save(); } }}></app-number>
+                    <span>NIS</span><app-number .value=${settings.kalmanAdaptiveJerkNis} step="1" min="1" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkNis = e.detail; save(); } }}></app-number>
+                    <span>Rel</span><app-number .value=${settings.kalmanAdaptiveJerkReleaseMs} step="10" min="5" max="1000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAdaptiveJerkReleaseMs = e.detail; save(); } }}></app-number>
+                  `, {
+                    tip: "Tune how strongly and how easily the stop-overshoot fix reacts. The defaults suit most players.\n\nMax caps the J multiplier during a detected maneuver (1 turns the boost off; 25 lifts J=4 to 100). NIS is the evidence threshold, relative to the tracker's learned noise: lower reacts to gentler motions, higher only to hard ones. Rel is how quickly J returns to the calm base after the motion ends.",
+                    reset: {
+                      can: settings.kalmanAdaptiveJerkMax != defaults.kalmanAdaptiveJerkMax || settings.kalmanAdaptiveJerkNis != defaults.kalmanAdaptiveJerkNis || settings.kalmanAdaptiveJerkReleaseMs != defaults.kalmanAdaptiveJerkReleaseMs,
+                      on: () => { galaxy.reset('kalmanAdaptiveJerkMax'); galaxy.reset('kalmanAdaptiveJerkNis'); galaxy.reset('kalmanAdaptiveJerkReleaseMs'); },
+                    },
+                  }),
+                );
+              }
             }
             if (advanced && (settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAM')) {
               body.push(

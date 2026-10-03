@@ -1406,6 +1406,22 @@ struct StreamFrameConfig{
 	// 2026-08-16: ON ratified as default (field-neutral at high tau,
 	// correct at the ratified tau=20).
 	bool kalmanCaExactCov = true;
+	// maneuver-adaptive jerk (CA-full linear channel, 2026-10-03). field
+	// complaint: fast throws and wrist flicks fly past the stop point and
+	// snap back. at J=4 the state carries ~60ms of velocity lag through
+	// an abrupt stop and vrserver extrapolates it further (offline: a
+	// 5 m/s throw stopping in 70ms overshoots ~16cm rendered, a 1 m/s
+	// wrist arc ~3cm). when on, J is multiplied (up to Max) only while
+	// consecutive FRESH samples show a large same-direction innovation
+	// (3-axis NIS above Nis); it relaxes back with Release ms. repeats
+	// and 3dof position freezes always keep the base J (the retired
+	// kalmanAdaptiveR lesson). rest and slow aiming stay at J=4.
+	// tradeoff: pose-history games lose part of the post-peak "momentum"
+	// that the J=4 lag used to add to throws. see CaKalman.h.
+	bool kalmanAdaptiveJerk = true;
+	double kalmanAdaptiveJerkMax = 25.0;
+	double kalmanAdaptiveJerkNis = 6.0;
+	double kalmanAdaptiveJerkReleaseMs = 60.0;
 	// ==== grip-point velocity compensator ====
 	// the estimator honestly reports the TRACKED ORIGIN's velocity; during
 	// a wrist snap that includes the origin's tangential velocity w x r
