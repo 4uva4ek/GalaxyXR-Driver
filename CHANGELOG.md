@@ -6,6 +6,12 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.6.1] - 2026-10-04
+
+### Fixes
+
+- remove Controller Rest Smoothing (`1bc7198`)
+
 ## [1.6.0] - 2026-10-04
 
 ### Features
