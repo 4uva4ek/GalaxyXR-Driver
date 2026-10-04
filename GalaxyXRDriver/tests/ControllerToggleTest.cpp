@@ -2,6 +2,7 @@
 // Test-ControllerToggles.ps1; API, device identity, and clock are memory-only.
 #include "Config/Config.h"
 #include "Config/DebugModePolicy.h"
+#include "Driver/StopBrake.h"
 #include "openvr_driver.h"
 #include <algorithm>
 #include <atomic>
