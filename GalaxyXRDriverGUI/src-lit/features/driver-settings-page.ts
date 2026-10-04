@@ -125,12 +125,6 @@ export class DriverSettingsPage extends BasePage {
     if (this.section('controllers')) {
       const gx = galaxy.galaxyXr;
       if (vendor) {
-        body.push(
-          settingFieldRow('galaxyXr.nativeInputProfile', html`<app-switch .checked=${!!gx.nativeInputProfile} @change=${(e: CustomEvent) => { gx.nativeInputProfile = e.detail; save(); }}></app-switch>`, {
-            tip: "Use the Galaxy XR controller button layout and default game bindings. Restart SteamVR after changing it; some games still use a compatible fallback layout.\n\nUses the official Steam Link Galaxy XR input profile: real button layout in the bindings UI, official default and per-app bindings, and correct grip/aim/tip poses for held items. Games without a native Galaxy XR binding see the controllers as Index controllers. Requires a SteamVR restart.",
-          }),
-        );
-        if (gx.nativeInputProfile) {
           body.push(
             settingFieldRow('galaxyXr.synthesizeGripTouch', html`
               <app-switch .checked=${!!gx.synthesizeGripTouch} @change=${(e: CustomEvent) => { gx.synthesizeGripTouch = e.detail; save(); }}></app-switch>
@@ -143,192 +137,6 @@ export class DriverSettingsPage extends BasePage {
               },
             }),
           );
-        }
-        body.push(
-          fieldRow(t('Controller Model Size'), html`<app-number .value=${gx.renderModelScale ?? 1.15} min="0.5" max="2" step="0.01" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.renderModelScale = e.detail; save(); } }}></app-number>`, {
-            tip: "Change the size of the controller model shown in VR. This affects its appearance, not tracking scale or the size of your hands.\n\nUniform scale for the controller models. The official assets measure about 124x63mm while the physical controller is about 145x70mm; 1.15 (default) overlays the real shell in SteamVR Home. Scales the visible model only (geometry, button and stick pivots). Pose anchors, hand skeleton and game hand meshes are never scaled, so this cannot change hand size in games. Applied live within about a second. 1.0 = stock assets.",
-          }),
-          settingFieldRow('galaxyXr.officialComponents', html`<app-switch .checked=${!!gx.officialComponents} @change=${(e: CustomEvent) => { gx.officialComponents = e.detail; save(); }}></app-switch>`, {
-            tip: "Use the official controller grip, aim, and tip positions. This changes how held objects and pointing rays line up with the controller.\n\nUse Samsung's official pose points (Game Link's render model: OpenXR grip/aim, dashboard laser tip, handgrip, base), rebased into our grip-convention frame so each named pose lands on the same physical spot as under Game Link. Only affects bindings that select a named pose (OpenXR games, the dashboard laser, /pose/handgrip bindings) - never raw, so SteamVR Home keeps the stock behavior.",
-          }),
-        );
-      }
-
-      // ---------- Controller Fix ----------
-      body.push(
-        sectionRow(t('Controller Fix'), this.section('ctrlFix'), 1, () => this.toggleSection('ctrlFix')),
-      );
-      if (this.section('ctrlFix')) {
-        if (vendor && galaxy.rootSetting?.galaxyXr) {
-          body.push(
-            settingFieldRow('galaxyXr.gripConvention', html`
-              <app-switch .checked=${!!gx.gripConvention} ?disabled=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.gripConvention = e.detail; save(); }}></app-switch>
-              ${gx.controllerBypass ? html`<span class="note-inline">controller bypass is on</span>` : html``}
-            `, {
-              tip: "Adjust the grip-pose convention for games whose held objects look tilted or misplaced. Compare with a known-good game before changing other offsets.\n\nShifts the raw streamed controller pose (22° pitch, 5 cm) into SteamVR's grip convention so held objects sit where games expect them and the official pose components land on the right spots. Recommended on. Turn off only if a Steam Link build already reports a grip-convention pose and the controllers sit visibly wrong.",
-              reset: { can: gx.gripConvention === false, on: () => { gx.gripConvention = true; save(); } },
-            }),
-          );
-        }
-
-        // the Game Link layout mode runs Kalman CA's estimator, so the CA tuning rows show for both
-        const caMode = settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAGameLink';
-        // Controller Fix Mode (velocityFixMode) with retired-mode escape hatch
-        const modeOptions = [
-          { value: 'off', label: 'Off' },
-          { value: 'kalman', label: 'Kalman' },
-          { value: 'kalmanCA', label: 'Kalman CA (recommended)' },
-          { value: 'kalmanCAGameLink', label: 'Kalman CA (Game Link layout)' },
-        ];
-        if (advanced && settings.graveyardEnable) {
-          for (const m of ['classic', 'full', 'derive', 'kalmanCAM']) modeOptions.push({ value: m, label: galaxy.retiredVelocityModeLabels[m] ?? m });
-        } else if (galaxy.isRetiredVelocityMode(settings.velocityFixMode)) {
-          modeOptions.push({ value: settings.velocityFixMode, label: galaxy.retiredVelocityModeLabels[settings.velocityFixMode] ?? settings.velocityFixMode });
-        }
-        body.push(
-          fieldRow(t('Controller Fix Mode'), html`
-            <app-select .value=${settings.velocityFixMode} .options=${modeOptions} @change=${(e: CustomEvent) => { settings.velocityFixMode = e.detail; save(); }}></app-select>
-          `, {
-            tip: settings.graveyardEnable ? galaxy.velocityFixTipFull : galaxy.velocityFixTip,
-            reset: { can: settings.velocityFixMode != defaults.velocityFixMode, on: () => galaxy.reset('velocityFixMode') },
-          }),
-        );
-
-        if (advanced && (settings.velocityFixMode == 'kalman' || settings.velocityFixMode == 'kalmanCAM')) {
-          body.push(
-            fieldRow(t('Kalman Tuning (accel m/s², pos mm, ang accel, ori deg, lead ms)'), html`
-              <span>A</span><app-number .value=${settings.kalmanProcessAccel} step="10" min="1" max="2000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanProcessAccel = e.detail; save(); } }}></app-number>
-              <span>P</span><app-number .value=${settings.kalmanPosNoiseMm} step="0.5" min="0.2" max="20" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanPosNoiseMm = e.detail; save(); } }}></app-number>
-              <span>W</span><app-number .value=${settings.kalmanProcessAngAccel} step="50" min="10" max="20000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanProcessAngAccel = e.detail; save(); } }}></app-number>
-              <span>O</span><app-number .value=${settings.kalmanOriNoiseDeg} step="0.1" min="0.05" max="10" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanOriNoiseDeg = e.detail; save(); } }}></app-number>
-              <span>L</span><app-number .value=${settings.kalmanLeadMs} step="5" min="0" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLeadMs = e.detail; save(); } }}></app-number>
-            `, {
-              tip: "Choose how controller motion is smoothed and predicted. Start with the normal defaults; advanced filter parameters can trade steadiness for lag or overshoot.\n\nFor the Kalman velocity mode: a single estimator produces position, rotation, velocity and spin together, the same architecture native lighthouse controllers use. A adjusts the responsiveness: higher trusts your motion more (snappier throws, a bit noisier), lower trusts smoothness (calmer hands, slight lag). W does the same for rotation: responsiveness of the spin estimator. P/O are the sensor noise floors. L leads the reported position to counter streaming latency.",
-              reset: {
-                can: settings.kalmanProcessAccel != defaults.kalmanProcessAccel || settings.kalmanPosNoiseMm != defaults.kalmanPosNoiseMm || settings.kalmanProcessAngAccel != defaults.kalmanProcessAngAccel || settings.kalmanOriNoiseDeg != defaults.kalmanOriNoiseDeg || settings.kalmanLeadMs != defaults.kalmanLeadMs,
-                on: () => { galaxy.reset('kalmanProcessAccel'); galaxy.reset('kalmanPosNoiseMm'); galaxy.reset('kalmanProcessAngAccel'); galaxy.reset('kalmanOriNoiseDeg'); galaxy.reset('kalmanLeadMs'); },
-              },
-            }),
-          );
-        }
-
-        if (advanced && (caMode)) {
-          body.push(
-            fieldRow(t('Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg, lead ms)'), html`
-              <span>J</span><app-number .value=${settings.kalmanCaJerk} step="50" min="1" max="50000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaJerk = e.detail; save(); } }}></app-number>
-              <span>Wj</span><app-number .value=${settings.kalmanCaAngJerk} step="250" min="50" max="500000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaAngJerk = e.detail; save(); } }}></app-number>
-              <span>P</span><app-number .value=${settings.kalmanCaPosNoiseMm} step="0.5" min="0.2" max="20" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaPosNoiseMm = e.detail; save(); } }}></app-number>
-              <span>O</span><app-number .value=${settings.kalmanCaOriNoiseDeg} step="0.1" min="0.05" max="10" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaOriNoiseDeg = e.detail; save(); } }}></app-number>
-              <span>L</span><app-number .value=${settings.kalmanLeadMs} step="5" min="0" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLeadMs = e.detail; save(); } }}></app-number>
-              <span>T</span><app-number .value=${settings.kalmanCaPredictTrimMs} step="5" min="0" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaPredictTrimMs = e.detail; save(); } }}></app-number>
-            `, {
-              tip: "Use a motion filter that also estimates acceleration. It can change throwing behavior and responsiveness; compare carefully with the normal filter.\n\nThe constant-acceleration state tracks a changing speed estimate rather than treating every speed change as noise. It can reduce lag in some motions but can also change overshoot and throwing behavior; compare it with the normal filter. J (jerk noise) adjusts responsiveness: higher follows faster changes, lower is calmer. Wj is the rotation equivalent. P/O are sensor-noise settings. L leads the report to compensate for timing delay. T (ms) takes that much off SteamVR's own forward prediction: higher means less rubber band on stops and wrist twists and a little more trailing in fast motion; 0 turns it off.",
-              reset: {
-                can: settings.kalmanCaJerk != defaults.kalmanCaJerk || settings.kalmanCaAngJerk != defaults.kalmanCaAngJerk || settings.kalmanCaPosNoiseMm != defaults.kalmanCaPosNoiseMm || settings.kalmanCaOriNoiseDeg != defaults.kalmanCaOriNoiseDeg || settings.kalmanLeadMs != defaults.kalmanLeadMs || settings.kalmanCaPredictTrimMs != defaults.kalmanCaPredictTrimMs,
-                on: () => { galaxy.reset('kalmanCaJerk'); galaxy.reset('kalmanCaAngJerk'); galaxy.reset('kalmanCaPosNoiseMm'); galaxy.reset('kalmanCaOriNoiseDeg'); galaxy.reset('kalmanLeadMs'); galaxy.reset('kalmanCaPredictTrimMs'); },
-              },
-            }),
-          );
-        }
-
-        if (advanced && (settings.velocityFixMode == 'kalmanCAM')) {
-          body.push(
-            fieldRow(t('Kalman CA Magnitude Channel (jerk m/s³, decay τ ms)'), html`
-              <span>J</span><app-number .value=${settings.kalmanCaMagJerk} step="50" min="1" max="50000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaMagJerk = e.detail; save(); } }}></app-number>
-              <span>τ</span><app-number .value=${settings.kalmanCaMagAccelTauMs} step="25" min="20" max="10000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaMagAccelTauMs = e.detail; save(); } }}></app-number>
-            `, {
-              tip: "Adjust how strongly the older acceleration-based mode contributes to reported speed. This only affects the filter modes described below.\n\nCA-Magnitude mode: everything about the standard Kalman mode stays identical (calm direction, the A/P/W/O/L tuning above, duplicate handling), except the fast magnitude channel becomes a constant-acceleration estimator. J (jerk) is its responsiveness: higher follows the throw ramp harder. The decay bounds phantom speed across repeated-sample coasts (~150ms matches a real throw's acceleration duration). Success looks like Throw Strength Trim converging to 1.0.",
-              reset: {
-                can: settings.kalmanCaMagJerk != defaults.kalmanCaMagJerk || settings.kalmanCaMagAccelTauMs != defaults.kalmanCaMagAccelTauMs,
-                on: () => { galaxy.reset('kalmanCaMagJerk'); galaxy.reset('kalmanCaMagAccelTauMs'); },
-              },
-            }),
-          );
-        }
-
-        if (advanced && (settings.velocityFixMode == 'kalman')) {
-          body.push(
-            fieldRow(t('Kalman Throw Strength (source / fast accel / scale / spin scale)'), html`
-              <app-select .value=${settings.kalmanMagSource} .options=${[
-                { value: 'state', label: 'Calm state (default)' },
-                { value: 'fast', label: 'Fast estimator (recommended at low A)' },
-              ]} @change=${(e: CustomEvent) => { settings.kalmanMagSource = e.detail; save(); }}></app-select>
-              <span>FA</span><app-number .value=${settings.kalmanMagAccel} step="10" min="1" max="2000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanMagAccel = e.detail; save(); } }}></app-number>
-              <span>S</span><app-number .value=${settings.kalmanMagScale} step="0.05" min="0.25" max="4" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanMagScale = e.detail; save(); } }}></app-number>
-              <span>Sa</span><app-number .value=${settings.kalmanAngMagScale} step="0.05" min="0.25" max="4" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanAngMagScale = e.detail; save(); } }}></app-number>
-            `, {
-              tip: "Scale the controller speeds sent to games. 1 leaves the speed unchanged; other values can change throwing strength and rotational movement.\n\nFixes weak throws at low Accel without giving up the calm direction. S/Sa globally scale reported speed. Leave at 1 unless a specific title needs it.",
-              reset: {
-                can: settings.kalmanMagSource != defaults.kalmanMagSource || settings.kalmanMagAccel != defaults.kalmanMagAccel || settings.kalmanMagScale != defaults.kalmanMagScale || settings.kalmanAngMagScale != defaults.kalmanAngMagScale,
-                on: () => { galaxy.reset('kalmanMagSource'); galaxy.reset('kalmanMagAccel'); galaxy.reset('kalmanMagScale'); galaxy.reset('kalmanAngMagScale'); },
-              },
-            }),
-          );
-        }
-
-        if (advanced && galaxy.isKalmanMode()) {
-          body.push(
-            sectionGroup(t('Kalman Advanced Settings'), 2),
-          );
-            if (advanced && (caMode)) {
-              body.push(
-                fieldRow(t('Kalman CA Accel Decay τ (ms)'), html`
-                  <span>τ</span><app-number .value=${settings.kalmanCaAccelTauMs} step="25" min="20" max="10000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaAccelTauMs = e.detail; save(); } }}></app-number>
-                `, {
-                  tip: "Set how quickly the filter stops trusting an earlier acceleration estimate. Shorter persistence can reduce overshoot but changes the feel of motion.\n\nThe acceleration state decays toward zero with this time constant (Singer model). It bounds phantom speed during repeated-sample coasts and abrupt stops.",
-                  reset: { can: settings.kalmanCaAccelTauMs != defaults.kalmanCaAccelTauMs, on: () => galaxy.reset('kalmanCaAccelTauMs') },
-                }),
-              );
-            }
-            if (advanced && (caMode || settings.velocityFixMode == 'kalmanCAM')) {
-              body.push(
-                settingFieldRow('streamFrame.kalmanCaExactCov', html`<app-switch .checked=${!!settings.kalmanCaExactCov} @change=${(e: CustomEvent) => { settings.kalmanCaExactCov = e.detail; save(); }}></app-switch>`, {
-                  tip: "Try an experimental acceleration model with a matching noise calculation. Leave it off unless you are comparing filter behavior deliberately.\n\nExperiment: propagate the filter's uncertainty with the same Singer transition the state prediction actually uses, instead of the simpler approximation. Makes the filter's self-model consistent, which matters most at low Accel Decay tau values (in CA-Magnitude mode it applies to the fast magnitude channel). Changes effective gains slightly, so NIS and the J/P/O tuning shift a little; off reproduces the previously tuned behavior exactly.",
-                  reset: { can: settings.kalmanCaExactCov != defaults.kalmanCaExactCov, on: () => galaxy.reset('kalmanCaExactCov') },
-                }),
-              );
-            }
-            body.push(
-              fieldRow(t('Kalman Angular Velocity Frame'), html`
-                <app-select .value=${String(settings.kalmanAngularOutFrame ?? '')} .options=${[
-                  { value: 'body', label: 'Body - controller-local (default)' },
-                  { value: 'world', label: 'World - previous behaviour' },
-                  { value: 'zero', label: 'Zero - diagnostic' },
-                ]} @change=${(e: CustomEvent) => { (settings as any).kalmanAngularOutFrame = e.detail; save(); }}></app-select>
-              `, {
-                tip: "Choose how controller rotation speed is reported. The wrong coordinate convention can change throwing or aiming behavior; use the default unless testing.\n\nFrame the reported angular velocity is expressed in. Body (default, field-verified 2026-08-24): SteamVR's motion prediction rotates about controller-local axes, so this is what it expects. World: the previous behaviour, which made horizontal sword swings pitch up at the peak of the swing. Zero: diagnostic only - no angular prediction, laggier rotation.",
-                reset: { can: (settings as any).kalmanAngularOutFrame != defaults.kalmanAngularOutFrame, on: () => galaxy.reset('kalmanAngularOutFrame' as any) },
-              }),
-              fieldRow(t('Kalman Loss Coast (ms)'), html`<app-number .value=${settings.kalmanLossCoastMs} step="50" min="0" max="1000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLossCoastMs = e.detail; save(); } }}></app-number>`, {
-                tip: "Choose how long controller movement may continue briefly after tracking is lost. Longer coasting can hide interruptions but can also move the controller incorrectly.\n\nWhen the controller briefly leaves tracking (hand out of camera view), the stream freezes the hand in place with zero velocity until it is seen again. For up to this many ms of tracking loss, the driver instead keeps the hand moving along the filter's last known motion (with the usual acceleration decay so it cannot run away).",
-                reset: { can: settings.kalmanLossCoastMs != defaults.kalmanLossCoastMs, on: () => galaxy.reset('kalmanLossCoastMs') },
-              }),
-              fieldRow(t('Kalman Duplicate-Sample Handling'), html`
-                <app-select .value=${settings.kalmanDupMode} .options=${[
-                  { value: 'off', label: 'Off - repeats believed (smooth, slight drag)' },
-                  { value: 'coast', label: 'Coast - extrapolate through repeats (field-rejected)' },
-                  { value: 'drop', label: 'Drop - repeats never happened (honest gaps)' },
-                  { value: 'soft', label: 'Soft - repeats distrusted by the scale below' },
-                  { value: 'age', label: 'Age - repeats distrusted by hand speed x age (no scale, no speed gate)' },
-                ]} @change=${(e: CustomEvent) => { settings.kalmanDupMode = e.detail; save(); }}></app-select>
-              `, {
-                tip: "Choose how repeated tracking samples are handled. The default avoids treating a repeated sample as fresh movement.\n\nThe streamer repeats the last pose when fresh tracking hasn't arrived, about 2 of 3 samples during fast throws. Soft (recommended): repeats are processed but distrusted by the scale below. Off: repeats are trusted fully, slight speed drag. Age: distrust grows with speed and time since the last fresh sample. Coast and Drop are not recommended. Sustained repeats are always treated as genuine stillness.",
-                reset: { can: settings.kalmanDupMode != defaults.kalmanDupMode, on: () => galaxy.reset('kalmanDupMode') },
-              }),
-              fieldRow(t('Kalman Duplicate Distrust Scale (Soft mode)'), html`<app-number .value=${settings.kalmanDupRScale} step="1" min="1" max="100" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanDupRScale = e.detail; save(); } }}></app-number>`, {
-                tip: "Set how little the filter trusts a repeated tracking sample. Larger values make duplicate samples have less influence.\n\nOnly used when duplicate handling is Soft. A repeated sample is a true position of unknown age, so its honest uncertainty at hand speed is far above the sensor floor; this multiplies the measurement noise for detected repeats. 1 behaves exactly like Off; the default of 3 halves motion jitter with no measured cost; 6 and above re-create Coast's rejected snap character. Repeats sustained past the run cap are always accepted at full weight.",
-                reset: { can: settings.kalmanDupRScale != defaults.kalmanDupRScale, on: () => galaxy.reset('kalmanDupRScale') },
-              }),
-              settingFieldRow('streamFrame.kalmanDeviceTime', html`<app-switch .checked=${!!settings.kalmanDeviceTime} @change=${(e: CustomEvent) => { settings.kalmanDeviceTime = e.detail; save(); }}></app-switch>`, {
-                tip: "Use timestamps supplied with controller tracking rather than assuming every update is new. This can improve timing when sample delivery is uneven.\n\nThe streamer stamps every hand pose with WHEN it was actually true (poseTimeOffset). When this is on, the filter uses the device's own timestamps for its time steps and quietly discards out-of-order samples. Leave on.",
-                reset: { can: settings.kalmanDeviceTime != defaults.kalmanDeviceTime, on: () => galaxy.reset('kalmanDeviceTime') },
-              }),
-              settingFieldRow('streamFrame.kalmanPosFreeze3dof', html`<app-switch .checked=${!!settings.kalmanPosFreeze3dof} @change=${(e: CustomEvent) => { settings.kalmanPosFreeze3dof = e.detail; save(); }}></app-switch>`, {
-                tip: "Detect when controller position has stopped updating even if other tracking data still changes. This helps avoid treating a tracking freeze as real stillness.\n\nDetects the tracker's position-only loss: the position payload freezes while the quaternion keeps moving (fast or occluded hand falling back to IMU orientation). When detected, the stale position stays distrusted for the whole freeze instead of being adopted after the duplicate-run cap, and orientation keeps tracking live in every duplicate-handling mode. Fixes the hand parking a meter away while still rotating with the wrist, then teleporting back.",
-                reset: { can: settings.kalmanPosFreeze3dof != defaults.kalmanPosFreeze3dof, on: () => galaxy.reset('kalmanPosFreeze3dof') },
-              }),
-            );
-        }
       }
 
       // ---------- Controllers Advanced ----------
@@ -339,8 +147,22 @@ export class DriverSettingsPage extends BasePage {
           if (vendor) {
             body.push(
               settingFieldRow('galaxyXr.controllerBypass', html`<app-switch .checked=${!!gx.controllerBypass} @change=${(e: CustomEvent) => { gx.controllerBypass = e.detail; save(); }}></app-switch>`, {
-                tip: "Bypass this driver's controller adjustments while leaving the headset path active. Use this to compare with Steam Link's controller behavior.\n\nLeave the streamed controllers exactly as vrlink presents them: no Galaxy XR identity, models or icons, no official input profile or pose components, no grip convention, no offsets. Kalman is not part of the bypass; use Controller Fix Mode to turn it off. For A/B tests against stock, or if you only want the image processing. Identity and input profile changes take effect after a SteamVR restart.",
+                tip: "Bypass this driver's controller adjustments while leaving the headset path active. Use this to compare with Steam Link's controller behavior.\n\nLeave the streamed controllers' pose exactly as vrlink sends it: no offsets, no skeleton offset, no grip touch synthesis. The Game Link layout is not part of the bypass: the controllers keep Samsung's identity, model and pose points on the untouched pose. For A/B tests against stock, or if you only want the image processing.",
                 reset: { can: !!gx.controllerBypass, on: () => { gx.controllerBypass = false; save(); } },
+              }),
+              fieldRow(t('Game Link Velocity Cutoff (linear m/s, angular deg/s)'), html`
+                <span>V</span><app-number .value=${settings.gameLinkLinearVelocityCutoff} step="0.01" min="0" max="1" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkLinearVelocityCutoff = e.detail; save(); } }}></app-number>
+                <span>W</span><app-number .value=${settings.gameLinkAngularVelocityCutoffDeg} step="1" min="0" max="90" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkAngularVelocityCutoffDeg = e.detail; save(); } }}></app-number>
+              `, {
+                tip: "The controller motion is sent the way Samsung's own PC driver (Game Link) does: Steam Link's velocities as they come.\n\nA reported speed below V, or a spin below W, is sent as zero so a resting hand does not drift on sensor noise. The defaults are Samsung's own values; 0 sends every velocity as it comes.",
+                reset: {
+                  can: settings.gameLinkLinearVelocityCutoff != defaults.gameLinkLinearVelocityCutoff || settings.gameLinkAngularVelocityCutoffDeg != defaults.gameLinkAngularVelocityCutoffDeg,
+                  on: () => { galaxy.reset('gameLinkLinearVelocityCutoff'); galaxy.reset('gameLinkAngularVelocityCutoffDeg'); },
+                },
+              }),
+              fieldRow(t('Controller Rest Smoothing (Hz, 0 = off)'), html`<app-number .value=${settings.controllerSmoothingHz} step="1" min="0" max="60" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.controllerSmoothingHz = e.detail; save(); } }}></app-number>`, {
+                tip: "Steady the controllers while they are held still, so pointers do not tremble. Lower is steadier; 0 turns it off.\n\nA low-pass filter on the controller pose whose cutoff is this value at rest and rises with the reported speed, so it opens up as soon as the hand moves and adds no felt lag to motion. Very low values make slow, precise aiming feel slightly delayed. The velocities sent to games are not changed. Applies live.",
+                reset: { can: settings.controllerSmoothingHz != defaults.controllerSmoothingHz, on: () => galaxy.reset('controllerSmoothingHz') },
               }),
             );
           }
@@ -410,24 +232,6 @@ export class DriverSettingsPage extends BasePage {
                     <span>Z</span><app-number .value=${cs.right!.positionOffsetCm.z} step="0.5" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { cs.right!.positionOffsetCm.z = e.detail; save(); } }}></app-number>
                   `, {
                     tip: "Move only the right controller's pose. The offsets change where held objects appear, not the tracking space itself.\n\nPer-hand position trim for the right controller only, unmirrored, applied after the shared offsets. Same axes as the shared Position Offset: Z = along the controller, Y = up/down, X = sideways.",
-                  }),
-                );
-              }
-            }
-            if (vendor) {
-              body.push(
-                sectionRow(t('Pointer Tip Offset'), this.section('tipOffset'), 2, () => this.toggleSection('tipOffset')),
-              );
-              if (this.section('tipOffset')) {
-                body.push(
-                  fieldRow(t('Pointer Tip Trim X (cm)'), html`<app-number .value=${gx.aimTrimXCm ?? 0} min="-5" max="5" step="0.25" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.aimTrimXCm = e.detail; save(); } }}></app-number>`, {
-                    tip: "Move the controller's aiming tip sideways. The adjustment is mirrored between the left and right hand.\n\nMeasured correction of the dashboard pointer origin (tip and OpenXR aim together). Sideways; mirrored for the right hand. Applies live.",
-                  }),
-                  fieldRow(t('Pointer Tip Trim Y (cm)'), html`<app-number .value=${gx.aimTrimYCm ?? -1} min="-5" max="5" step="0.25" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.aimTrimYCm = e.detail; save(); } }}></app-number>`, {
-                    tip: "Move the controller's aiming tip vertically. This adjusts the ray or tip position used by compatible games.\n\nUp/down correction of the pointer origin. If the pointer emanates 1 cm above the real tip, set -1.",
-                  }),
-                  fieldRow(t('Pointer Tip Trim Z (cm)'), html`<app-number .value=${gx.aimTrimZCm ?? 1} min="-5" max="5" step="0.25" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { gx.aimTrimZCm = e.detail; save(); } }}></app-number>`, {
-                    tip: "Move the controller's aiming tip forward or backward. This adjusts the ray or tip position used by compatible games.\n\nAlong-the-controller correction of the pointer origin. Positive moves it back toward the wrist: if the pointer starts 1 cm beyond the real tip, set +1.",
                   }),
                 );
               }

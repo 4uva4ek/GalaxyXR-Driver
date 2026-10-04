@@ -65,9 +65,9 @@ describe('schema migrations', () => {
     expect(stored.galaxyXr!.profileSupports10bit).toBe(legacy10bit);
   });
 
-  it('chains schema 1 -> 2 -> 3 -> 4 -> 5 for an exact-default legacy kalman config', async () => {
+  it('chains schema 1 -> 4 -> 5 for a legacy config', async () => {
     const stored: any = {
-      streamFrame: { velocityFixMode: 'kalman' },
+      streamFrame: {},
       controllers: {
         rotationOffsetDeg: { x: 9, y: 9, z: 9 },
         positionOffsetCm: { x: 7, y: 7, z: 7 },
@@ -77,18 +77,7 @@ describe('schema migrations', () => {
     const { gs, saved, flush } = buildHarness(stored);
     await flush();
 
-    // schema 2: exact-old-default kalman -> kalmanCA with schema-2 CA values
-    // schema 3: schema-2 CA values -> ratified schema-3 values
-    expect(stored.streamFrame.velocityFixMode).toBe('kalmanCA');
-    expect(stored.streamFrame.kalmanCaJerk).toBe(4);
-    expect(stored.streamFrame.kalmanCaPosNoiseMm).toBe(1.5);
-    expect(stored.streamFrame.kalmanCaOriNoiseDeg).toBe(1.5);
-    expect(stored.streamFrame.kalmanCaAccelTauMs).toBe(20);
-    expect(stored.streamFrame.kalmanCaExactCov).toBe(true);
-    // schema 4: unconditional Direction Lead / Freeze Coast Turn reset +
-    // shared controller offsets back to shipped defaults
-    expect(stored.streamFrame.kalmanDirLeadMs).toBe(0);
-    expect(stored.streamFrame.kalmanFreezeCoastTurn).toBe(0);
+    // schema 4: shared controller offsets back to shipped defaults
     expect(stored.controllers.rotationOffsetDeg).toEqual(driverDefaults.controllers!.rotationOffsetDeg);
     expect(stored.controllers.positionOffsetCm).toEqual(driverDefaults.controllers!.positionOffsetCm);
     expect(stored.controllers.mirrorOffsetsForRightHand).toBe(driverDefaults.controllers!.mirrorOffsetsForRightHand);
@@ -100,46 +89,6 @@ describe('schema migrations', () => {
     expect(saved.length).toBeGreaterThan(0);
     // the page-facing settings object is the migrated, default-filled object
     expect(gs.settings).toBe(stored.streamFrame);
-    expect(gs.settings!.kalmanCaJerk).toBe(4);
-  });
-
-  it('keeps custom (non-default) kalman CV values out of the schema-2 upgrade', async () => {
-    const stored: any = { streamFrame: { velocityFixMode: 'kalman', kalmanProcessAccel: 2 } };
-    const { flush } = buildHarness(stored);
-    await flush();
-    expect(stored.streamFrame.velocityFixMode).toBe('kalman');
-    expect(stored.streamFrame.kalmanProcessAccel).toBe(2);
-    expect(stored.streamFrame.streamFrameSchema).toBe(5);
-  });
-
-  it('keeps custom kalmanCA tuning intact through schema 3/4', async () => {
-    const stored: any = {
-      streamFrame: {
-        velocityFixMode: 'kalmanCA',
-        kalmanCaJerk: 99, kalmanCaPosNoiseMm: 3.3, kalmanCaOriNoiseDeg: 3.3,
-        kalmanCaAccelTauMs: 50, kalmanCaExactCov: true,
-        streamFrameSchema: 5, nvencSettingsVersion: 4,
-      },
-    };
-    const { saved, flush } = buildHarness(stored);
-    await flush();
-    expect(stored.streamFrame.kalmanCaJerk).toBe(99);
-    expect(stored.streamFrame.kalmanCaPosNoiseMm).toBe(3.3);
-    expect(stored.streamFrame.kalmanCaOriNoiseDeg).toBe(3.3);
-    expect(stored.streamFrame.kalmanCaAccelTauMs).toBe(50);
-    expect(stored.streamFrame.kalmanCaExactCov).toBe(true);
-    // fully current config: no migration block fired, so nothing is re-saved
-    expect(saved.length).toBe(0);
-  });
-
-  it('normalises the integer kalmanAngularOutFrame to the string enum', async () => {
-    const cases: Array<[number, string]> = [[0, 'world'], [1, 'body'], [2, 'zero'], [99, 'body']];
-    for (const [raw, expected] of cases) {
-      const stored: any = { streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 4, kalmanAngularOutFrame: raw } };
-      const { flush } = buildHarness(stored);
-      await flush();
-      expect(stored.streamFrame.kalmanAngularOutFrame).toBe(expected);
-    }
   });
 
   it.each([0, 2, 3, 4])('preserves explicit encoder tuning when upgrading schema %s', async version => {
@@ -276,15 +225,13 @@ describe('schema migrations', () => {
 
   it('does not touch a config that is already at the latest schema', async () => {
     const stored: any = {
-      streamFrame: {
-        velocityFixMode: 'kalmanCA', streamFrameSchema: 5, nvencSettingsVersion: 4,
-        kalmanAngularOutFrame: 'body', kalmanDirLeadMs: 3,
-      },
+      streamFrame: { streamFrameSchema: 5, nvencSettingsVersion: 4 },
+      controllers: { rotationOffsetDeg: { x: 0, y: 3, z: 0 } },
     };
     const { saved, flush } = buildHarness(stored);
     await flush();
-    // schema-4 is unconditional only for configs BELOW 4; this one is current
-    expect(stored.streamFrame.kalmanDirLeadMs).toBe(3);
+    // the schema-4 offset reset is only for configs BELOW 4; this one is current
+    expect(stored.controllers.rotationOffsetDeg.y).toBe(3);
     expect(stored.streamFrame.streamFrameSchema).toBe(5);
     expect(saved.length).toBe(0);
   });
@@ -496,22 +443,6 @@ describe('controller offsets', () => {
     gs.resetHandOffsets('left');
     expect(gs.controllerSettings!.left!.rotationOffsetDeg).toEqual({ x: 0, y: 0, z: 0 });
     expect(saved.length).toBeGreaterThan(0);
-  });
-});
-
-describe('velocity modes', () => {
-  it('classifies kalman-family modes and retired modes', () => {
-    const { gs } = buildHarness({});
-    gs.settings!.velocityFixMode = 'kalmanCA';
-    expect(gs.isKalmanMode()).toBe(true);
-    gs.settings!.velocityFixMode = 'kalman';
-    expect(gs.isKalmanMode()).toBe(true);
-    gs.settings!.velocityFixMode = 'off';
-    expect(gs.isKalmanMode()).toBe(false);
-
-    expect(gs.isRetiredVelocityMode('kalmanCAM')).toBe(true);
-    expect(gs.isRetiredVelocityMode('kalmanCA')).toBe(false);
-    expect(gs.isRetiredVelocityMode(undefined)).toBe(false);
   });
 });
 

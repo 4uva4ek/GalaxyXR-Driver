@@ -17,8 +17,7 @@ It is a fork of [CustomHeadsetOpenVR by sboys3](https://github.com/sboys3/Custom
 
 **Controllers**
 - Galaxy XR controller models, input profile and compositor bindings. Games without a native binding see Index controllers.
-- Corrected grip origin and pose components so held objects sit where the game expects them.
-- Kalman pose filter that fixes throw velocity and improves tracking dropouts from the streamed pose.
+- Samsung's own controller layout (Game Link): its model, pose points and input profile on Steam Link's pose and velocities.
 
 **Image processing**
 - Saturation, vibrance, contrast, gamma, color matrix, brightness.
@@ -53,7 +52,7 @@ Same as installing: extract the new zip, run the GUI, go to Setup and press Inst
 In Driver Settings and Image Settings:
 
 - Headset: Native Identity on, Native Render Resolution on (default), Stream Quality Preset High.
-- Controllers: Official Controller Input Profile on. Leave Controller Fix Mode on Kalman CA.
+- Controllers: nothing to set. Leave the offsets alone unless the controllers sit wrong in your hand.
 - Picture mode: keep **SDR 10-bit baseline** for unprocessed SDR output. To experiment with color, sharpening or lens correction while keeping the 10-bit request, enable **Image Enhancements** in App Settings and accept the image-quality warning. The combination may reduce image quality. Turn Image Enhancements off to return to neutral processing. Enabling the baseline resets picture adjustments and active lens corrections after confirmation.
 
 Then restart SteamVR once.

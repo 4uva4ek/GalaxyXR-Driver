@@ -10,7 +10,7 @@ Ships as the `GalaxyXRNative` vendor driver and coexists with the original `Cust
 
 | Part | Tech | Where |
 |---|---|---|
-| SteamVR driver — pose/Kalman, image processing, distortion, identity | C++17 | `CustomHeadsetOpenVR/` |
+| SteamVR driver — controller pose, image processing, distortion, identity | C++17 | `CustomHeadsetOpenVR/` |
 | GUI — settings, install/switch, diagnostics | Vite + TypeScript + Lit + Fluent UI v3 + Tauri 2 (Rust) | `CustomHeadsetGUI/` (`src-lit/` tree) |
 | Camera calibration + distortion tuner scripts | Python 3.9+ | `tools/` |
 | User docs | Markdown | `Docs/` (`StreamFrame.md`, `TunerUsage.md`) |
@@ -39,7 +39,7 @@ If the value only applies after a SteamVR restart (identity, render resolution, 
 | Area | File(s) |
 |---|---|
 | Entry / driver registration | `src/Driver/HmdDriverFactory.cpp`, `DriverFiles/driver.vrdrivermanifest` |
-| Pose pipeline, Kalman (`velocityFixMode`, `kalman*`), controller motion, pose components | `src/Driver/DeviceProvider.cpp` |
+| Pose pipeline, controller offsets and motion (`Driver/GameLinkMotion.h`), pose components | `src/Driver/DeviceProvider.cpp` |
 | Per-frame image processing (color, CAS, FXAA, dither, stationary dimming) | `src/Driver/FrameProcessor.{cpp,h}` |
 | Device-page custom shader replacement | `src/Driver/ShaderReplacement.{cpp,h}` |
 | Distortion correction + in-headset tuner | `src/Distortion/` |

@@ -40,21 +40,24 @@ export class DriverSettingService extends JsonSettingServiceBase<Settings> {
     return this.loadSetting();
   }
   // migration: keys the driver has retired are deleted on load so the
-  // next natural save writes a clean settings.json. Prune-on-save
-  // incident 2026-08-11: the round-trip writer preserved a legacy
-  // "velocityFix" bool for months; the default-diff serializer then
-  // pruned the explicit velocityFixMode the moment it matched the new
-  // published default, and the fossil took over mode selection.
-  private static readonly retiredStreamFrameKeys = ['velocityFix', 'kalmanDupSkip', 'kalmanAdaptiveBoost'];
+  // next natural save writes a clean settings.json.
+  private static readonly retiredStreamFrameKeys = ['velocityFix', 'velocityFixMode', 'nativeLinearVelocityCutoff', 'nativeAngularVelocityCutoffDeg'];
+  // 2026-10-04: the Controller Fix Mode (Kalman / derive estimators) is gone
+  // with every knob it had, and the Game Link layout is no longer a toggle.
+  private static readonly retiredStreamFrameKeyPattern = /^(kalman|derive)[A-Z]/;
   protected override migrateLoadedValues(values: Settings): Settings {
     const sf = (values as any)?.streamFrame;
     if (sf) {
-      for (const key of DriverSettingService.retiredStreamFrameKeys) {
-        if (key in sf) {
+      for (const key of Object.keys(sf)) {
+        if (DriverSettingService.retiredStreamFrameKeys.includes(key) || DriverSettingService.retiredStreamFrameKeyPattern.test(key)) {
           delete sf[key];
         }
       }
     }
+    const galaxyXr = (values as any)?.galaxyXr;
+    if (galaxyXr && 'gameLinkLayout' in galaxyXr) delete galaxyXr.gameLinkLayout;
+    const controllers = (values as any)?.controllers;
+    if (controllers && 'gameLinkLayout' in controllers) delete controllers.gameLinkLayout;
     return values;
   }
 }

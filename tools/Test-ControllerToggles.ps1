@@ -22,13 +22,12 @@ function Get-CodeBlock([string]$source, [string]$signature) {
 }
 $provider = Get-Content -Raw -LiteralPath (Join-Path $repo 'GalaxyXRDriver/src/Driver/DeviceProvider.cpp')
 $header = Get-Content -Raw -LiteralPath (Join-Path $repo 'GalaxyXRDriver/src/Driver/DeviceProvider.h')
-$state = @('InputComponentInfo', 'MotionSnapshot', 'PoseLogState', 'KalState', 'DeriveFilterState', 'VelFixState') | ForEach-Object {
+$state = @('InputComponentInfo', 'MotionSnapshot', 'PoseLogState') | ForEach-Object {
     (Get-CodeBlock $header "struct $_ {") + ';'
 }
 [IO.File]::WriteAllText((Join-Path $build 'ControllerState.generated.h'), ($state -join "`n"), [Text.UTF8Encoding]::new($false))
 $functions = @(
     'void GalaxyXRDeviceProvider::RefreshPoseDiagnosticSession(',
-    'void GalaxyXRDeviceProvider::RefreshKalDiagnosticSession(',
     'static bool InputPathInteresting(',
     'static bool NativeHandDiagnosticPath(',
     'static int TunerRoleForPath(',
@@ -41,7 +40,6 @@ $functions = @(
     'void GalaxyXRDeviceProvider::OnBooleanComponentUpdated(',
     'void GalaxyXRDeviceProvider::HandleInputRelease(',
     'void GalaxyXRDeviceProvider::LogReleaseSnapshot(',
-    'void GalaxyXRDeviceProvider::AnchorReleaseGesture(',
     'void GalaxyXRDeviceProvider::OnSkeletonComponentCreated(',
     'bool GalaxyXRDeviceProvider::HandleSkeletonUpdate('
 )

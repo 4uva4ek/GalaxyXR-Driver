@@ -3,6 +3,7 @@
 #include "Config/Config.h"
 #include "Config/SdrColorPolicy.h"
 #include "Config/DebugModePolicy.h"
+#include "Config/GameLinkLayoutPolicy.h"
 #include "Config/StreamTiers.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>

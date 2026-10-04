@@ -14,7 +14,7 @@ export interface SettingPresentation {
   keys: string[];
   source: BooleanSettingCheck['source'];
   advanced: boolean;
-  gate?: 'vendor' | 'enhancements' | 'postpack' | 'preencode' | 'encoder' | 'kalman' | 'kalman-ca' | 'graveyard' | 'grid' | 'camera-grid' | 'tuner' | 'native-input-profile' | 'controllers';
+  gate?: 'vendor' | 'enhancements' | 'postpack' | 'preencode' | 'encoder' | 'graveyard' | 'grid' | 'camera-grid' | 'tuner' | 'native-input-profile' | 'controllers';
   vendorOnly?: boolean;
 }
 
@@ -32,14 +32,7 @@ headset('galaxyXr.nativeResolution', 'Native Render Resolution');
 headset('galaxyXr.vrlinkHeadsetProfile', 'vrlink Headset Profile', { advanced: true });
 headset('galaxyXr.sdr10Baseline', 'SDR 10-bit baseline');
 const controllers = group('driver-settings', ['Controllers'], ['controllers'], false, 'vendor');
-controllers('galaxyXr.nativeInputProfile', 'Official Controller Input Profile');
-controllers('galaxyXr.synthesizeGripTouch', 'Grip Touch From Grip Pressure', { gate: 'native-input-profile', vendorOnly: true });
-controllers('galaxyXr.officialComponents', 'Official Pose Components');
-group('driver-settings', ['Controllers', 'Controller Fix'], ['controllers', 'ctrlFix'], false, 'vendor')('galaxyXr.gripConvention', 'Grip Convention');
-const kalman = group('driver-settings', ['Controllers', 'Controller Fix', 'Kalman Advanced Settings'], ['controllers', 'ctrlFix'], true, 'kalman');
-kalman('streamFrame.kalmanCaExactCov', 'Exact Covariance Transition (A/B)', { gate: 'kalman-ca' });
-kalman('streamFrame.kalmanDeviceTime', 'Kalman Device-Time Measurements');
-kalman('streamFrame.kalmanPosFreeze3dof', 'Position-Freeze Protection (3dof Fallback)');
+controllers('galaxyXr.synthesizeGripTouch', 'Grip Touch From Grip Pressure', { vendorOnly: true });
 group('driver-settings', ['Controllers', 'Controllers Advanced'], ['controllers'], true, 'vendor')('galaxyXr.controllerBypass', 'Controller Bypass');
 group('driver-settings', ['Controllers', 'Controllers Advanced', 'Controller Offsets'], ['controllers', 'ctrlOffsets'], true, 'controllers')('controllers.mirrorOffsetsForRightHand', 'Mirror Offsets For Right Hand');
 
@@ -77,25 +70,15 @@ encoderDebug('galaxyXr.vrlinkDebugOverlay', 'vrlink Debug Overlay');
 encoderDebug('streamFrame.nvencFixLevel', 'NVENC: Fix Level');
 encoderDebug('streamFrame.nvencVerbose', 'NVENC: Verbose Log');
 const retired = group('stream-frame', ['Graveyard (retired experiments)'], ['graveyard'], true, 'graveyard');
-retired('streamFrame.kalmanCaReportAccel', 'Kalman CA: Report Acceleration');
 retired('controllers.aligner.enable', 'Controller Aligner (in-headset)');
-retired('galaxyXr.simulateTouch', 'Experimental: Simulate Oculus Touch', { vendorOnly: true });
 retired('streamFrame.eyeGaze.probeCapture', 'Probe Capture (scoring run)');
 retired('streamFrame.skipColorWhileDashboardOpen', 'Skip Color While Dashboard Open');
 retired('streamFrame.eyeGaze.calibDot', 'Fixation Dot (VOR probe)');
 retired('streamFrame.eyeGaze.swimProbe', 'Swim Probe Logging');
-retired('streamFrame.deriveLatchPoseAssist', 'Velocity Consumer Test / Pose Assist');
-retired('streamFrame.kalmanDirLeadAdaptive', 'Adaptive Direction Lead - EXPERIMENT A');
-retired('streamFrame.kalmanAdaptiveR', 'Adaptive Measurement Trust - EXPERIMENT B');
-retired('streamFrame.kalmanGripEnable', 'Grip-Point Velocity Compensator');
 retired('streamFrame.blackFloor.shadowLift', 'Black Floor: Shadow Lift (floor / knee, sRGB codes)');
 retired('streamFrame.zeroCopyV3', 'Zero-Copy v3 (experimental)');
 retired('streamFrame.nvencBitrateScale', 'NVENC (retired): Bitrate Follows Streamer Backoff');
 retired('streamFrame.nvencPresetMerge', 'NVENC (retired): True Preset Merge');
-retired('streamFrame.deriveSmoothAngSeparate', 'Angular Smoothing: Separate (tau slow/fast ms, speed low/high rad/s)');
-retired('streamFrame.deriveSplitDirLinear', 'Derive Split Direction: Linear');
-retired('streamFrame.deriveSplitDirAngular', 'Derive Split Direction: Angular');
-retired('streamFrame.deriveReleaseLatch', 'Release Latch (derive)');
 
 const distortion = group('distortion-profile', ['Distortion Correction'], ['distortion'], false, 'enhancements');
 distortion('streamFrame.distortion.perEye', 'Per Eye Curves');
@@ -118,6 +101,8 @@ export function settingPresentation(id: string): SettingPresentation | undefined
  * keys must be classified explicitly so they cannot silently disappear. */
 export const INTERNAL_BOOLEAN_KEYS = [
   'galaxyXr.profileSupports10bit', 'galaxyXr.force10bit', 'galaxyXr.componentRebaseIncludeTrim', 'galaxyXr.skeletonOffsetMirror',
+  // 2026-10-04: set by the Game Link layout at runtime, no control
+  'galaxyXr.nativeInputProfile', 'galaxyXr.officialComponents', 'galaxyXr.gripConvention', 'galaxyXr.simulateTouch',
   'generalHeadset.useViveBluetooth', 'customShader.enable', 'customShader.enableForOther',
   'customShader.contrastLinear', 'customShader.contrastPerEye', 'customShader.contrastPerEyeLinear',
   'customShader.subpixelShift', 'customShader.disableMuraCorrection', 'customShader.disableBlackLevels',
@@ -164,15 +149,12 @@ export function settingUnavailable(setting: SettingPresentation, context: Presen
   if ((setting.vendorOnly || setting.gate === 'vendor') && !context.vendor) return 'This control is available in the Galaxy XR build.';
   const sf = context.settings?.streamFrame;
   const enhancements = imageEnhancementsEnabled(context.settings);
-  if (setting.gate === 'native-input-profile' && !context.settings?.galaxyXr?.nativeInputProfile) return 'Official Controller Input Profile is off. Its saved adjustments are kept.';
   if ((setting.gate === 'controllers' || setting.id === 'controllers.aligner.enable') && !context.settings?.controllers) return 'Controller settings are unavailable in this configuration.';
   if (['enhancements', 'postpack', 'preencode', 'camera-grid', 'grid', 'tuner'].includes(setting.gate ?? '') && !enhancements) return 'Image Enhancements is off. Its saved adjustments are kept.';
   if (setting.gate === 'postpack' && !(sf?.postPack?.enable && sf.postPack.casEnable)) return 'This control is available when CAS Sharpening uses Post-pack.';
   if (setting.gate === 'preencode' && (sf?.postPack?.enable && sf.postPack.casEnable || !sf?.cas?.enable)) return 'This control is available when CAS Sharpening uses Pre-encode.';
   if (setting.gate === 'encoder' && !sf?.nvencTap) return 'NVENC Tap is off. Its saved adjustments are kept.';
   if (setting.gate === 'graveyard' && !sf?.graveyardEnable) return 'Retired experiments are hidden. Showing a setting will not enable them.';
-  if ((setting.gate === 'kalman' || setting.gate === 'kalman-ca') && !['kalman', 'kalmanCA', 'kalmanCAM', 'kalmanCAGameLink'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman controller mode.';
-  if (setting.gate === 'kalman-ca' && !['kalmanCA', 'kalmanCAM', 'kalmanCAGameLink'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman CA controller mode.';
   if (['tuner', 'grid', 'camera-grid'].includes(setting.gate ?? '') && !sf?.distortion.tune.enable) return 'Interactive Tuner is off. Its saved adjustments are kept.';
   if (['grid', 'camera-grid'].includes(setting.gate ?? '') && sf?.distortion.tune.forceGrid) return 'Force Calibration Grid controls these overlays while the tuner is active.';
   if (setting.gate === 'camera-grid' && sf?.eyeGaze.gridMode !== 'sboys') return 'This control is available with the camera calibration pattern.';

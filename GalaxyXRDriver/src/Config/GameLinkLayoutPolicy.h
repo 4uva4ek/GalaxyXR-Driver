@@ -2,31 +2,41 @@
 #include "Config.h"
 
 namespace gxr {
-// 2026-10-04: Controller Fix Mode "kalmanCAGameLink" (velocityFixMode 7,
-// shown as "Kalman CA (Game Link layout)") is Kalman CA that places and
-// identifies the streamed controllers the way Samsung's own PC driver (Game
-// Link / XR Link, driver_SamsungVST.dll 1.22) does. Applied only to the
-// runtime copy, after all persisted migrations: the stored choices come back
-// the moment another mode is selected.
-//   pose      vrlink's raw as it comes: no grip convention shift, no shared
-//             or per-hand trims. Samsung's driver builds its raw from the
-//             headset's grip pose (rotate X -20deg, then 11cm along -Z);
-//             vrlink already delivers that Touch-style raw (field 2026-10-04:
-//             the controllers sit right with no offset).
+// 2026-10-04: the Game Link layout places and identifies the streamed
+// controllers the way Samsung's own PC driver (Game Link / XR Link,
+// driver_SamsungVST.dll 1.22) does. it is the only layout: applied to the
+// runtime copy on every load, after all persisted migrations.
+//   pose      vrlink's raw as it comes, no grip convention shift. Samsung's
+//             driver builds its raw from the headset's grip pose (rotate X
+//             -20deg, then 11cm along -Z); vrlink already delivers that
+//             Touch-style raw (field 2026-10-04: the controllers sit right
+//             with no offset, bar a slight rotation). the controller
+//             offsets (ControllersConfig: shared and per-hand) correct that
+//             residual and carry the user's trim on top of it.
 //   model     Samsung's shell at its authored size, its pose components as
 //             authored (no rebase, no aim trim, no mesh shift, no hand_anchor)
 //   identity  Samsung's input profile and controller type (samsung_touch),
 //             chosen in GalaxyXRControllerShim::ApplyIdentity
-//   motion    Kalman CA with its tuning (DeviceProvider). Samsung's driver
-//             reports its headset's velocities unfiltered; vrlink's, reported
-//             the same way, threw sideways in Half-Life: Alyx.
-// controllerBypass still wins: with it on the controllers stay vrlink's.
-inline bool GameLinkLayoutMode(const Config& config) {
-    return config.streamFrame.velocityFixMode == 7;
-}
+//   motion    the stream's velocities, reported the way Samsung's driver
+//             reports its own (Driver/GameLinkMotion.h)
+// with controllerBypass the layout still applies, bare: Samsung's identity,
+// model and pose components on vrlink's untouched pose, with none of the
+// driver's own corrections (the offsets, the skeleton offset, the grip touch
+// synthesis). the runtime copy drops the bypass flag so the shim and the
+// pose path run; everything the bypass stands for is zeroed here.
 inline void ApplyGameLinkLayoutPolicy(Config& config) {
-    if (!GameLinkLayoutMode(config)) return;
     auto& g = config.galaxyXr;
+    auto& c = config.controllers;
+    if (g.controllerBypass) {
+        g.controllerBypass = false;
+        g.synthesizeGripTouch = false;
+        g.skeletonOffsetXCm = g.skeletonOffsetYCm = g.skeletonOffsetZCm = 0.0;
+        for (int i = 0; i < 3; i++) {
+            c.rotationOffsetDeg[i] = c.positionOffsetCm[i] = 0.0;
+            c.leftRotationOffsetDeg[i] = c.leftPositionOffsetCm[i] = 0.0;
+            c.rightRotationOffsetDeg[i] = c.rightPositionOffsetCm[i] = 0.0;
+        }
+    }
     g.gripConvention = false;
     g.officialComponents = true;
     g.componentRebaseIncludeTrim = false;
@@ -37,11 +47,5 @@ inline void ApplyGameLinkLayoutPolicy(Config& config) {
     g.meshOffsetXCm = g.meshOffsetYCm = g.meshOffsetZCm = 0.0;
     g.handAnchorXCm = g.handAnchorYCm = g.handAnchorZCm = 0.0;
     g.handAnchorPitchDeg = g.handAnchorYawDeg = g.handAnchorRollDeg = 0.0;
-    auto& c = config.controllers;
-    for (int i = 0; i < 3; i++) {
-        c.rotationOffsetDeg[i] = c.positionOffsetCm[i] = 0.0;
-        c.leftRotationOffsetDeg[i] = c.leftPositionOffsetCm[i] = 0.0;
-        c.rightRotationOffsetDeg[i] = c.rightPositionOffsetCm[i] = 0.0;
-    }
 }
 }

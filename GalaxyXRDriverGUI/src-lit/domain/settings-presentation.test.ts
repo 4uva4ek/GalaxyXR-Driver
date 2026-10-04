@@ -65,8 +65,7 @@ describe('human-readable settings inspection', () => {
     const reason = (id: string) => settingUnavailable(settingPresentation(id)!, c);
     const before = structuredClone(c);
     expect(reason('streamFrame.dither')).toMatch(/Image Enhancements is off/);
-    expect(reason('streamFrame.kalmanGripEnable')).toMatch(/Retired experiments/);
-    expect(reason('galaxyXr.synthesizeGripTouch')).toMatch(/Official Controller Input Profile is off/);
+    expect(reason('streamFrame.zeroCopyV3')).toMatch(/Retired experiments/);
     expect(c).toEqual(before);
     c.settings.streamFrame!.enable = true;
     expect(reason('streamFrame.distortion.tune.forceGrid')).toMatch(/Interactive Tuner is off/);

@@ -3,12 +3,12 @@
 A standalone SteamVR vendor driver for the Samsung Galaxy XR over Steam Link / vrlink. It does three things:
 
 - **Identity.** The headset and controllers show up in SteamVR as what they are: Galaxy XR model name, icons, official controller models and bindings.
-- **Controllers.** Corrected grip origin and pose components, plus Kalman filtering for controller motion during valid tracking.
+- **Controllers.** Samsung's own controller layout (Game Link): its model, pose points and input profile on Steam Link's pose and velocities.
 - **Image processing.** Color, sharpening, anti-aliasing and distortion correction applied to the streamed frames right before the driver encodes them.
 
 Image processing settings apply live within about a second. Identity, input profile, resolution and quality need a SteamVR restart.
 
-Advanced layout (2026-10-01): **App Settings --> Application preferences --> Advanced Mode** reveals labeled inline groups beneath the settings they extend, including Kalman Advanced Settings. Advanced groups do not collapse. Settings pages contain at most two nested collapsible containers.
+Advanced layout (2026-10-01): **App Settings --> Application preferences --> Advanced Mode** reveals labeled inline groups beneath the settings they extend, including Controllers Advanced. Advanced groups do not collapse. Settings pages contain at most two nested collapsible containers.
 
 **App Settings --> Application preferences --> Debug Mode** enables the separate Debug tab after driver installation, independently of Advanced Mode. It defaults off and is stored in the driver settings. Debug groups use non-collapsible **Image Processing**, **Controllers**, and **Encoder** labels, each with a collapsible Diagnostics container. Turning Debug Mode off hides the tab and stops its ramp bar, gaze ring, hitch diagnostics, pose logs/bursts, encoder debug overlay, and verbose encoder logging. Individual diagnostic selections are kept for the next time it is enabled. Black-point correction, HEVC level compatibility, headroom, frame rate and bitrate tuning remain active. The vrlink Debug Overlay request requires a SteamVR restart and reconnect; Debug Mode OFF also overrides expert overlay keys. Distortion calibration tools and retired experiments remain in their existing tabs.
 
@@ -55,7 +55,7 @@ Settings live in `%APPDATA%\GalaxyXR\CustomHeadset\settings.json`, separate from
 Galaxy XR page:
 
 - **Headset**: Native Identity on, Native Render Resolution on (default), Stream Quality Preset: High.
-- **Controllers**: Official Controller Input Profile on. Controller Fix Mode: Kalman CA (default). Leave the offsets alone unless the controllers visibly sit wrong in your hand, the shipped values were measured against the official models.
+- **Controllers**: nothing to set. Leave the offsets alone unless the controllers visibly sit wrong in your hand.
 - **Image Processing**: Enable on.
 
 Device pages: leave **Custom Shader disabled**. The Galaxy XR image processing replaces it for streamed HMDs, the page warns if both are active with color adjustments.
@@ -66,21 +66,17 @@ The [NVENC quality review (2026-09-26)](NvencQuality-2026-09-26.md) explains the
 
 ## Controllers
 
-With the official input profile on, SteamVR sees `galaxy_xr_controller`. Games that ship a native Galaxy XR binding use it, everything else falls back to Index controller bindings through the official remapping, so most titles will show Index controllers in their binding UI. Custom per-game bindings made before enabling the profile (when the controllers were Touch) do not carry over.
+The controllers are presented the way Samsung's own PC driver (Game Link / XR Link) presents them, as read out of that driver. This is the only layout (2026-10-04); it is not a setting. The pose is Steam Link's raw pose with no shift: the controllers get Samsung's model at its authored size, Samsung's pose points (grip, aim, tip, base) as authored, and Samsung's input profile with the `samsung_touch` controller type, whose remapping tells Touch-authored games they talk to a Touch. Samsung's driver builds its raw pose from the headset's grip pose with a fixed offset (rotate X -20 deg, then 11 cm along -Z); Steam Link already delivers that Touch-style raw pose, so none is applied.
 
-Controller Fix Mode drives the pose filter. Kalman CA is the default, the tuning row below it shows the gains for whichever mode is selected, and Kalman Advanced Settings holds the rarely-touched knobs. Since 1.0.0 the reported angular velocity is in controller-local frame, which is what SteamVR's own prediction expects.
+The motion is Steam Link's own, sent the way Samsung's driver sends it: the velocities as they come, a speed below 0.05 m/s or a spin below 10 deg/s sent as zero (the Game Link Velocity Cutoff row under Controllers Advanced; Samsung's own values), accelerations zero. The driver runs no velocity filter. The pose gets a light rest smoothing (Controller Rest Smoothing under Controllers Advanced, 6 Hz by default, 0 = off): a low-pass whose cutoff rises with the reported speed, so pointers hold still at rest and motion is not delayed. Throw direction depends on the velocities the headset sends, so it needs the Steam Link build with the controller velocity frame patch.
 
-Kalman CA also brakes on stops: when the tracker's fresh samples show less speed than the filter carries, the filter's velocity is cut down to them (never raised), so the hand no longer coasts past the point where it stopped. The T field of the Kalman CA tuning row (default 20 ms) takes that much off SteamVR's own forward prediction, which is what over-rotates a wrist twist and then snaps back; raise it if a rubber band is still visible, lower it if the hand trails fast motion, 0 turns it off.
+The Controller Fix Mode (Kalman, Kalman CA, Kalman CA (Velocity only) and the older estimators) and all of its tuning were removed on 2026-10-04, together with the Game Link Layout switch. Their keys in an existing `settings.json` are ignored by the driver and removed by Companion on its next save. The controls the layout overrides have no row any more: Official Controller Input Profile, Grip Convention, Controller Model Size, Official Pose Components, the mesh offset, the hand anchor and the pointer tip trim. Saved values of those are kept in the file and not applied.
 
-Kalman CA (Game Link layout), a Controller Fix Mode, is Kalman CA that presents the controllers the way Samsung's own PC driver (Game Link / XR Link) does, as read out of that driver. The pose is Steam Link's raw pose with no shift: the controllers get Samsung's model at its authored size, Samsung's pose points (grip, aim, tip, base) as authored, and Samsung's input profile with the `samsung_touch` controller type, whose remapping tells Touch-authored games they talk to a Touch. While it is selected the Grip Convention, the pose offsets and per-hand trims, the model scale, the mesh offset, the hand anchor and the aim trim are not applied; they come back when another mode is selected. Controller bypass still wins over it. Switching to or from it needs a SteamVR restart.
+Controller Bypass leaves the pose exactly as Steam Link sends it: no offsets, no skeleton offset, no grip touch synthesis. The controllers keep Samsung's identity, model, pose points and input profile.
 
-Its motion is Kalman CA's, with the same tuning rows. Samsung's driver runs no filter and reports its headset's velocities as they come; Steam Link's velocities reported that way made Half-Life: Alyx throws fly sideways, while the same placement with Kalman CA throws straight. Samsung's driver also builds its raw pose from the headset's grip pose with a fixed offset (rotate X -20 deg, then 11 cm along -Z); Steam Link already delivers that Touch-style raw pose, so the mode applies none.
+Controller pose publication (2026-09-25): native hands and unrecognized devices keep the original Steam Link pose and tracking flags.
 
-Controller pose publication (2026-09-25): corrected pose, velocity and offsets reach SteamVR while a physical Galaxy XR controller is connected and reports valid `Running_OK` tracking. Native hands, unrecognized devices, and invalid/disconnected controller samples retain the original Steam Link pose and tracking flags. The estimator still processes loss/reacquisition internally, but loss-coast output and `forceTracking` status promotion are not published on those samples. This preserves the preceding hand-compatibility patch's loss behavior while restoring corrections during valid tracking; it does not restore synthetic tracking through a dropout.
-
-The earlier hand-compatibility patch calculated Kalman corrections but discarded them, so a `CA FULL active` log alone did not prove the game received them. After installing a build with restored publication, check throwing with both controllers, switch physical controllers to native hands and back, and reconnect the stream. Verify role assignment and bindings as well as throws. The previous patch recorded hand-role failures even with controller-only corrected poses; preserving source loss flags narrows that risk but requires this live check.
-
-Controller Offsets (under Controllers Advanced) are authored for the left hand and mirrored to the right by default. Per-hand trims appear when Mirror is off and are added on top of the shared offsets.
+Controller Offsets (under Controllers Advanced) work on top of the layout. The shipped values (rotation 2 / -5 / -9 deg, position 0.5 / -1.5 / 0.5 cm) correct the small residual of Steam Link's raw pose against the real controllers. They are authored for the left hand and mirrored to the right by default. Per-hand trims appear when Mirror is off and are added on top of the shared offsets. The pose points ride along with the offset pose, and the reported velocities follow the moved origin.
 
 ## Image processing notes
 

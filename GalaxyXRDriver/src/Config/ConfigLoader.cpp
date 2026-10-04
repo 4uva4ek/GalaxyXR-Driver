@@ -885,15 +885,6 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["poseLogBurst"].is_boolean()){
 				newConfig.streamFrame.poseLogBurst = streamFrameData["poseLogBurst"].get<bool>();
 			}
-			// RETIRED 1.6.7 (prune-on-save incident 2026-08-11): the legacy
-			// "velocityFix" bool no longer selects a mode. The GUI's
-			// default-diff serializer prunes an explicit velocityFixMode the
-			// moment it equals the published default, after which this
-			// round-trip preserved fossil used to take over and select the
-			// rejected FULL blend. The key is inert; the GUI migration
-			// deletes it from the file. Mode selection: the
-			// "velocityFixMode" string only (classic/full/derive stay
-			// reachable by string per the graveyard law).
 			if(streamFrameData["zeroCopyV3"].is_boolean()){
 				newConfig.streamFrame.zeroCopyV3 = streamFrameData["zeroCopyV3"].get<bool>();
 			}
@@ -975,159 +966,17 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["nvencVerbose"].is_boolean()){
 				newConfig.streamFrame.nvencVerbose = streamFrameData["nvencVerbose"].get<bool>();
 			}
-			if(streamFrameData["velocityFixMode"].is_string()){
-				std::string mode = streamFrameData["velocityFixMode"].get<std::string>();
-				newConfig.streamFrame.velocityFixMode = (mode == "kalmanCAGameLink" || mode == "native") ? 7 : (mode == "kalmanCA" ? 6 : (mode == "kalmanCAM" ? 5 : (mode == "kalman" ? 4 : (mode == "derive" ? 3 : (mode == "full" ? 2 : (mode == "classic" ? 1 : 0))))));
+			if(streamFrameData["streamPoseTrace"].is_boolean()){
+				newConfig.streamFrame.streamPoseTrace = streamFrameData["streamPoseTrace"].get<bool>();
 			}
-			// mode provenance (2x incident 2026-08-11): a round-trip
-			// preserved legacy "velocityFix" bool with no
-			// "velocityFixMode" string silently downgraded kalman to the
-			// retired FULL blend and cost a field session. resolve loudly
-			// so the very first grep answers "which estimator ran".
-			{
-				bool legacyBool = streamFrameData["velocityFix"].is_boolean();
-				bool modeString = streamFrameData["velocityFixMode"].is_string();
-				DriverLog("Config: velocityFixMode=%d source=%s",
-					newConfig.streamFrame.velocityFixMode,
-					modeString ? "string" : "default");
-				if(legacyBool){
-					DriverLog("Config: legacy \"velocityFix\" key present and IGNORED (retired 1.6.7); the GUI removes it on its next save. Mode selection uses \"velocityFixMode\" only.");
-				}
+			if(streamFrameData["gameLinkLinearVelocityCutoff"].is_number()){
+				newConfig.streamFrame.gameLinkLinearVelocityCutoff = streamFrameData["gameLinkLinearVelocityCutoff"].get<double>();
 			}
-			if(streamFrameData["deriveSmoothTauSlowMs"].is_number()){
-				newConfig.streamFrame.deriveSmoothTauSlowMs = streamFrameData["deriveSmoothTauSlowMs"].get<double>();
+			if(streamFrameData["gameLinkAngularVelocityCutoffDeg"].is_number()){
+				newConfig.streamFrame.gameLinkAngularVelocityCutoffDeg = streamFrameData["gameLinkAngularVelocityCutoffDeg"].get<double>();
 			}
-			if(streamFrameData["deriveSmoothTauFastMs"].is_number()){
-				newConfig.streamFrame.deriveSmoothTauFastMs = streamFrameData["deriveSmoothTauFastMs"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothSpeedLow"].is_number()){
-				newConfig.streamFrame.deriveSmoothSpeedLow = streamFrameData["deriveSmoothSpeedLow"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothSpeedHigh"].is_number()){
-				newConfig.streamFrame.deriveSmoothSpeedHigh = streamFrameData["deriveSmoothSpeedHigh"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothAngSeparate"].is_boolean()){
-				newConfig.streamFrame.deriveSmoothAngSeparate = streamFrameData["deriveSmoothAngSeparate"].get<bool>();
-			}
-			if(streamFrameData["deriveSmoothAngTauSlowMs"].is_number()){
-				newConfig.streamFrame.deriveSmoothAngTauSlowMs = streamFrameData["deriveSmoothAngTauSlowMs"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothAngTauFastMs"].is_number()){
-				newConfig.streamFrame.deriveSmoothAngTauFastMs = streamFrameData["deriveSmoothAngTauFastMs"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothAngSpeedLow"].is_number()){
-				newConfig.streamFrame.deriveSmoothAngSpeedLow = streamFrameData["deriveSmoothAngSpeedLow"].get<double>();
-			}
-			if(streamFrameData["deriveSmoothAngSpeedHigh"].is_number()){
-				newConfig.streamFrame.deriveSmoothAngSpeedHigh = streamFrameData["deriveSmoothAngSpeedHigh"].get<double>();
-			}
-			if(streamFrameData["deriveSplitDirLinear"].is_boolean()){
-				newConfig.streamFrame.deriveSplitDirLinear = streamFrameData["deriveSplitDirLinear"].get<bool>();
-			}
-			if(streamFrameData["deriveSplitDirAngular"].is_boolean()){
-				newConfig.streamFrame.deriveSplitDirAngular = streamFrameData["deriveSplitDirAngular"].get<bool>();
-			}
-			if(streamFrameData["deriveDirWindowMs"].is_number()){
-				newConfig.streamFrame.deriveDirWindowMs = streamFrameData["deriveDirWindowMs"].get<double>();
-			}
-			if(streamFrameData["deriveDirWeightPow"].is_number()){
-				newConfig.streamFrame.deriveDirWeightPow = streamFrameData["deriveDirWeightPow"].get<double>();
-			}
-			if(streamFrameData["deriveDirSource"].is_string()){
-				std::string dirSrc = streamFrameData["deriveDirSource"].get<std::string>();
-				newConfig.streamFrame.deriveDirSource = dirSrc == "runtime" ? 2 : (dirSrc == "window" ? 0 : 1);
-			}
-			if(streamFrameData["deriveMagSource"].is_string()){
-				newConfig.streamFrame.deriveMagSource = streamFrameData["deriveMagSource"].get<std::string>() == "scalar" ? 1 : 0;
-			}
-			if(streamFrameData["deriveReleaseLatch"].is_boolean()){
-				newConfig.streamFrame.deriveReleaseLatch = streamFrameData["deriveReleaseLatch"].get<bool>();
-			}
-			if(streamFrameData["deriveLatchWindowMs"].is_number()){
-				newConfig.streamFrame.deriveLatchWindowMs = streamFrameData["deriveLatchWindowMs"].get<double>();
-			}
-			if(streamFrameData["deriveLatchHoldMs"].is_number()){
-				newConfig.streamFrame.deriveLatchHoldMs = streamFrameData["deriveLatchHoldMs"].get<double>();
-			}
-			if(streamFrameData["deriveLatchMinSpeed"].is_number()){
-				newConfig.streamFrame.deriveLatchMinSpeed = streamFrameData["deriveLatchMinSpeed"].get<double>();
-			}
-			if(streamFrameData["deriveLatchAngMinSpeed"].is_number()){
-				newConfig.streamFrame.deriveLatchAngMinSpeed = streamFrameData["deriveLatchAngMinSpeed"].get<double>();
-			}
-			if(streamFrameData["derivePreFilter"].is_string()){
-				newConfig.streamFrame.derivePreFilter = streamFrameData["derivePreFilter"].get<std::string>() == "median3" ? 1 : 0;
-			}
-			if(streamFrameData["derivePreSmoothMs"].is_number()){
-				newConfig.streamFrame.derivePreSmoothMs = streamFrameData["derivePreSmoothMs"].get<double>();
-			}
-			if(streamFrameData["derivePreSmoothScope"].is_string()){
-				newConfig.streamFrame.derivePreSmoothScope = streamFrameData["derivePreSmoothScope"].get<std::string>() == "both" ? 1 : 0;
-			}
-			if(streamFrameData["deriveDiagVelocity"].is_string()){
-				newConfig.streamFrame.deriveDiagVelocity = streamFrameData["deriveDiagVelocity"].get<std::string>() == "zero" ? 1 : 0;
-			}
-			if(streamFrameData["deriveLatchPoseAssist"].is_boolean()){
-				newConfig.streamFrame.deriveLatchPoseAssist = streamFrameData["deriveLatchPoseAssist"].get<bool>();
-			}
-			if(streamFrameData["kalmanProcessAccel"].is_number()){
-				newConfig.streamFrame.kalmanProcessAccel = streamFrameData["kalmanProcessAccel"].get<double>();
-			}
-			if(streamFrameData["kalmanPosNoiseMm"].is_number()){
-				newConfig.streamFrame.kalmanPosNoiseMm = streamFrameData["kalmanPosNoiseMm"].get<double>();
-			}
-			if(streamFrameData["kalmanProcessAngAccel"].is_number()){
-				newConfig.streamFrame.kalmanProcessAngAccel = streamFrameData["kalmanProcessAngAccel"].get<double>();
-			}
-			if(streamFrameData["kalmanOriNoiseDeg"].is_number()){
-				newConfig.streamFrame.kalmanOriNoiseDeg = streamFrameData["kalmanOriNoiseDeg"].get<double>();
-			}
-			if(streamFrameData["kalmanCaPredictTrimMs"].is_number()){
-				newConfig.streamFrame.kalmanCaPredictTrimMs = streamFrameData["kalmanCaPredictTrimMs"].get<double>();
-			}
-			if(streamFrameData["kalmanLeadMs"].is_number()){
-				newConfig.streamFrame.kalmanLeadMs = streamFrameData["kalmanLeadMs"].get<double>();
-			}
-			if(streamFrameData["kalmanReleaseRewindMs"].is_number()){
-				newConfig.streamFrame.kalmanReleaseRewindMs = streamFrameData["kalmanReleaseRewindMs"].get<double>();
-			}
-			if(streamFrameData["kalmanRewindHoldMs"].is_number()){
-				newConfig.streamFrame.kalmanRewindHoldMs = streamFrameData["kalmanRewindHoldMs"].get<double>();
-			}
-			if(streamFrameData["kalmanDirSmoothMs"].is_number()){
-				newConfig.streamFrame.kalmanDirSmoothMs = streamFrameData["kalmanDirSmoothMs"].get<double>();
-			}
-			if(streamFrameData["kalmanAngDirSmoothMs"].is_number()){
-				newConfig.streamFrame.kalmanAngDirSmoothMs = streamFrameData["kalmanAngDirSmoothMs"].get<double>();
-			}
-			if(streamFrameData["kalmanMagSource"].is_string()){
-				newConfig.streamFrame.kalmanMagSource = streamFrameData["kalmanMagSource"].get<std::string>() == "fast" ? 1 : 0;
-			}
-			if(streamFrameData["kalmanMagAccel"].is_number()){
-				newConfig.streamFrame.kalmanMagAccel = streamFrameData["kalmanMagAccel"].get<double>();
-			}
-			if(streamFrameData["kalmanMagScale"].is_number()){
-				newConfig.streamFrame.kalmanMagScale = streamFrameData["kalmanMagScale"].get<double>();
-			}
-			if(streamFrameData["kalmanAngMagScale"].is_number()){
-				newConfig.streamFrame.kalmanAngMagScale = streamFrameData["kalmanAngMagScale"].get<double>();
-			}
-			if(streamFrameData["kalmanDupSkip"].is_boolean()){
-				// legacy bool from older settings files: true = coast
-				newConfig.streamFrame.kalmanDupMode = streamFrameData["kalmanDupSkip"].get<bool>() ? 1 : 0;
-			}
-			if(streamFrameData["kalmanDupMode"].is_string()){
-				std::string dupModeStr = streamFrameData["kalmanDupMode"].get<std::string>();
-				newConfig.streamFrame.kalmanDupMode = dupModeStr == "age" ? 4 : (dupModeStr == "soft" ? 3 : (dupModeStr == "drop" ? 2 : (dupModeStr == "coast" ? 1 : 0)));
-			}
-			if(streamFrameData["kalmanDupRScale"].is_number()){
-				newConfig.streamFrame.kalmanDupRScale = streamFrameData["kalmanDupRScale"].get<double>();
-			}
-			if(streamFrameData["kalmanTeleportM"].is_number()){
-				newConfig.streamFrame.kalmanTeleportM = streamFrameData["kalmanTeleportM"].get<double>();
-			}
-			if(streamFrameData["kalmanLossCoastMs"].is_number()){
-				newConfig.streamFrame.kalmanLossCoastMs = streamFrameData["kalmanLossCoastMs"].get<double>();
+			if(streamFrameData["controllerSmoothingHz"].is_number()){
+				newConfig.streamFrame.controllerSmoothingHz = streamFrameData["controllerSmoothingHz"].get<double>();
 			}
 			if(streamFrameData["streamFrameSchema"].is_number()){
 				newConfig.streamFrame.streamFrameSchema = streamFrameData["streamFrameSchema"].get<int>();
@@ -1135,109 +984,8 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["graveyardEnable"].is_boolean()){
 				newConfig.streamFrame.graveyardEnable = streamFrameData["graveyardEnable"].get<bool>();
 			}
-			if(streamFrameData["kalmanDeviceTime"].is_boolean()){
-				newConfig.streamFrame.kalmanDeviceTime = streamFrameData["kalmanDeviceTime"].get<bool>();
-			}
-			if(streamFrameData["kalmanPosFreeze3dof"].is_boolean()){
-				newConfig.streamFrame.kalmanPosFreeze3dof = streamFrameData["kalmanPosFreeze3dof"].get<bool>();
-			}
-			if(streamFrameData["kalmanAngularOutFrame"].is_number()){
-				newConfig.streamFrame.kalmanAngularOutFrame = streamFrameData["kalmanAngularOutFrame"].get<int>();
-			}else if(streamFrameData["kalmanAngularOutFrame"].is_string()){
-				std::string f = streamFrameData["kalmanAngularOutFrame"].get<std::string>();
-				newConfig.streamFrame.kalmanAngularOutFrame = f == "world" ? 0 : (f == "zero" ? 2 : 1);
-			}
-			if(streamFrameData["kalmanFreezeCoastTurn"].is_number()){
-				newConfig.streamFrame.kalmanFreezeCoastTurn = streamFrameData["kalmanFreezeCoastTurn"].get<double>();
-			}
-			if(streamFrameData["kalmanPosFreezeVelDecayMs"].is_number()){
-				newConfig.streamFrame.kalmanPosFreezeVelDecayMs = streamFrameData["kalmanPosFreezeVelDecayMs"].get<double>();
-			}
-			if(streamFrameData["kalmanDupCoastMaxMs"].is_number()){
-				newConfig.streamFrame.kalmanDupCoastMaxMs = streamFrameData["kalmanDupCoastMaxMs"].get<double>();
-			}
-			if(streamFrameData["kalmanGazeAssist"].is_number()){
-				newConfig.streamFrame.kalmanGazeAssist = streamFrameData["kalmanGazeAssist"].get<double>();
-			}
-			if(streamFrameData["kalmanGazeMaxDeg"].is_number()){
-				newConfig.streamFrame.kalmanGazeMaxDeg = streamFrameData["kalmanGazeMaxDeg"].get<double>();
-			}
-			if(streamFrameData["kalmanGazeMinSpeed"].is_number()){
-				newConfig.streamFrame.kalmanGazeMinSpeed = streamFrameData["kalmanGazeMinSpeed"].get<double>();
-			}
-			if(streamFrameData["kalmanSmoothLagMs"].is_number()){
-				newConfig.streamFrame.kalmanSmoothLagMs = streamFrameData["kalmanSmoothLagMs"].get<double>();
-			}
-			if(streamFrameData["kalmanSmoothLagEpoch"].is_number()){
-				newConfig.streamFrame.kalmanSmoothLagEpoch = streamFrameData["kalmanSmoothLagEpoch"].get<int>();
-			}
-			if(streamFrameData["kalmanDirLeadMs"].is_number()){
-				newConfig.streamFrame.kalmanDirLeadMs = streamFrameData["kalmanDirLeadMs"].get<double>();
-			}
-			if(streamFrameData["kalmanDirLeadAdaptive"].is_boolean()){
-				newConfig.streamFrame.kalmanDirLeadAdaptive = streamFrameData["kalmanDirLeadAdaptive"].get<bool>();
-			}
-			if(streamFrameData["kalmanDirLeadBaseMs"].is_number()){
-				newConfig.streamFrame.kalmanDirLeadBaseMs = streamFrameData["kalmanDirLeadBaseMs"].get<double>();
-			}
-			if(streamFrameData["kalmanDirLeadWMs"].is_number()){
-				newConfig.streamFrame.kalmanDirLeadWMs = streamFrameData["kalmanDirLeadWMs"].get<double>();
-			}
-			if(streamFrameData["kalmanAdaptiveR"].is_boolean()){
-				newConfig.streamFrame.kalmanAdaptiveR = streamFrameData["kalmanAdaptiveR"].get<bool>();
-			}
-			if(streamFrameData["kalmanAdaptiveRMaxDiv"].is_number()){
-				newConfig.streamFrame.kalmanAdaptiveRMaxDiv = streamFrameData["kalmanAdaptiveRMaxDiv"].get<double>();
-			}
-			if(streamFrameData["kalmanCaJerk"].is_number()){
-				newConfig.streamFrame.kalmanCaJerk = streamFrameData["kalmanCaJerk"].get<double>();
-			}
-			if(streamFrameData["kalmanCaAngJerk"].is_number()){
-				newConfig.streamFrame.kalmanCaAngJerk = streamFrameData["kalmanCaAngJerk"].get<double>();
-			}
-			if(streamFrameData["kalmanCaPosNoiseMm"].is_number()){
-				newConfig.streamFrame.kalmanCaPosNoiseMm = streamFrameData["kalmanCaPosNoiseMm"].get<double>();
-			}
-			if(streamFrameData["kalmanCaOriNoiseDeg"].is_number()){
-				newConfig.streamFrame.kalmanCaOriNoiseDeg = streamFrameData["kalmanCaOriNoiseDeg"].get<double>();
-			}
-			if(streamFrameData["kalmanCaAccelTauMs"].is_number()){
-				newConfig.streamFrame.kalmanCaAccelTauMs = streamFrameData["kalmanCaAccelTauMs"].get<double>();
-			}
-			if(streamFrameData["kalmanCaMagJerk"].is_number()){
-				newConfig.streamFrame.kalmanCaMagJerk = streamFrameData["kalmanCaMagJerk"].get<double>();
-			}
-			if(streamFrameData["kalmanCaMagAccelTauMs"].is_number()){
-				newConfig.streamFrame.kalmanCaMagAccelTauMs = streamFrameData["kalmanCaMagAccelTauMs"].get<double>();
-			}
-			if(streamFrameData["kalmanCaReportAccel"].is_boolean()){
-				newConfig.streamFrame.kalmanCaReportAccel = streamFrameData["kalmanCaReportAccel"].get<bool>();
-			}
-			if(streamFrameData["kalmanCaExactCov"].is_boolean()){
-				newConfig.streamFrame.kalmanCaExactCov = streamFrameData["kalmanCaExactCov"].get<bool>();
-			}
-			if(streamFrameData["kalmanGripEnable"].is_boolean()){
-				newConfig.streamFrame.kalmanGripEnable = streamFrameData["kalmanGripEnable"].get<bool>();
-			}
-			if(streamFrameData["kalmanGripBlend"].is_number()){
-				newConfig.streamFrame.kalmanGripBlend = streamFrameData["kalmanGripBlend"].get<double>();
-			}
 			{
 				const char* gripAxes[3] = {"x", "y", "z"};
-				if(streamFrameData["kalmanGripLeftCm"].is_object()){
-					for(int i = 0; i < 3; i++){
-						if(streamFrameData["kalmanGripLeftCm"][gripAxes[i]].is_number()){
-							newConfig.streamFrame.kalmanGripLeftCm[i] = streamFrameData["kalmanGripLeftCm"][gripAxes[i]].get<double>();
-						}
-					}
-				}
-				if(streamFrameData["kalmanGripRightCm"].is_object()){
-					for(int i = 0; i < 3; i++){
-						if(streamFrameData["kalmanGripRightCm"][gripAxes[i]].is_number()){
-							newConfig.streamFrame.kalmanGripRightCm[i] = streamFrameData["kalmanGripRightCm"][gripAxes[i]].get<double>();
-						}
-					}
-				}
 			}
 			if(streamFrameData["eyeGaze"].is_object()){
 				json eyeGazeData = streamFrameData["eyeGaze"];
@@ -1369,72 +1117,9 @@ void ConfigLoader::ParseConfig(){
 		// if(data["watchDistortionProfiles"].is_boolean()){
 		// 	newConfig.watchDistortionProfiles = data["watchDistortionProfiles"].get<bool>();
 		// }
-		// version-gated migration to schema 2 (2026-08-15 release):
-		// upgrade ONLY configs still on the exact old defaults — explicit
-		// CV mode with untouched CV knobs, or a CA mode with the old
-		// pre-ratification CA tuning — to the ratified CA-Full defaults.
-		// any custom tuning or non-default mode choice is respected
-		// untouched. idempotent: runs in-memory every load until the GUI
-		// persists streamFrameSchema=2; post-migration states no longer
-		// match the old-default patterns, so re-running is a no-op.
-		if(newConfig.streamFrame.streamFrameSchema < 2){
-			auto &sf = newConfig.streamFrame;
-			bool cvDefaults = sf.kalmanProcessAccel == 1.0
-				&& sf.kalmanPosNoiseMm == 2.7
-				&& sf.kalmanProcessAngAccel == 400.0
-				&& sf.kalmanOriNoiseDeg == 1.25;
-			bool caOldDefaults = sf.kalmanCaJerk == 10.0
-				&& sf.kalmanCaAngJerk == 1500.0
-				&& sf.kalmanCaPosNoiseMm == 4.2
-				&& sf.kalmanCaOriNoiseDeg == 1.25;
-			if(sf.velocityFixMode == 4 && cvDefaults){
-				sf.velocityFixMode = 6;
-				DriverLog("Config: schema migration - default-tuned Kalman CV upgraded to Kalman CA (ratified defaults)");
-			}else if((sf.velocityFixMode == 5 || sf.velocityFixMode == 6) && caOldDefaults){
-				sf.velocityFixMode = 6;
-				sf.kalmanCaJerk = 17.0;
-				sf.kalmanCaPosNoiseMm = 5.7;
-				sf.kalmanCaOriNoiseDeg = 5.75;
-				DriverLog("Config: schema migration - old CA default tuning upgraded to ratified J=17 P=5.7 O=5.75");
-			}
-			sf.streamFrameSchema = 2;
-		}
-		// schema 3 (2026-08-16, composition-fix session): upgrade exact
-		// schema-2 ratified CA configs to the new ratified defaults
-		// (J=4 P=1.5 O=1.5 tau=20 excov=1). same contract as schema 2:
-		// only untouched ratified tunings migrate, anything custom passes
-		// through; idempotent until the GUI persists the schema number.
-		if(newConfig.streamFrame.streamFrameSchema < 3){
-			auto &sf = newConfig.streamFrame;
-			bool caSchema2Defaults = sf.kalmanCaJerk == 17.0
-				&& sf.kalmanCaAngJerk == 1500.0
-				&& sf.kalmanCaPosNoiseMm == 5.7
-				&& sf.kalmanCaOriNoiseDeg == 5.75
-				&& sf.kalmanCaAccelTauMs == 150.0
-				&& sf.kalmanCaExactCov == false;
-			if(sf.velocityFixMode == 6 && caSchema2Defaults){
-				sf.kalmanCaJerk = 4.0;
-				sf.kalmanCaPosNoiseMm = 1.5;
-				sf.kalmanCaOriNoiseDeg = 1.5;
-				sf.kalmanCaAccelTauMs = 20.0;
-				sf.kalmanCaExactCov = true;
-				DriverLog("Config: schema migration - schema-2 CA defaults upgraded to ratified J=4 P=1.5 O=1.5 tau=20 excov=1");
-			}
-			sf.streamFrameSchema = 3;
-		}
-		// schema 4 (2026-08-25, 1.0.0): UNCONDITIONAL reset of Direction
-		// Lead and Freeze Coast Turn. both were tuned while vecAngularVelocity
-		// was reported in the wrong (world) frame; with the frame fixed
-		// (kalmanAngularOutFrame) any non-zero Td bends throws off target.
-		// deliberately ignores custom values, unlike schema 2/3. runs in
-		// memory every load until the GUI persists streamFrameSchema=4.
+		// schema 2-4 (2026-08-15 .. 2026-08-25) retuned the Kalman controller
+		// modes, which are gone (2026-10-04). what is left of schema 4 (1.0.0):
 		if(newConfig.streamFrame.streamFrameSchema < 4){
-			auto &sf = newConfig.streamFrame;
-			if(sf.kalmanDirLeadMs != 0.0 || sf.kalmanFreezeCoastTurn != 0.0){
-				DriverLog("Config: schema migration - Direction Lead %.1f -> 0 and Freeze Coast Turn %.2f -> 0 (angular frame fix, 1.0.0)", sf.kalmanDirLeadMs, sf.kalmanFreezeCoastTurn);
-			}
-			sf.kalmanDirLeadMs = 0.0;
-			sf.kalmanFreezeCoastTurn = 0.0;
 			// controller offsets from the previous release were measured
 			// against the old grip origin, which moved in 1.0.0. reset the
 			// shared offset layer to the shipped defaults; per-hand trims
@@ -1453,7 +1138,7 @@ void ConfigLoader::ParseConfig(){
 					DriverLog("Config: schema migration - controller offsets reset to defaults (grip origin moved, 1.0.0)");
 				}
 			}
-			sf.streamFrameSchema = 4;
+			newConfig.streamFrame.streamFrameSchema = 4;
 		}
 		// v3 encoder-settings migration (2026-09-05), preservation fix
 		// (2026-09-26): parsing already fills absent keys from defaults.
@@ -1934,91 +1619,11 @@ void ConfigLoader::WriteInfo(){
 				{"nvencQpFovea", defaultSettings.streamFrame.nvencQpFovea},
 				{"nvencQpPeriphery", defaultSettings.streamFrame.nvencQpPeriphery},
 				{"nvencVerbose", defaultSettings.streamFrame.nvencVerbose},
-				{"velocityFixMode", defaultSettings.streamFrame.velocityFixMode == 7 ? "kalmanCAGameLink" : defaultSettings.streamFrame.velocityFixMode == 6 ? "kalmanCA" : (defaultSettings.streamFrame.velocityFixMode == 5 ? "kalmanCAM" : (defaultSettings.streamFrame.velocityFixMode == 4 ? "kalman" : (defaultSettings.streamFrame.velocityFixMode == 3 ? "derive" : (defaultSettings.streamFrame.velocityFixMode == 2 ? "full" : (defaultSettings.streamFrame.velocityFixMode == 1 ? "classic" : "off")))))},
-				{"deriveSmoothTauSlowMs", defaultSettings.streamFrame.deriveSmoothTauSlowMs},
-				{"deriveSmoothTauFastMs", defaultSettings.streamFrame.deriveSmoothTauFastMs},
-				{"deriveSmoothSpeedLow", defaultSettings.streamFrame.deriveSmoothSpeedLow},
-				{"deriveSmoothSpeedHigh", defaultSettings.streamFrame.deriveSmoothSpeedHigh},
-				{"deriveSmoothAngSeparate", defaultSettings.streamFrame.deriveSmoothAngSeparate},
-				{"deriveSmoothAngTauSlowMs", defaultSettings.streamFrame.deriveSmoothAngTauSlowMs},
-				{"deriveSmoothAngTauFastMs", defaultSettings.streamFrame.deriveSmoothAngTauFastMs},
-				{"deriveSmoothAngSpeedLow", defaultSettings.streamFrame.deriveSmoothAngSpeedLow},
-				{"deriveSmoothAngSpeedHigh", defaultSettings.streamFrame.deriveSmoothAngSpeedHigh},
-				{"deriveSplitDirLinear", defaultSettings.streamFrame.deriveSplitDirLinear},
-				{"deriveSplitDirAngular", defaultSettings.streamFrame.deriveSplitDirAngular},
-				{"deriveDirWindowMs", defaultSettings.streamFrame.deriveDirWindowMs},
-				{"deriveDirWeightPow", defaultSettings.streamFrame.deriveDirWeightPow},
-				{"deriveDirSource", defaultSettings.streamFrame.deriveDirSource == 2 ? "runtime" : (defaultSettings.streamFrame.deriveDirSource == 0 ? "window" : "secant")},
-				{"deriveMagSource", defaultSettings.streamFrame.deriveMagSource == 1 ? "scalar" : "vector"},
-				{"deriveReleaseLatch", defaultSettings.streamFrame.deriveReleaseLatch},
-				{"deriveLatchWindowMs", defaultSettings.streamFrame.deriveLatchWindowMs},
-				{"deriveLatchHoldMs", defaultSettings.streamFrame.deriveLatchHoldMs},
-				{"deriveLatchMinSpeed", defaultSettings.streamFrame.deriveLatchMinSpeed},
-				{"deriveLatchAngMinSpeed", defaultSettings.streamFrame.deriveLatchAngMinSpeed},
-				{"derivePreFilter", defaultSettings.streamFrame.derivePreFilter == 1 ? "median3" : "off"},
-				{"derivePreSmoothMs", defaultSettings.streamFrame.derivePreSmoothMs},
-				{"derivePreSmoothScope", defaultSettings.streamFrame.derivePreSmoothScope == 1 ? "both" : "direction"},
-				{"deriveDiagVelocity", defaultSettings.streamFrame.deriveDiagVelocity == 1 ? "zero" : "off"},
-				{"deriveLatchPoseAssist", defaultSettings.streamFrame.deriveLatchPoseAssist},
-				{"kalmanProcessAccel", defaultSettings.streamFrame.kalmanProcessAccel},
-				{"kalmanPosNoiseMm", defaultSettings.streamFrame.kalmanPosNoiseMm},
-				{"kalmanProcessAngAccel", defaultSettings.streamFrame.kalmanProcessAngAccel},
-				{"kalmanOriNoiseDeg", defaultSettings.streamFrame.kalmanOriNoiseDeg},
-				{"kalmanLeadMs", defaultSettings.streamFrame.kalmanLeadMs},
-				{"kalmanCaPredictTrimMs", defaultSettings.streamFrame.kalmanCaPredictTrimMs},
-				{"kalmanReleaseRewindMs", defaultSettings.streamFrame.kalmanReleaseRewindMs},
-				{"kalmanRewindHoldMs", defaultSettings.streamFrame.kalmanRewindHoldMs},
-				{"kalmanDirSmoothMs", defaultSettings.streamFrame.kalmanDirSmoothMs},
-				{"kalmanAngDirSmoothMs", defaultSettings.streamFrame.kalmanAngDirSmoothMs},
-				{"kalmanMagSource", defaultSettings.streamFrame.kalmanMagSource == 1 ? "fast" : "state"},
-				{"kalmanMagAccel", defaultSettings.streamFrame.kalmanMagAccel},
-				{"kalmanMagScale", defaultSettings.streamFrame.kalmanMagScale},
-				{"kalmanAngMagScale", defaultSettings.streamFrame.kalmanAngMagScale},
-				{"kalmanDupMode", defaultSettings.streamFrame.kalmanDupMode == 4 ? "age" : (defaultSettings.streamFrame.kalmanDupMode == 3 ? "soft" : (defaultSettings.streamFrame.kalmanDupMode == 2 ? "drop" : (defaultSettings.streamFrame.kalmanDupMode == 1 ? "coast" : "off")))},
-				{"kalmanDupRScale", defaultSettings.streamFrame.kalmanDupRScale},
-				{"kalmanTeleportM", defaultSettings.streamFrame.kalmanTeleportM},
-				{"kalmanLossCoastMs", defaultSettings.streamFrame.kalmanLossCoastMs},
+				{"gameLinkLinearVelocityCutoff", defaultSettings.streamFrame.gameLinkLinearVelocityCutoff},
+				{"gameLinkAngularVelocityCutoffDeg", defaultSettings.streamFrame.gameLinkAngularVelocityCutoffDeg},
+				{"controllerSmoothingHz", defaultSettings.streamFrame.controllerSmoothingHz},
 				{"streamFrameSchema", defaultSettings.streamFrame.streamFrameSchema},
 				{"graveyardEnable", defaultSettings.streamFrame.graveyardEnable},
-				{"kalmanDeviceTime", defaultSettings.streamFrame.kalmanDeviceTime},
-				{"kalmanPosFreeze3dof", defaultSettings.streamFrame.kalmanPosFreeze3dof},
-				// published as the GUI's string enum, the loader accepts both forms
-				{"kalmanAngularOutFrame", defaultSettings.streamFrame.kalmanAngularOutFrame == 0 ? "world" : (defaultSettings.streamFrame.kalmanAngularOutFrame == 2 ? "zero" : "body")},
-				{"kalmanFreezeCoastTurn", defaultSettings.streamFrame.kalmanFreezeCoastTurn},
-				{"kalmanPosFreezeVelDecayMs", defaultSettings.streamFrame.kalmanPosFreezeVelDecayMs},
-				{"kalmanDupCoastMaxMs", defaultSettings.streamFrame.kalmanDupCoastMaxMs},
-				{"kalmanGazeAssist", defaultSettings.streamFrame.kalmanGazeAssist},
-				{"kalmanGazeMaxDeg", defaultSettings.streamFrame.kalmanGazeMaxDeg},
-				{"kalmanGazeMinSpeed", defaultSettings.streamFrame.kalmanGazeMinSpeed},
-				{"kalmanSmoothLagMs", defaultSettings.streamFrame.kalmanSmoothLagMs},
-				{"kalmanSmoothLagEpoch", defaultSettings.streamFrame.kalmanSmoothLagEpoch},
-				{"kalmanDirLeadMs", defaultSettings.streamFrame.kalmanDirLeadMs},
-				{"kalmanDirLeadAdaptive", defaultSettings.streamFrame.kalmanDirLeadAdaptive},
-				{"kalmanDirLeadBaseMs", defaultSettings.streamFrame.kalmanDirLeadBaseMs},
-				{"kalmanDirLeadWMs", defaultSettings.streamFrame.kalmanDirLeadWMs},
-				{"kalmanAdaptiveR", defaultSettings.streamFrame.kalmanAdaptiveR},
-				{"kalmanAdaptiveRMaxDiv", defaultSettings.streamFrame.kalmanAdaptiveRMaxDiv},
-				{"kalmanCaJerk", defaultSettings.streamFrame.kalmanCaJerk},
-				{"kalmanCaAngJerk", defaultSettings.streamFrame.kalmanCaAngJerk},
-				{"kalmanCaPosNoiseMm", defaultSettings.streamFrame.kalmanCaPosNoiseMm},
-				{"kalmanCaOriNoiseDeg", defaultSettings.streamFrame.kalmanCaOriNoiseDeg},
-				{"kalmanCaAccelTauMs", defaultSettings.streamFrame.kalmanCaAccelTauMs},
-				{"kalmanCaMagJerk", defaultSettings.streamFrame.kalmanCaMagJerk},
-				{"kalmanCaMagAccelTauMs", defaultSettings.streamFrame.kalmanCaMagAccelTauMs},
-				{"kalmanCaReportAccel", defaultSettings.streamFrame.kalmanCaReportAccel},
-				{"kalmanCaExactCov", defaultSettings.streamFrame.kalmanCaExactCov},
-				{"kalmanGripEnable", defaultSettings.streamFrame.kalmanGripEnable},
-				{"kalmanGripBlend", defaultSettings.streamFrame.kalmanGripBlend},
-				{"kalmanGripLeftCm", {
-					{"x", defaultSettings.streamFrame.kalmanGripLeftCm[0]},
-					{"y", defaultSettings.streamFrame.kalmanGripLeftCm[1]},
-					{"z", defaultSettings.streamFrame.kalmanGripLeftCm[2]},
-				}},
-				{"kalmanGripRightCm", {
-					{"x", defaultSettings.streamFrame.kalmanGripRightCm[0]},
-					{"y", defaultSettings.streamFrame.kalmanGripRightCm[1]},
-					{"z", defaultSettings.streamFrame.kalmanGripRightCm[2]},
-				}},
 			}},
 			{"takeCompositorScreenshots", defaultSettings.takeCompositorScreenshots},
 			{"onlyHandlePrivateFunctionality", defaultSettings.onlyHandlePrivateFunctionality},

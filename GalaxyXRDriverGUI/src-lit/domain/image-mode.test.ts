@@ -12,7 +12,7 @@ function tunedSettings(baseline = true): Settings {
   settings.streamFrame!.brightness = 0.73;
   settings.streamFrame!.cas.enable = true;
   settings.streamFrame!.nvencBitrateMbit = 175;
-  settings.streamFrame!.kalmanProcessAccel = 3.5;
+  settings.streamFrame!.gameLinkLinearVelocityCutoff = 0.2;
   return settings;
 }
 
@@ -103,7 +103,7 @@ describe('SDR 10-bit image enhancement consent', () => {
     expect(next.streamFrame!.brightness).toBe(pictureDefaults.brightness);
     expect(next.streamFrame!.cas).toEqual(pictureDefaults.cas);
     expect(next.streamFrame!.nvencBitrateMbit).toBe(175);
-    expect(next.streamFrame!.kalmanProcessAccel).toBe(3.5);
+    expect(next.streamFrame!.gameLinkLinearVelocityCutoff).toBe(0.2);
     expect(next.controllers).toEqual(before.controllers);
     expect(next.customShader!.enableForOther).toBe(false);
     expect(settings).toEqual(before);

@@ -2,7 +2,6 @@
 // Test-ControllerToggles.ps1; API, device identity, and clock are memory-only.
 #include "Config/Config.h"
 #include "Config/DebugModePolicy.h"
-#include "Driver/StopBrake.h"
 #include "openvr_driver.h"
 #include <algorithm>
 #include <atomic>
@@ -46,17 +45,13 @@ public:
     std::map<vr::VRInputComponentHandle_t, InputComponentInfo> inputComponents;
     std::map<vr::PropertyContainerHandle_t, int> containerHand;
     std::map<uint32_t, int> openVRIDHand;
-    std::map<uint32_t, KalState> kalStates;
-    std::map<uint32_t, DeriveFilterState> deriveFilterStates;
-    std::map<uint32_t, VelFixState> velFixStates;
     std::map<uint32_t, MotionSnapshot> motionSnapshots;
     std::map<uint32_t, PoseLogState> poseLogStates;
-    std::mutex poseLogLock, gripTouchLock, deriveFilterLock;
+    std::mutex poseLogLock, gripTouchLock;
     std::atomic<bool> tunerInputActive{false};
     double lastReleaseLogTime = 0, lastEdgeLogTime = 0;
-    uint64_t poseDiagnosticGeneration = 0, kalDiagnosticGeneration = 0;
+    uint64_t poseDiagnosticGeneration = 0;
     void RefreshPoseDiagnosticSession();
-    void RefreshKalDiagnosticSession();
     uint32_t ResolveContainerId(vr::PropertyContainerHandle_t container) {
         std::lock_guard<std::mutex> guard(poseLogLock);
         return container >= 1 && container <= 3 ? static_cast<uint32_t>(container) : vr::k_unTrackedDeviceIndexInvalid;
@@ -71,7 +66,6 @@ public:
     void RefreshGripTouch();
     void HandleInputRelease(vr::PropertyContainerHandle_t, const std::string&);
     void LogReleaseSnapshot(vr::PropertyContainerHandle_t, const std::string&);
-    void AnchorReleaseGesture(uint32_t);
     void OnSkeletonComponentCreated(vr::PropertyContainerHandle_t, const char*, const char*, vr::VRInputComponentHandle_t);
     bool HandleSkeletonUpdate(vr::VRInputComponentHandle_t, const vr::VRBoneTransform_t*, uint32_t, vr::VRBoneTransform_t*);
 };
@@ -114,7 +108,6 @@ struct Fixture {
         driverConfig.galaxyXr.synthesizeGripTouch = true;
         driverConfig.galaxyXr.controllerBypass = false;
         driverConfig.streamFrame.poseLogging = false;
-        driverConfig.streamFrame.velocityFixMode = 0;
         input = FakeDriverInput{};
         input.provider = &provider;
         skeletonTapHands.clear();
@@ -231,14 +224,9 @@ static void TestGripHysteresis() {
 }
 
 static void TestReleaseEffects() {
-    for (int mode : {3, 4}) for (bool logging : {false, true}) for (bool scalar : {false, true}) {
+    for (bool logging : {false, true}) for (bool scalar : {false, true}) {
         Fixture f;
         driverConfig.galaxyXr.synthesizeGripTouch = false;
-        driverConfig.streamFrame.velocityFixMode = mode;
-        driverConfig.streamFrame.deriveReleaseLatch = true;
-        driverConfig.streamFrame.deriveLatchHoldMs = 100;
-        driverConfig.streamFrame.kalmanReleaseRewindMs = 30;
-        driverConfig.streamFrame.kalmanRewindHoldMs = 80;
         driverConfig.streamFrame.poseLogging = logging;
         if (scalar) { f.Scalar(10, 1); f.Scalar(20, 2); }
         else { f.Boolean(10, 1); f.Boolean(20, 2); }
@@ -249,53 +237,23 @@ static void TestReleaseEffects() {
         if (scalar) f.Pressure(0, 10); else f.Button(10, false);
         testNow = 100.01;
         if (scalar) f.Pressure(0, 20); else f.Button(20, false);
-        if (mode == 3) {
-            Check(Near(f.provider.deriveFilterStates[1].latchUntil, 100.1), "first release arms latch independently of logging");
-            Check(Near(f.provider.deriveFilterStates[2].latchUntil, 100.11), "second hand within 50ms also arms latch");
-        } else {
-            Check(Near(f.provider.kalStates[1].rewindUntil, 100.08) && Near(f.provider.kalStates[1].rewindTarget, 99.97), "first release arms correct rewind window");
-            Check(Near(f.provider.kalStates[2].rewindUntil, 100.09) && Near(f.provider.kalStates[2].rewindTarget, 99.98), "second hand within 50ms also arms rewind");
-        }
-        Check(logging ? LogsStarting("ReleaseSnap:") == 1 : logs.empty(), "poseLogging OFF silent; ON throttles diagnostics only");
+        Check(logging ? LogsStarting("ReleaseSnap:") == 1 : logs.empty(), "poseLogging OFF silent; ON throttles release diagnostics");
         testNow = 100.08;
         if (scalar) { f.Pressure(1, 20); f.Pressure(0, 20); }
         else { f.Button(20, true); f.Button(20, false); }
-        Check(logging ? LogsStarting("ReleaseSnap:") == 2 : logs.empty(), "logging resumes after throttle without controlling release effects");
-    }
-    for (int mode : {3, 4}) {
-        Fixture f;
-        driverConfig.streamFrame.velocityFixMode = mode;
-        driverConfig.streamFrame.deriveReleaseLatch = false;
-        driverConfig.streamFrame.kalmanReleaseRewindMs = 0;
-        f.Boolean(10, 1); logs.clear(); f.Button(10, true); f.Button(10, false);
-        Check(f.provider.kalStates.empty() && f.provider.deriveFilterStates.empty() && logs.empty(), "disabled release feature remains inactive with logging OFF");
+        Check(logging ? LogsStarting("ReleaseSnap:") == 2 : logs.empty(), "logging resumes after the throttle");
     }
     {
         Fixture f;
-        driverConfig.streamFrame.velocityFixMode = 3;
-        driverConfig.streamFrame.deriveReleaseLatch = true;
         f.Boolean(10, 1); f.Button(10, true);
         driverConfig.streamFrame.poseLogging = true;
+        logs.clear();
         f.Button(10, false);
-        Check(f.provider.deriveFilterStates[1].latchUntil > testNow, "logging enabled mid-grip retains the real held edge");
+        Check(LogsStarting("ReleaseSnap:") == 1, "logging enabled mid-grip retains the real held edge");
         driverConfig.streamFrame.poseLogging = false;
         logs.clear();
         f.provider.LogReleaseSnapshot(1, "test");
         Check(logs.empty(), "diagnostic helper itself respects logging OFF");
-    }
-    {
-        Fixture f;
-        driverConfig.streamFrame.velocityFixMode = 2;
-        f.Scalar(10, 1, "/input/trigger/value"); logs.clear();
-        f.Pressure(0.95f); f.Pressure(0.9f);
-        Check(Near(f.provider.velFixStates[1].anchorTime, testNow) && logs.empty(), "existing mode-2 release gesture remains independent of diagnostics");
-    }
-    {
-        Fixture f;
-        driverConfig.streamFrame.velocityFixMode = 3;
-        driverConfig.streamFrame.deriveReleaseLatch = true;
-        f.Boolean(10, 3); f.Button(10, true); f.Button(10, false);
-        Check(f.provider.deriveFilterStates.empty() && f.provider.kalStates.empty(), "native-hand release cannot arm controller motion adjustment");
     }
 }
 
@@ -320,57 +278,23 @@ static void TestSkeletonBypass() {
 }
 
 static void TestRejectedRelease() {
-    for (int mode : {3, 4}) for (bool scalar : {false, true}) {
+    for (bool scalar : {false, true}) {
         Fixture f;
         driverConfig.galaxyXr.synthesizeGripTouch = false;
-        driverConfig.streamFrame.velocityFixMode = mode;
-        driverConfig.streamFrame.deriveReleaseLatch = true;
-        driverConfig.streamFrame.kalmanReleaseRewindMs = 30;
         f.provider.tunerInputActive = true;
         if (scalar) { f.Scalar(); f.Pressure(1); }
         else { f.Boolean(10, 1); f.Button(10, true); }
         logs.clear();
         if (scalar) f.Pressure(0, 10, vr::VRInputError_InvalidHandle);
         else f.provider.OnBooleanComponentUpdated(10, false, 0, vr::VRInputError_InvalidHandle);
-        Check(f.provider.kalStates.empty() && f.provider.deriveFilterStates.empty(), "rejected release cannot arm rewind or latch");
         const auto& component = f.provider.inputComponents.at(10);
         Check(scalar ? component.scalarPressed && component.lastScalar == 1 && component.tunerScalar == 1 : component.haveValue && component.lastValue,
             "rejected release preserves last successful held/tuner state");
         Check(logs.empty(), "rejected physical-controller release does not log when diagnostics OFF");
+        driverConfig.streamFrame.poseLogging = true;
         if (scalar) f.Pressure(0); else f.Button(10, false);
-        Check(mode == 3 ? f.provider.deriveFilterStates[1].latchUntil > testNow : f.provider.kalStates[1].rewindUntil > testNow,
-            "successful release after rejection still arms the selected effect");
+        Check(LogsStarting("ReleaseSnap:") == 1, "successful release after rejection is still a release edge");
     }
-}
-
-static void TestDiagnosticReset() {
-    GalaxyXRDeviceProvider::KalState state;
-    state.p[0] = 3; state.v[1] = 4; state.P[0][0] = 7;
-    state.schedNis = 2; state.schedANis = 5;
-    state.tFresh = 12; state.tMeas = 13; state.lossStartT = 14;
-    state.lastMeas[0] = 9; state.haveMeas = true;
-    state.rewindUntil = 21; state.rtsCount = 2; state.rtsT[0] = 11;
-    state.rawPkSp = 6; state.rawPkT = 16; state.rawPkWSp = 8; state.rawPkWT = 17;
-    state.stuckRun = true; state.stuckStartT = 18;
-    state.stepMax = 1; state.fdtN = 3; state.dtN = 4;
-    state.rawCount = 7; state.rawSecHave = true; state.pkActive = true;
-    state.diagLossStartT = 19; state.lossMsSum = 20;
-    state.diagFreshHave = true; state.diagCoastStart = 22; state.coastStart = 23;
-    state.ResetDiagnostics();
-    Check(state.rawPkSp == 0 && state.rawPkT == 0 && state.rawPkWSp == 0 && state.rawPkWT == 0,
-        "diagnostic reset discards pre-OFF release peaks and timestamps");
-    Check(!state.stuckRun && state.stuckStartT == 0 && !state.pkActive && !state.rawSecHave && state.rawCount == 0,
-        "diagnostic reset discards old watchdog and raw observation windows");
-    Check(state.stepMax == 0 && state.fdtN == 0 && state.dtN == 0 && state.diagLossStartT == 0 && state.lossMsSum == 0,
-        "diagnostic reset clears counters and its separate loss timer");
-    Check(!state.diagFreshHave && state.diagCoastStart == -1 && state.coastStart == 23,
-        "diagnostic reset preserves shared coast clock while discarding telemetry cadence");
-    Check(state.p[0] == 3 && state.v[1] == 4 && state.P[0][0] == 7 && state.schedNis == 2 && state.schedANis == 5,
-        "diagnostic reset preserves estimates covariance and scheduler");
-    Check(state.tFresh == 12 && state.tMeas == 13 && state.lossStartT == 14 && state.haveMeas && state.lastMeas[0] == 9,
-        "diagnostic reset preserves measurement and tracking-loss state");
-    Check(state.rewindUntil == 21 && state.rtsCount == 2 && state.rtsT[0] == 11,
-        "diagnostic reset preserves release and fixed-lag motion history");
 }
 
 static void TestDiagnosticCallbackGeneration() {
@@ -378,19 +302,9 @@ static void TestDiagnosticCallbackGeneration() {
     driverConfig.debugMode = true;
     driverConfig.debugGeneration = 1;
     driverConfig.streamFrame.poseLogging = true;
-    driverConfig.streamFrame.velocityFixMode = 4;
-    driverConfig.streamFrame.kalmanReleaseRewindMs = 30;
-    driverConfig.streamFrame.kalmanRewindHoldMs = 80;
     f.Boolean(10, 1);
     f.Button(10, true);
     f.provider.LogReleaseSnapshot(1, "initial");
-    auto& state = f.provider.kalStates[1];
-    state.rawPkSp = 8; state.rawPkT = testNow;
-    state.rawPkWSp = 9; state.rawPkWT = testNow;
-    state.stuckRun = true; state.stuckStartT = testNow - 10;
-    state.dtN = 4; state.stepMax = 2;
-    state.p[0] = 3; state.v[1] = 4; state.P[0][0] = 7;
-    state.schedNis = 2; state.schedANis = 5; state.tFresh = 12;
     f.provider.poseLogStates[1].recentFastTime = testNow;
     f.provider.lastReleaseLogTime = testNow;
     f.provider.lastEdgeLogTime = testNow;
@@ -406,32 +320,19 @@ static void TestDiagnosticCallbackGeneration() {
     Check(LogsStarting("ReleaseSnap:") == 1, "first direct release after missed-frame transitions gets a fresh log budget");
     Check(f.provider.poseLogStates.empty() && f.provider.lastEdgeLogTime == 0,
         "direct release clears prior pose windows and edge budget before a provider frame");
-    Check(state.rawPkSp == 0 && state.rawPkT == 0 && state.rawPkWSp == 0 && !state.stuckRun && state.dtN == 0 && state.stepMax == 0,
-        "direct release clears prior Kalman telemetry before reading release diagnostics");
-    Check(LogsStarting("PoseLog: RELDIAG") == 0, "direct callback cannot emit the prior session's fresh raw peak");
-    Check(state.p[0] == 3 && state.v[1] == 4 && state.P[0][0] == 7 && state.schedNis == 2 && state.schedANis == 5 && state.tFresh == 12,
-        "direct callback epoch reset preserves shared estimates covariance scheduler and clock");
-    Check(Near(state.rewindUntil, testNow + 0.08) && Near(state.rewindTarget, testNow - 0.03),
-        "diagnostic epoch reset preserves the release action from the same callback");
-    state.rawPkSp = 4; state.rawPkT = testNow;
     f.provider.poseLogStates[1].recentFastTime = testNow;
-    // These are the same lock-held refresh calls used by RunFrame. A later
+    // This is the same lock-held refresh call used by RunFrame. A later
     // frame must retain observations already collected by the direct callback.
     {
         std::lock_guard<std::mutex> guard(f.provider.poseLogLock);
         f.provider.RefreshPoseDiagnosticSession();
     }
-    {
-        std::lock_guard<std::mutex> guard(f.provider.deriveFilterLock);
-        f.provider.RefreshKalDiagnosticSession();
-    }
-    Check(state.rawPkSp == 4 && f.provider.poseLogStates[1].recentFastTime == testNow,
+    Check(f.provider.poseLogStates[1].recentFastTime == testNow,
         "later frame refresh does not reset the callback's current diagnostic session twice");
 }
 
 int main() {
     TestDiagnosticCallbackGeneration();
-    TestDiagnosticReset();
     TestGripTransitions();
     TestGripLifecycle();
     TestGripHysteresis();

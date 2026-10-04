@@ -1155,7 +1155,7 @@ void GalaxyXRControllerShim::ApplyIdentity(){
 			DriverLog("GalaxyXRControllerShim: rendermodel %s applied for %s", model.c_str(), serial.c_str());
 		}
 	}
-	if(gxr::GameLinkLayoutMode(driverConfig)){
+	{
 		// Game Link layout: Samsung's own input profile and controller type, the
 		// identity its PC driver gives the controllers. its remapping tells
 		// Touch-authored games they talk to a Touch, like Game Link does.
@@ -1164,24 +1164,6 @@ void GalaxyXRControllerShim::ApplyIdentity(){
 		bool wroteType = SetStringIfDifferent(container, vr::Prop_ControllerType_String, "samsung_touch");
 		if(wroteProfile || wroteType){
 			DriverLog("GalaxyXRControllerShim: Samsung input profile applied for %s (Game Link layout)", serial.c_str());
-		}
-	}else if(driverConfig.galaxyXr.nativeInputProfile){
-		SyncTouchLayout();
-		// the official native input profile: controller type
-		// galaxy_xr_controller with Valve's own legacy bindings, remapping
-		// and pose components. the grip-family components (handgrip,
-		// openxr_grip, grip) are IDENTITY in our render model json: the raw
-		// pose already carries the grip convention (gripConvention), so a
-		// binding that selects /pose/handgrip (UE4 per-app bindings) or the
-		// OpenXR grip pose lands on exactly the point SteamVR Home and
-		// /pose/raw bindings use. note: the official remapping has no
-		// oculus_touch layout, so user-made custom Touch bindings do not
-		// auto-carry; per-game rebinding may be needed.
-		std::string profile = "{" + driverConfigLoader.info.driverName + "}/input/galaxy_xr_controller_profile.json";
-		bool wroteProfile = SetStringIfDifferent(container, vr::Prop_InputProfilePath_String, profile);
-		bool wroteType = SetStringIfDifferent(container, vr::Prop_ControllerType_String, "galaxy_xr_controller");
-		if(wroteProfile || wroteType){
-			DriverLog("GalaxyXRControllerShim: native input profile applied for %s", serial.c_str());
 		}
 	}
 }

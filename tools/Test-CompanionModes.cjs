@@ -109,7 +109,7 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     s.streamFrame.k1 = 0.15; s.streamFrame.distortion.curves = { left: { k1: 0.12, k2: 0.05, points: [] } };
     s.streamFrame.distortion.map = { enable: true, cols: 1, rows: 1, left: [0.1, 0.2], right: [0.1, 0.2], source: 'test', future: 42 };
     s.streamFrame.calib = { blackout: true, eye: 1, patternBrightness: 0.3, captureMode: true, pattern: 5, patternBits: 6 };
-    s.streamFrame.nvencBitrateMbit = 450; s.streamFrame.kalmanMagScale = 1.7;
+    s.streamFrame.nvencBitrateMbit = 450; s.streamFrame.gameLinkLinearVelocityCutoff = 0.2;
     s.controllers.positionOffsetCm.x = 4; s.galaxyXr.vrlinkHeadsetProfile = false;
     s.streamFrame.futureSetting = { keep: true }; s.futureRoot = { keep: 42 };
     s.customShader.enable = true; s.customShader.enableForOther = true;
@@ -128,7 +128,7 @@ const writes = h => h.fixture.calls.filter(x => x.kind === 'write' && x.path ===
     assert.deepEqual(clone(after.streamFrame.distortion.map.left), []);
     assert.equal(after.streamFrame.distortion.map.future, 42);
     assert.equal(after.streamFrame.calib.blackout, false); assert.equal(after.streamFrame.calib.pattern, -1);
-    assert.equal(after.streamFrame.nvencBitrateMbit, 450); assert.equal(after.streamFrame.kalmanMagScale, 1.7);
+    assert.equal(after.streamFrame.nvencBitrateMbit, 450); assert.equal(after.streamFrame.gameLinkLinearVelocityCutoff, 0.2);
     assert.equal(after.controllers.positionOffsetCm.x, 4); assert.equal(after.galaxyXr.vrlinkHeadsetProfile, false);
     assert.deepEqual(clone(after.futureRoot), before.futureRoot);
     assert.deepEqual(clone(after.streamFrame.futureSetting), before.streamFrame.futureSetting);

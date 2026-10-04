@@ -189,14 +189,14 @@ describe('vendor defaults before info.json exists', () => {
     const service = await load(vendor);
     expect(service.values()?.galaxyXr?.nativeIdentity).toBe(expected);
     expect(service.values()?.controllers?.mirrorOffsetsForRightHand).toBe(expected);
-    expect(service.values()?.controllers?.rotationOffsetDeg).toEqual({ x: 0, y: expected ? 5 : 0, z: 0 });
-    expect(service.values()?.controllers?.positionOffsetCm).toEqual({ x: expected ? 0.5 : 0, y: 0, z: 0 });
+    expect(service.values()?.controllers?.rotationOffsetDeg).toEqual(expected ? { x: 2, y: -5, z: -9 } : { x: 0, y: 0, z: 0 });
+    expect(service.values()?.controllers?.positionOffsetCm).toEqual(expected ? { x: 0.5, y: -1.5, z: 0.5 } : { x: 0, y: 0, z: 0 });
     expect(storage.files.get(filePath)).toBe('{}');
     // Resolving a vendor must never mutate the shared generated defaults.
     expect(driverDefaults.galaxyXr?.nativeIdentity).toBe(true);
     expect(driverDefaults.controllers?.mirrorOffsetsForRightHand).toBe(true);
-    expect(driverDefaults.controllers?.rotationOffsetDeg).toEqual({ x: 0, y: 5, z: 0 });
-    expect(driverDefaults.controllers?.positionOffsetCm).toEqual({ x: 0.5, y: 0, z: 0 });
+    expect(driverDefaults.controllers?.rotationOffsetDeg).toEqual({ x: 2, y: -5, z: -9 });
+    expect(driverDefaults.controllers?.positionOffsetCm).toEqual({ x: 0.5, y: -1.5, z: 0.5 });
   });
 
   it('retains an explicit true in the neutral build through save and reload', async () => {

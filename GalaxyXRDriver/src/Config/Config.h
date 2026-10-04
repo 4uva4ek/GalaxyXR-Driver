@@ -454,9 +454,10 @@ struct GalaxyXrConfig{
 	bool officialComponents = true;
 	// 2026-08-26: leave the streamed controllers exactly as vrlink presents
 	// them: no identity/models/icons, no input profile, no pose components,
-	// no grip convention, no offsets. the Kalman velocity fix is NOT gated
-	// by this (it has its own mode switch). for A/B against stock and for
-	// people who only want the image processing.
+	// no grip convention, no offsets. for A/B against stock and for people
+	// who only want the image processing. the Game Link layout
+	// (Config/GameLinkLayoutPolicy.h) still applies, without the driver's
+	// own corrections.
 	bool controllerBypass = false;
 	// controller identity experiment (2026-08-24): when true the driver
 	// adds an oculus_touch layout (priority 95, above knuckles) to the
@@ -742,20 +743,6 @@ struct StreamFrameConfig{
 	// verify from this side, hence default OFF until field-confirmed; if a
 	// session shows black/frozen frames, turn this off.
 	bool zeroCopy = false;
-	// experimental throw/velocity fix mode: 0 = off, 1 = classic (the v3
-	// estimator: position-derived linear velocity substituted via a smooth
-	// speed-ramped blend, nothing else), 2 = full (adds angular velocity
-	// substitution, wrist-flick blend term, peak/direction holds and the
-	// release-gesture anchor). classic preserved because field testing
-	// rated it the best-feeling iteration; full is the later heuristic
-	// stack. json values: "off" / "classic" / "full".
-	// 3 = derive: DISCARD the runtime's velocity entirely for streamed
-	// (vrlink) controllers and always report the pose-derived estimate —
-	// no engage gate, no blend, no peak hold: one consistent self
-	// coherent signal, the same method SteamVR itself would use on the
-	// poses. all modes apply ONLY to streamed controllers (serials
-	// VRLINK*/SamsungVST*); lighthouse devices (LHR-*) have native
-	// velocity and are never touched.
 	// zero-copy v3: consumption-point source substitution. the frame is
 	// warped into a rotating SHARED shadow set and vrlink's per-frame
 	// staging copy (the recon-verified single consumption point) is
@@ -855,607 +842,33 @@ struct StreamFrameConfig{
 	int nvencQpPeriphery = 0;
 	// log every reconfigure + hex dumps
 	bool nvencVerbose = false;
-	// 5 = kalmanCAM ("kalmanCAM"): mode 4 with the fast magnitude channel
-	// replaced by a constant-acceleration (Singer) estimator — the
-	// low-risk arm of the CA experiment (calm direction untouched).
-	// 6 = kalmanCA ("kalmanCA"): one CA estimator per axis carries pose,
-	// velocity AND acceleration (angular gains an angular-accel state);
-	// the ramp-lag magnitude deficit is removed by the model instead of
-	// rescaled away. both CA modes skip the legacy blend/peak-hold
-	// stack entirely (clean state reporting).
-	// 7 = kalmanCAGameLink ("kalmanCAGameLink", 2026-10-04; "native" in
-	// the first builds, still parsed): the controllers are placed and
-	// identified the way Samsung's own PC driver does it (vrlink's raw pose,
-	// Samsung's pose components and input profile, see
-	// Config/GameLinkLayoutPolicy.h); the motion is mode 6's estimator
-	// with its tuning.
-	int velocityFixMode = 6; // kalmanCA: release default 2026-08-15
-	// (supersedes the 2026-08-11 CV consolidation — the CA campaign
-	// closed with relDirOff 4.3deg / relAngOff 3.8deg / rel/pk 1.00 at
-	// the release instant, felt and instrumented in agreement)
 	// stored-config schema for the version-gated migration below (see
 	// ConfigLoader): absent in files written before 2026-08-15 -> 1.
 	// bump when a migration is added; the GUI persists it (stored as a
 	// value distinct from the GUI serializer default so the pruner
 	// keeps it, making deliberate post-migration choices sticky).
 	int streamFrameSchema = 1;
-	// derive-mode speed-adaptive smoothing: the estimator is a low lag
-	// endpoint derivative, so its noise shows fully in derive mode (the
-	// old modes' 1 m/s engage gate was hiding it). the filter time
-	// constant slides from tauSlow (held still: kill trembling, latency
-	// invisible) to tauFast (throw speeds: near raw so peak and phase
-	// survive) as effective speed (|v| + 0.15|w|) crosses speedLow..High.
-	double deriveSmoothTauSlowMs = 90.0;
-	double deriveSmoothTauFastMs = 6.0;
-	double deriveSmoothSpeedLow = 0.25;
-	double deriveSmoothSpeedHigh = 1.6;
-	// separate ANGULAR smoothing (off = original behavior: one alpha from
-	// combined speed drives both channels, keeping v and w phase locked).
-	// field data 2026-08-10: reported |w| swings +-40% around raw with 32%
-	// per-sample jitter tails — the shared alpha tuned for linear speeds
-	// under-serves the angular channel. when enabled, the angular channel
-	// gets its own speed-adaptive alpha from these knobs (angular speeds
-	// in rad/s; defaults chosen to match the old 0.15 rad/s-per-m/s
-	// conversion, so enabling with defaults is nearly behavior neutral).
-	bool deriveSmoothAngSeparate = false;
-	double deriveSmoothAngTauSlowMs = 90.0;
-	double deriveSmoothAngTauFastMs = 6.0;
-	double deriveSmoothAngSpeedLow = 1.7;
-	double deriveSmoothAngSpeedHigh = 10.5;
-	// derive-mode split-channel output. the axis-wise EMA smooths
-	// MAGNITUDE well, but smoothing each axis independently does not
-	// stabilize DIRECTION when components sit near zero crossings: field
-	// data (2026-08-09 burst log) shows the filtered vector's direction
-	// swinging 73-83 deg/sample (median) at ~0.5 m/s and 23-50 deg/sample
-	// inside the 40ms release zone — the "objects fly off in random
-	// directions" residual. split mode keeps the EMA for magnitude only
-	// and takes direction from a speed^weightPow weighted vector sum of
-	// the RAW estimator outputs over a short trailing window: fast,
-	// high-SNR samples pin the direction, slow noisy ones contribute
-	// ~nothing. independent per-channel toggles keep A/B single-variable.
-	bool deriveSplitDirLinear = false;
-	bool deriveSplitDirAngular = false;
-	double deriveDirWindowMs = 50.0;
-	double deriveDirWeightPow = 2.0;
-	// direction REFERENCE for split mode. field data (2026-08-10) showed
-	// the "window" average of raw estimates barely helps: consecutive SG
-	// estimates share 7/8 of their input positions, so their noise is
-	// almost fully correlated and averaging them does not cancel it.
-	// 1 = secant: direction of the raw position DISPLACEMENT across the
-	//     derive ring (newest - oldest). displacement over ~25-70ms at
-	//     throw speed is 5-20cm against ~1-4mm position noise, so its
-	//     direction is clean to a few degrees; lag is ~half the ring
-	//     span of arc curvature (deterministic and small). DEFAULT.
-	// 2 = runtime: direction of vrlink's own reported velocity (device
-	//     side sensor fusion: smooth and consistent, magnitude heavily
-	//     smoothed — which does not matter, we only take its direction).
-	// 0 = window: the original speed^pow weighted average (kept for A/B).
-	int deriveDirSource = 1;
-	// MAGNITUDE source for split mode. 0 = vector: |vector EMA| (original;
-	// under-reads and jitters during direction change because opposing
-	// components cancel inside the average). 1 = scalar: EMA of |raw|
-	// itself with the same adaptive tau — smooths the speed without the
-	// cancellation loss. field direction is solved by the secant (BURSTDIR
-	// 2026-08-10: 2.8-3.5 deg median from raw), so with direction
-	// decoupled, tauFast can also simply be raised (15-20ms) for less
-	// magnitude jitter with no direction penalty.
-	int deriveMagSource = 0;
-	// release latch: field data 2026-08-10 (202 ReleaseSnap events) shows a
-	// tail problem — the input release event trails the motion, and ~25% of
-	// throws sample the output AFTER the hand slowed (release/peak ratio
-	// p25 = 0.80, long tail to near zero). when enabled, the moment a
-	// trigger/grip RELEASE arrives from the input tap, the output replays
-	// the peak (v, w) of the last latchWindowMs for latchHoldMs (full
-	// strength for the first half, linear decay after) so late-sampling
-	// games still read the throw. median throws (already at peak) are
-	// unaffected. derive mode only; off by default for a clean A/B.
-	bool deriveReleaseLatch = false;
-	double deriveLatchWindowMs = 150.0;
-	double deriveLatchHoldMs = 120.0;
-	double deriveLatchMinSpeed = 0.8;
-	// per-channel latch peaks (field 2026-08-10: a single effective-speed
-	// peak key picked the WINDUP moment for arm throws — |w| spikes while v
-	// points backward — and the latch replayed that poisoned vector at
-	// release: ratio p90 2.22, direction 56 deg off. flicks improved with
-	// the same key because their true peak IS angular dominant. so: v
-	// replays from the linear-peak moment, w from the angular-peak moment,
-	// each behind its own gate.)
-	double deriveLatchAngMinSpeed = 6.0;
-	// input position prefilter feeding the derive fit AND the secant:
-	// per-axis median of the last 3 raw positions kills single-sample
-	// network spikes (the p90 18%/sample jitter tail) at ~1 sample lag.
-	// "off" or "median3".
-	int derivePreFilter = 0;
-	// input pre-smoothing (the adjustable-strength version of the
-	// prefilter idea): EMA over raw positions/orientations BEFORE any
-	// derivation, strength in ms (0 = off). scope selects what consumes
-	// the smoothed stream: "direction" = only the secant (direction is
-	// cleaned, magnitude still derived from the exact positions);
-	// "both" = the fit AND the secant (maximum smoothness, some peak lag).
-	double derivePreSmoothMs = 0.0;
-	int derivePreSmoothScope = 0; // 0=direction 1=both
-	// CONSUMER DISCRIMINATOR (diagnostic): many engines ignore the driver's
-	// reported velocity entirely and estimate throws from rendered pose
-	// history (Unity XR toolkit, VRTK, custom rigs). across sessions our
-	// radically different velocity outputs produced near identical felt
-	// results — the signature of exactly that. "zero" reports zero
-	// velocity: if throwing still works AT ALL, the game does not read
-	// vecVelocity and the pose stream is the real battlefield. 2-minute
-	// test, then turn it off.
-	int deriveDiagVelocity = 0; // 0=off 1=zero
-	// pose-assist: if the game derives throws from pose deltas, make the
-	// POSE tell the throw's story too — during the latch hold, the
-	// reported position is forward-integrated along the latched velocity
-	// (same decay), so pose-history estimators read the clean release
-	// instead of the snap-back. brief visual hand overshoot at release is
-	// the price; opt-in.
-	bool deriveLatchPoseAssist = false;
-	// KALMAN mode (velocityFixMode "kalman"): replicate the native
-	// lighthouse ARCHITECTURE rather than patching symptoms. native
-	// controllers report one coherent fused kinematic state — pose,
-	// velocity, angular velocity all from a single estimator, so the
-	// runtime's forward prediction and every game-side pose-history
-	// estimator agree by construction. this mode runs a per-controller
-	// constant-velocity Kalman filter over the incoming stream and reports
-	// THE FILTER STATE as the pose: position, orientation, v and w are
-	// self consistent; no splits, no latches, no replays.
-	// kalmanProcessAccel (m/s^2) is THE responsiveness knob: high = trusts
-	// motion (snappy, noisier), low = trusts smoothness (calm, laggier).
-	// RATIFIED 2026-08-11 (campaign close, §3/§4): A=1 P=2.7 W=400 O=1.25
-	// L=0. these ARE the consolidation defaults — the 1.6.0 commit updated
-	// mode/dup/coast but missed this trio, so the driver published the
-	// pre-campaign 40/2.0/0.5 and every GUI reset restored untuned values
-	// (field incident 2026-08-11, cost one capture).
-	double kalmanProcessAccel = 1.0;
-	double kalmanPosNoiseMm = 2.7;
-	double kalmanProcessAngAccel = 400.0;
-	double kalmanOriNoiseDeg = 1.25;
-	// optional fixed forward prediction of the reported state (native
-	// drivers do this to counter transport latency); 0 = off
-	double kalmanLeadMs = 0.0;
-	// EXPERIMENT B — fixed-skew release rewind (single-session test,
-	// default OFF). the input release event travels a slower path than the
-	// pose stream: it lands 50-150ms after the true release, so games
-	// sample the snap-back. this reports, for a short hold after the
-	// release event arrives, the velocity from rewindMs EARLIER in the
-	// kalman history — pure time re-alignment by one physical constant
-	// (the transport skew), no peak picking, no heuristics. if the right
-	// rewind exists, opposite throws vanish at one setting; if no setting
-	// works, the hypothesis is falsified and the experiment ends. the
-	// pose is never touched.
-	double kalmanReleaseRewindMs = 0.0;
-	double kalmanRewindHoldMs = 100.0;
-	// direction/magnitude split reporting (field 2026-08-10 tuning session:
-	// the user's hands found A=1 best DESPITE weak throws — direction
-	// stability dominates felt quality, but magnitude lag at A=1 makes
-	// items fall out of the hand. the two channels want different
-	// smoothing, exactly the derive-era split finding. when set, the
-	// REPORTED velocity direction comes from an EMA of the state velocity
-	// with this time constant, while magnitude stays live from the state —
-	// run A back at 40-60 for full-strength snappy throws with A=1-like
-	// direction calm. continuous and phase agnostic: no events, no moment
-	// picking. 0 = off. pose untouched.
-	double kalmanDirSmoothMs = 0.0;
-	double kalmanAngDirSmoothMs = 0.0;
-	// direction derotation lead (2026-08-14, the combined-throw fix): a
-	// filter with velocity group delay L reports the path tangent from L
-	// ago. on a STRAIGHT path that is a pure magnitude deficit; on a
-	// CURVED path — exactly what linear + wrist combined produces — it
-	// is a DIRECTION error of ~omega*L (at low-J group delays of tens of
-	// ms and throw omega of 8-20 rad/s: 15-40deg, present only when both
-	// channels are active; matches the field triad of linear-fine /
-	// flick-fine / combined-bent). this rotates the reported velocity
-	// forward about the filter's own w-hat by |w| * dirLead (Rodrigues)
-	// — the direction-space analog of kalmanLeadMs. continuous, always
-	// on, no gating: identity when w ~ 0 (linear throws untouched),
-	// nothing to bend when |v| ~ 0 (pure flicks untouched). magnitude,
-	// spin and pose are never touched, so it composes cleanly with low
-	// J's release-instant peak-hold — the two J pressures decouple.
-	// tune: start ~ the felt group delay (10-30ms at J=10-17), watch
-	// PEAKDIAG dirOff on combined throws. 0 = off.
-	// RATIFIED 2026-08-15: Td=5 (supersedes the 2026-08-14 Td=10). the
-	// peak instant and the release instant want DIFFERENT derotation:
-	// release sits on the post-peak downslope where less lag has
-	// accumulated, and the game samples release. the relDirOff
-	// instrument (release-instant output vs ring-secant truth, the
-	// channel relOffPk is structurally blind to) reads 4.3 / 5.7 /
-	// 8.7 / 12.7 deg at Td 5/10/15/20 — monotone, hands agree, and
-	// rel/pk stays 1.00 throughout (magnitude provably untouched).
-	// 2026-08-17 correction: that relDirOff series was scored against a
-	// secant of the FILTERED pose (DeriveMotion ran after the report
-	// block overwrote the pose), so it grows ~|w|*Td by construction —
-	// it did not ratify anything. what stands is the felt evidence
-	// (combined throws skew left without derotation) and the raw-
-	// referenced session: Td 0/10/5 scored 10/13/12 of 15 on combined
-	// throws, i.e. Td=5 fine, Td=0 worse. Td=5 kept. the CA-full
-	// state-prediction variant (v + a*tau*(1-e^(-L/tau))) added 08-15
-	// was inert at the shipped J/tau (dead accel state, ~0.2deg bend)
-	// and is retired; CA-full uses the Rodrigues form like every mode.
-	// scope: this knob shapes vecVelocity; a pose-history game only sees
-	// it through the runtime's ~10ms extrapolation (a few degrees at
-	// most). second-order for such games, first-order for vecVelocity
-	// games.
-	// 2026-08-24: default 0. the Td=5 ratification was scored while
-	// vecAngularVelocity was reported in the wrong (world) frame, so the
-	// derotation was largely compensating vrserver's mis-predicted
-	// orientation. with kalmanAngularOutFrame=body, a nonzero Td made
-	// throw directions erratic in the field. keep 0 unless re-ratified.
-	double kalmanDirLeadMs = 0.0;
-	// adaptive direction lead (2026-08-15, tail experiment A): the fixed
-	// Td is tuned for the median throw, but the release-tail autopsy
-	// shows every genuine residual (12-24deg) is a maximum-violence
-	// whip (wRel 23-39 rad/s) where the filter's effective lag is
-	// ~8-17ms, not 5 — the optimum is throw-dependent. when enabled,
-	// the derotation time becomes Td_eff = base + slope * |w| (clamped
-	// to 50ms total), OVERRIDING the manual knob: an ordinary 12 rad/s
-	// throw gets ~8.6ms, a 30 rad/s whip ~14ms. pure proportionality —
-	// no thresholds, identity at w = 0, magnitude and pose untouched.
-	bool kalmanDirLeadAdaptive = false;
-	double kalmanDirLeadBaseMs = 5.0;
-	double kalmanDirLeadWMs = 0.3; // ms per rad/s
-	// adaptive measurement trust (2026-08-15, tail experiment B, pure
-	// opt-in): innovation-scheduled R — the textbook adaptive-Kalman
-	// route, attacking the lag ITSELF instead of compensating it (so
-	// it also reaches pose-history games, which the derotation cannot).
-	// a fast EMA of the BASE-R-normalized NIS (base-normalized, or
-	// shrinking R would inflate the very statistic that shrinks it)
-	// divides R and Ra continuously: divisor = clamp(schedNis, 1,
-	// maxDiv). at the measured baseline (nis ~0.02, R overstated ~50x)
-	// the divisor sits pinned at 1 = bit-identical to off; during a
-	// violent whip the innovations blow through the model and trust
-	// ramps within ~25ms. the cost is honest: measurement noise passes
-	// through during fast motion, where it is perceptually masked.
-	// retired for this transport (2026-08-16): even with the dup
-	// composition fixed, dividing R during maneuvers makes the filter
-	// hug STALE samples at release (left bias, magnitude jitter). kept
-	// functional for experiments; not recommended.
-	bool kalmanAdaptiveR = false;
-	double kalmanAdaptiveRMaxDiv = 16.0;
-	// magnitude channel (field 2026-08-10: A=1 + raised P/O is the user
-	// verified sweet spot for DIRECTION, but that configuration's lag
-	// under-reports throw SPEED — "strength feels low", items falling out.
-	// the inverse of naive splitting: direction stays with the calm state;
-	// MAGNITUDE comes from a parallel fast estimator over the same
-	// measurements (kalmanMagSource "fast", accel knob below). magScale is
-	// a plain always-on trim multiplier on top (1.0 = neutral).)
-	int kalmanMagSource = 0; // 0=state 1=fast
-	double kalmanMagAccel = 60.0;
-	double kalmanMagScale = 1.0;
-	double kalmanAngMagScale = 1.0;
-	// duplicate-sample skip (field 2026-08-10: raw-step telemetry caught
-	// 12,121 frozen steps in one session — vrlink repeats the last pose
-	// whenever fresh tracking data has not arrived, and every repeat tells
-	// the filter "the hand stopped dead". this drags throw velocity down
-	// (the calm state's chronic weakness) and makes fast estimators
-	// oscillate stop/jump (the flip engine). a duplicate is a MISSING
-	// measurement, not a measurement of stillness: while the state is
-	// moving, duplicates now coast the filter (predict only) instead of
-	// braking it. genuine stillness keeps normal updates. textbook
-	// missing-data handling; toggle for A/B.
-	// 0=off 1=coast 2=drop. field 2026-08-11: with device-time active,
-	// COAST is feel-rejected (extrapolated positions + snap poison the
-	// pose history the game fits throws from; NIS 100-500 spikes), and
-	// OFF pays a velocity drag (every repeat says "stopped"; the chronic
-	// ~0.80 strength). DROP treats a detected repeat as never having
-	// arrived: no measurement, no prediction, no clock advance — the
-	// next real sample predicts across the full accumulated device-time
-	// gap in one honest step. no fake stillness, no invented positions;
-	// reported pose holds (runtime still animates from v). the run cap
-	// below applies to coast AND drop. default off = field champion.
-	// 3=soft: the repeat IS processed as a measurement, but with R
-	// inflated by dupRScale^2 — honest noise model for a sample of
-	// unknown age (its true uncertainty at hand speed v is v*sigma_age,
-	// not the sensor floor). gain on repeats shrinks ~k^2 while
-	// covariance keeps accumulating through the run, so fresh-sample
-	// catch-up self-schedules. dupRScale=1 in soft is bit-identical to
-	// off; k -> inf converges toward coast/drop. the run cap applies:
-	// repeats sustained past it are accepted at full weight.
-	// 4=age (2026-08-16, A/B candidate): the honest version of soft.
-	// a repeat is a true position of unknown age; its uncertainty is
-	// how far the hand moved in that age, so R_rep = R + (|v|*age)^2
-	// (and Ra_rep = Ra + (|w|*age)^2) with age = time since the last
-	// FRESH sample. no speed gate (soft only distrusts repeats above
-	// 0.5 m/s, so a slow toss runs a different filter than a throw
-	// and the behavior steps at 0.5), no scale knob, no 5mm floor:
-	// at rest it collapses to R (repeats believed, v -> 0), at 5 m/s
-	// a 3-frame-old repeat is (5cm)^2 and effectively ignored, and a
-	// long repeat run distrusts itself progressively instead of
-	// flipping at the cap. offline it is numerically identical to
-	// soft/k=3 at throw speed and continuous below it. the run cap
-	// still applies as the "tracker stopped producing" backstop.
-	// field 2026-08-17: soft, age and coast are indistinguishable on the
-	// raw-referenced release instruments (rel/rawPk J4: 0.78/0.80, J6:
-	// 0.86/0.87, J2: 0.58/0.63 soft/age); scores leaned soft. soft
-	// stays default; age is the cleaner formulation for anyone who
-	// wants a threshold-free dedup.
-	int kalmanDupMode = 3;
-	double kalmanDupRScale = 3.0;
-	// teleport guard: reinit instead of innovating when an accepted step
-	// exceeds this floor AND implies >25 m/s (physically impossible hand
-	// speed = unflagged tracking reacquire). floor ignores freeze
-	// catch-ups (~0.1m). 0 disables. config-only this slice; GUI knob
-	// rides the next GUI-touching slice.
-	double kalmanTeleportM = 0.75;
-	// flagged-loss coasting (2026-08-15): during a flagged tracking loss
-	// (out-of-FOV hand) the raw pose passes through FROZEN and the
-	// device zero-fills velocity — the hand visibly parks for the loss
-	// duration (field: brief FOV exits cluster at ~100ms). native
-	// drivers dead-reckon on the IMU through optical loss; vrlink gives
-	// us nothing, but the filter state is the next best thing: for up
-	// to this many ms of loss the reported pose is the state predicted
-	// forward (Singer decay bounding the acceleration, so a stale hot
-	// accel cannot run away), velocities reported from the same
-	// prediction. stateless per callback (predicted from the last
-	// committed state, never re-committed), so nothing accumulates;
-	// reacquire still takes the existing clean-reinit path. past the
-	// window the pose passes through raw, exactly as before. 0 = off.
-	double kalmanLossCoastMs = 250.0;
-	// measurement timestamping (estimator correctness pass 2026-08-10):
-	// vrlink stamps every pose with poseTimeOffset, and this session's
-	// field data shows it is real and VARYING — median +13.8ms, stdev
-	// 3.8ms, sample-to-sample swings of ~6ms during throws, and a stale
-	// tail down to -69ms. the filter previously treated every sample as
-	// "now": at 5 m/s a 6ms timing swing masquerades as 30mm of position
-	// noise against a 4mm R, which is exactly the unmodeled noise that
-	// forced A=1 and its weak throws. with deviceTime on, each
-	// measurement is stamped tMeas = receipt + poseTimeOffset and dt is
-	// the device-time delta; out-of-order samples (dt <= 0) are DROPPED,
-	// never reinit (the old dt<=0 reinit would zero velocity mid-throw
-	// once device time is in play). |offset| > 100ms falls back to
-	// receipt time. toggle off = previous behavior exactly, for A/B.
-	bool kalmanDeviceTime = true;
-	// 3dof-fallback protection (2026-08-16): a frozen position with a
-	// moving quaternion is the tracker losing POSITION only (fast or
-	// occluded hand -> IMU-only fallback), not a still hand. when
-	// detected, the position stays hard-distrusted past the dup run cap
-	// and the live orientation keeps updating in every dup mode. field
-	// symptom this kills: hand parked ~1m away but still rotating with
-	// the wrist for ~0.5s, then teleporting back.
-	bool kalmanPosFreeze3dof = true;
-	// frame of the REPORTED vecAngularVelocity (and vecAngularAcceleration).
-	// the openvr header never states it; the kalman state w is world /
-	// driver-frame (integration is dq (x) q) and linear velocity IS world
-	// (throw directions prove it). FIELD 2026-08-24: vrserver's photon-time
-	// prediction treats the angular vector as BODY-frame - reporting world
-	// made a horizontal sword swing pitch up at peak |w| (~15deg at 10rad/s
-	// x 25ms prediction); body fixed it, horizontal swings correct since.
-	// 0 = world (pre-fix behaviour), 1 = body (q^-1 w q), 2 = zero (the
-	// discriminator that found it). live reloaded.
-	int kalmanAngularOutFrame = 1;
-	// knob B: coordinated-turn coast during position-only freezes. while
-	// the tracker feeds frozen positions with a live quaternion, the
-	// linear state is predicted along its own v/a (a straight line
-	// tangent to the swing). with this on, v and a are rotated by the
-	// live angular velocity each step (exp(w dt)), so the coasted hand
-	// follows the arc the wrist is tracing. scale 1.0 = full coupling,
-	// 0 = off (default: not needed once the angular frame was fixed).
-	double kalmanFreezeCoastTurn = 0.0;
-	// velocity decay time constant during position-only freezes (ms).
-	// short freezes coast (throws unaffected), long occlusions glide to
-	// a stop instead of sailing on the occlusion-entry velocity and
-	// reacquiring with a wrong-direction state. 0 = pure coast (the
-	// 2026-08-16 pre-decay behavior). clamped 20-2000 when nonzero.
-	// default 0 since 2026-08-17: the three instrumented sessions
-	// (raw-referenced release scoring, ~1100 posOnlyFreeze callbacks
-	// per 2-minute epoch) showed no throw or freeze symptom the decay
-	// addressed, and the ad-hoc decay is applied to the state but not
-	// the covariance (the velocity terms keep growing during the
-	// freeze), so the first fresh sample after a long freeze kicks the
-	// velocity anyway. pure coast is the consistent choice; the knob
-	// stays for the field case that motivated it (long occlusion +
-	// wrong-direction reacquire).
-	double kalmanPosFreezeVelDecayMs = 0.0;
-	// dup run cap (bug fix 2026-08-10; rationale sharpened 2026-08-11):
-	// no human hand holds a position BIT-IDENTICALLY for tens of ms —
-	// real stillness shows micro-tremor above the 0.3mm gate. a repeat
-	// sustained past this cap therefore means the TRACKER stopped
-	// producing (set-down controller, long dropout), and in both cases
-	// believing the repeat (velocity to zero, hold position) beats
-	// extrapolating or distrusting blind. also closes the runaway loop:
-	// skipping repeats blocks the very measurements that update the
-	// speed the dup gate tests. applies to coast, drop, and soft.
-	double kalmanDupCoastMaxMs = 90.0;
-	// ET gaze aim assist (plan C): people fixate throw targets BEFORE the
-	// hand releases, so gaze carries the intended direction through the
-	// one channel immune to the input-timing problem that produces the
-	// opposite-direction tail (~8% of throws sample the snap-back). when
-	// enabled, the reported velocity direction is bent toward the gaze
-	// ray by assist fraction of the angle between them, capped at maxDeg,
-	// only above minSpeed, only with fresh valid gaze (<100ms). direction
-	// only — magnitude and spin untouched; the rendered hand untouched.
-	double kalmanGazeAssist = 0.0;   // 0..1
-	double kalmanGazeMaxDeg = 30.0;
-	double kalmanGazeMinSpeed = 1.2; // m/s
-	// fixed-lag smoothing (field 2026-08-10: the full-lock gaze test proved
-	// this game IGNORES driver vecVelocity — 18k bends up to 177 deg with
-	// zero effect on throws — and derives throws from POSE history. the
-	// battlefield is the reported position stream. a filter estimates the
-	// present from the past; a smoother estimates L ms ago using samples
-	// from BOTH sides — calm like A=1 AND amplitude-accurate like high A,
-	// which filtering fundamentally cannot combine. the entire reported
-	// state (pose + velocities, coherent) shifts to t-L; the one honest
-	// cost is L ms of added hand latency. 0 = off.
-	// 2026-08-17: in CA-full this is now a real fixed-lag Rauch-Tung-
-	// Striebel smoother (backward recursion over the stored predicted/
-	// filtered Singer states down to t-L; see KalState::rtsN). the CV
-	// modes keep the old two-estimate fusion. field motivation: the raw
-	// referenced instruments put the input release event only ~35ms
-	// (IQR 25-55) after the raw velocity peak, and every causal J read
-	// the release while still RISING (rel/rawPk 0.6-0.87, dtPk=0); the
-	// faster J that reads more (J=6) went erratic in direction. a
-	// smoother reports the velocity AT t-L (L ~ skew) using samples from
-	// both sides — the peak of a fast filter at the calm of a slow one —
-	// so the game reads the release vector itself. poseTimeOffset
-	// carries -L so the runtime predicts from the right epoch. offline:
-	// J=12 P=1.5 L=35 reads 0.93/0.97/0.92 of the raw peak at +30/45/60
-	// ms with the rest-noise of causal J=6 (which reads 0.90/0.95/0.93
-	// but with the field's erratic direction). the two-estimate fusion
-	// it replaces was not a smoother.
-	double kalmanSmoothLagMs = 0.0;
-	// how the smoothed (t-L) state is stamped for the runtime.
-	// 0 = latent (default): poseTimeOffset unchanged, i.e. the L-old
-	//     state is presented as current. the runtime predicts only its
-	//     usual ~photon horizon; the rendered hand carries L ms of extra
-	//     latency; the submitted POSITION stream (what this game
-	//     differentiates for throws) is the smoothed trajectory delayed
-	//     by L, so a release event ~L after the true release reads the
-	//     peak vector.
-	// 1 = honest: poseTimeOffset -= L. field 2026-08-17: with L=35-45
-	//     the runtime extrapolated the position by L+photon (65-80ms)
-	//     from the reported velocity; the game's pose-history velocity
-	//     is then v + T*a, and at release (hand decelerating) that is
-	//     weak or backward. RELDIAG showed relOut/rawPk 0.88-0.92 at
-	//     5-7deg (the reported vecVelocity was right) while throws fell
-	//     out of the hand — the direct proof this game reads pose
-	//     history, not vecVelocity. kept for games that do read
-	//     vecVelocity and prefer honest epochs.
-	int kalmanSmoothLagEpoch = 0;
-	// ==== constant-acceleration (Singer) experiment knobs ====
-	// the CV model treats the throw ramp as noise and structurally lags
-	// its peak (the measured ~80% magnitude deficit); a CA state tracks
-	// a ramp with zero steady-state velocity lag while R stays at the
-	// sensor floor — smoothing is NOT loosened to buy magnitude. jerk
-	// (m/s^3) is the responsiveness knob of a CA channel, replacing
-	// process accel. the acceleration state decays toward zero with
-	// tau (Singer model), bounding phantom integration across dup
-	// coasts and stops; tau -> inf recovers pure CA for A/B honesty.
-	// CA-full responsiveness (linear jerk, angular jerk). field-derived
-	// defaults (sessions 1-4, 2026-08-13): RELDIAG showed the release
-	// instant reads the post-peak downslope, so low jerk — whose decel
-	// lag acts as an accidental peak hold — beats high jerk at the only
-	// instant the game samples (J=10: rel/pk 1.00, relOff 0deg median;
-	// J=51: rel/pk down to 0.72, relOff 8deg median).
-	// RATIFIED 2026-08-14 (Td session): J=17 P=5.7 O=5.75 Td=10. J=17
-	// ran the whole sweep clean (rel/pk 1.00, relOff 0.0deg); prior
-	// session: good to at least 17, very bad at 50.
-	// RATIFIED 2026-08-16 (composition-fix session): with the adaptiveR/
-	// dedup composition fixed and honest noise viable, J=4 ran the
-	// standard battery "genuinely great, best of everything so far".
-	//
-	// SHIPPED 2026-08-17 after four instrumented sessions with a RAW
-	// reference (see KalState::rawRingN; the pre-08-16 rel/pk, dirOff and
-	// lagLin numbers above were filtered-vs-filtered and are kept only
-	// as history). what is now measured, not vibed:
-	//  - only the RATIOS J/P and Ja/O move behavior (Kalman gains depend
-	//    on Q/R alone); P and O are the tracker's noise, not tuning.
-	//  - at J=4/tau=20 the acceleration state is effectively dead (peaks
-	//    ~4 m/s^2 against a ~65 m/s^2 throw); the filter is a smooth CV
-	//    with ~14ms position lag and ~60ms velocity lag. that is not a
-	//    flaw: the game(s) tested read POSE HISTORY (twice confirmed:
-	//    the 08-10 gaze test, and the RTS session where vecVelocity was
-	//    strong+aimed at release yet throws failed). the causal
-	//    position stream carries the lagged velocity's momentum for a
-	//    beat after the peak, so its finite-difference velocity at the
-	//    input release event (skew 22-43ms after the raw peak, drifting
-	//    with fatigue) reads 0.95-1.16 of the raw peak at 6-7deg — and it
-	//    holds that across a 2x spread in skew. RELDIAG fd/rawPk and
-	//    fdRawDir score exactly this channel.
-	//  - fine J sweep 3.5/4/4.5/5 flat within noise; J=2 and J=6 both
-	//    worse (smear vs erratic direction); Ja 400/1500/4000 flat,
-	//    Ja=100 worse. nothing left with a mechanism worth a session.
-	//  - the RTS smoother (kalmanSmoothLagMs) is the right tool for a
-	//    game that reads vecVelocity (relOut/rawPk 0.87-0.97 at 5-7deg)
-	//    and the wrong one for pose-history games (0.80-0.91, +latency).
-	double kalmanCaJerk = 4.0;
-	// Ja NOTE 2026-08-24: every Ja/O ratification above was scored while
-	// vecAngularVelocity was reported in the wrong (world) frame, a setup
-	// that rewards a laggier w because vrserver rotated about the wrong
-	// axis by |w|*dt. with the frame fixed the felt optimum has probably
-	// moved toward snappier. 1500 kept until re-swept (1500/3000/6000 on
-	// the B&S horizontal swing: attached at the peak, no overshoot on stop).
-	double kalmanCaAngJerk = 1500.0;
-	// CA-full measurement noise, separate from the CV knobs so tuning
-	// one mode never disturbs the other's field-proven values.
-	// field-derived (session 5): P=4.2 was best-or-tied at the release
-	// instant for BOTH J=10 and J=17 (rel/pk 1.00, relOff 0.0deg,
-	// zero >30deg releases), P=3 measured pathological, P=5.7 fine but
-	// no better. still deliberately overstates the sensor — this knob
-	// is the mode's smoothness dial, not an honest noise estimate.
-	// 2026-08-16: honest 1.5mm ratified — viable now that dup distrust
-	// is floored in absolute terms (it no longer weakens when this
-	// shrinks) and adaptiveR no longer stacks against it.
-	// 2026-08-17: treat as the sensor's noise, fixed. only J/P matters
-	// for behavior (offline: J=4/P=1.5 and J=11.2/P=4.2 give the same
-	// gains to within the dup floor); if a different tracker needs a
-	// different P, scale J with it to keep the ratio.
-	double kalmanCaPosNoiseMm = 1.5;
-	// 5.75 field-preferred over 1.25 (2026-08-14): instruments show a
-	// fatter direction tail at 1.25 (dirOff max 177 vs 92); the felt
-	// benefit likely lives in the smoother q/pose stream that
-	// pose-history games fit — PEAKDIAG does not score that channel.
-	// 2026-08-16: 1.5 ratified alongside the honest linear noise.
-	// 2026-08-17: same rule as P — fixed sensor noise; Ja/O is the knob.
-	// 2026-08-24: see the Ja note - ratified under the wrong w frame.
-	double kalmanCaOriNoiseDeg = 1.5;
-	// shared acceleration decay time constant (CA-full, both channels).
-	// 2026-08-16: 20ms ratified (with exactCov the low-tau covariance is
-	// consistent; 150 was only ever better under the legacy covariance
-	// and inflated-R regime).
-	double kalmanCaAccelTauMs = 20.0;
-	// CA-M fast magnitude channel knobs
-	double kalmanCaMagJerk = 800.0;
-	double kalmanCaMagAccelTauMs = 150.0;
-	// CA-full only: also report the acceleration states in
-	// vecAcceleration / vecAngularAcceleration. the runtime's forward
-	// prediction integrates them, so honest accel can cut rendered-hand
-	// latency — but it doubles prediction overshoot risk, hence its own
-	// toggle, off for the first clean A/B.
-	bool kalmanCaReportAccel = false;
-	// runtime prediction trim (2026-10-04). vrserver extrapolates every
-	// reported pose by its velocity over the photon horizon; while the hand
-	// brakes that constant-velocity guess lands past the stop and comes
-	// back - the "rubber band", worst on wrist twists (offline, 40ms
-	// horizon: a 10 rad/s twist over-rotates 16deg, a 1.5 m/s stop
-	// overshoots 75mm). stamping the pose this many ms later makes the
-	// runtime extrapolate over a horizon that much shorter; with the stop
-	// brake (Driver/StopBrake.h) 20ms brings those to 5deg / 20mm. the pose
-	// and the reported velocity stay as they are (throws keep their
-	// strength); the cost is the hand trailing fast motion by trim x speed.
-	// 0 = off (the stamp as before).
-	double kalmanCaPredictTrimMs = 20.0;
-	// A/B experiment: propagate the CA covariance with the SAME Singer
-	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
-	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance
-	// (this knob off) uses the naive CA transition, which at tau near the
-	// 20ms floor over-weights measurements by up to ~25% relative to the
-	// model — consistent gains recalibrate NIS and shift the effective
-	// meaning of the tuned J/P/O knobs slightly. off = bit-identical to
-	// the field-tuned 8.5 behavior.
-	// 2026-08-16: ON ratified as default (field-neutral at high tau,
-	// correct at the ratified tau=20).
-	bool kalmanCaExactCov = true;
-	// ==== grip-point velocity compensator ====
-	// the estimator honestly reports the TRACKED ORIGIN's velocity; during
-	// a wrist snap that includes the origin's tangential velocity w x r
-	// about the hand's rotation center — physics, not filter error (field
-	// 2026-08-13/14: linear throws 1-3deg dirOff, real throws 4-15deg,
-	// flick-only gestures 1.1-1.7x linear speed with scattered direction;
-	// per-throw inversion of the lever hypothesis clusters at r ~ 5cm).
-	// when enabled the reported linear velocity is transported to the
-	// grip point: v_out = v + blend * (w x R(q) rGrip), rGrip per hand in
-	// the controller's LOCAL frame (cm). the shadow instrumentation in
-	// PEAKDIAG (gOut/gDirOff/wr fields) runs whenever rGrip is nonzero,
-	// even with enable off — verify on a session before flipping it on.
-	// DEFAULT OFF: engines that transport velocity to their own attach
-	// point would double-apply. rGrip comes from the aligner's grip
-	// capture (pure wrist swirl with the palm held still — the pivot
-	// solve's stationary point IS the rotation center) or manual entry.
-	bool kalmanGripEnable = false;
-	double kalmanGripBlend = 1.0;
-	double kalmanGripLeftCm[3] = {0, 0, 0};
-	double kalmanGripRightCm[3] = {0, 0, 0};
-	// experimental throw/velocity fix. vrlink's reported controller velocity
-	// is heavily smoothed (field data: peaks read ~50-65% of position-derived
-	// velocity during throws, ratio varies with motion phase = filter lag,
-	// not a scale factor). when enabled, linear velocity is recomputed from
-	// a ~50ms window of positions and substituted when meaningfully larger
-	// than the reported value, so releases carry true peak speed while calm
-	// motion keeps the driver's smoother data.
-	bool velocityFix = false;
+	// diagnostic (settings.json only): write every streamed controller pose
+	// as vrlink delivers it, with the stream's own velocities, to
+	// stream-pose-trace.csv next to settings.json (Driver/StreamPoseTrace.h)
+	bool streamPoseTrace = false;
+	// the streamed controllers' velocities go out the way Samsung's driver
+	// reports its own (Driver/GameLinkMotion.h): a reported velocity whose
+	// length is not above the cutoff is zeroed, so a resting hand is not
+	// extrapolated by sensor noise. the values are the ones compiled into
+	// Samsung's driver (m/s, deg/s). 0 = report every velocity as it comes.
+	double gameLinkLinearVelocityCutoff = 0.05;
+	double gameLinkAngularVelocityCutoffDeg = 10.0;
+	// 2026-10-04 rest smoothing of the streamed controllers' pose
+	// (Driver/GameLinkMotion.h): low-pass cutoff in Hz while the controller
+	// is still; it opens with the reported speed, so motion is not delayed.
+	// lower = steadier pointers and more lag in very slow motion. 0 = off.
+	// field: the raw pose makes pointers tremble slightly at rest.
+	double controllerSmoothingHz = 6.0;
 	// diagnostic: throttle-log controller/tracker poses from the PoseUpdated
 	// hook (position, velocity, tracking result), with a burst mode that
 	// captures high-velocity moments (throws). live-reloaded, so it can be
-	// toggled mid-session. groundwork for the throw/velocity fix.
+	// toggled mid-session.
 	bool poseLogging = false;
 	// sub-gate for the HIGH-RATE burst channel of pose logging (up to
 	// 100Hz/device during fast motion through DriverLog on the pose hot
@@ -1504,22 +917,18 @@ struct ControllersConfig{
 	// physical controller pairs are mirror images, so the displacement
 	// between the tracked origin and the grip is mirrored too - identical
 	// offsets can only ever fit one hand.
+	// 2026-10-04: the controllers are placed by the Game Link layout
+	// (Config/GameLinkLayoutPolicy.h) on vrlink's raw pose; the offsets
+	// work on top of it and the pose components ride along. the defaults
+	// are the residual of vrlink's raw against the real controllers,
+	// field-tuned in the headset on the LEFT controller (pitch 2, yaw -5,
+	// roll -9 deg; 0.5cm X, -1.5cm Y, 0.5cm Z); the right hand gets the mirror image. they
+	// replace the 5deg yaw / 0.5cm defaults that were measured against the
+	// grip convention frame.
 	#ifdef VENDOR_GALAXYXR
-	// measured asymmetric residual of vrlink's controller pose, validated
-	// against camera passthrough (virtual model overlaid on the physical
-	// controller): 5deg yaw + 0.5cm lateral, mirrored per hand. the large
-	// hand-symmetric piece (22deg pitch, 5cm Z) is the fixed gripConvention
-	// transform; this residual rides the mirror-aware offset layer instead
-	// because a hand-dependent fixed transform would make the grip-component
-	// rebase non-pure-X (unverifiable euler-order assumptions). unlike the
-	// convention piece, the residual cannot double-apply anywhere: the grip
-	// components contain no yaw/lateral terms to duplicate, and the rebase
-	// algebra delivers it exactly once to grip-pose-selecting bindings
-	// (conjugated by the 22deg pitch: the X-translation is exactly
-	// invariant, the yaw axis tilts sub-perceptibly). safe always-on.
 	bool mirrorOffsetsForRightHand = true;
-	double rotationOffsetDeg[3] = {0, 5, 0};
-	double positionOffsetCm[3] = {0.5, 0, 0};
+	double rotationOffsetDeg[3] = {2, -5, -9};
+	double positionOffsetCm[3] = {0.5, -1.5, 0.5};
 	#else
 	bool mirrorOffsetsForRightHand = false;
 	double rotationOffsetDeg[3] = {0, 0, 0};

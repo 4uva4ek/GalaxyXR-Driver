@@ -160,53 +160,10 @@ export class GalaxySettingsBase {
         // it. only exact-old-default configs are upgraded - custom tuning
         // and deliberate mode choices pass through untouched.
         const rawSf: any = this.rootSetting.streamFrame;
-        // the Game Link layout mode was stored as 'native' by its first builds
-        if (rawSf && canMigrate && rawSf.velocityFixMode === 'native') {
-          rawSf.velocityFixMode = 'kalmanCAGameLink';
-          queueMicrotask(() => this.save());
-        }
-        if (rawSf && canMigrate && (rawSf.streamFrameSchema ?? 1) < 2) {
-          const cvDef = (rawSf.kalmanProcessAccel ?? 1) === 1 && (rawSf.kalmanPosNoiseMm ?? 2.7) === 2.7
-            && (rawSf.kalmanProcessAngAccel ?? 400) === 400 && (rawSf.kalmanOriNoiseDeg ?? 1.25) === 1.25;
-          const caOld = rawSf.kalmanCaJerk === 10 && (rawSf.kalmanCaAngJerk ?? 1500) === 1500
-            && rawSf.kalmanCaPosNoiseMm === 4.2 && rawSf.kalmanCaOriNoiseDeg === 1.25;
-          if (rawSf.velocityFixMode === 'kalman' && cvDef) {
-            rawSf.velocityFixMode = 'kalmanCA';
-          } else if ((rawSf.velocityFixMode === 'kalmanCAM' || rawSf.velocityFixMode === 'kalmanCA') && caOld) {
-            rawSf.velocityFixMode = 'kalmanCA';
-            rawSf.kalmanCaJerk = 17;
-            rawSf.kalmanCaPosNoiseMm = 5.7;
-            rawSf.kalmanCaOriNoiseDeg = 5.75;
-          }
-          rawSf.streamFrameSchema = 2;
-          queueMicrotask(() => this.save());
-        }
-        // schema-3 migration (2026-08-16): schema-2 ratified CA tuning ->
-        // new ratified defaults. chains after the schema-2 block so a
-        // schema-1 config upgraded above matches the pattern here too.
-        if (rawSf && canMigrate && (rawSf.streamFrameSchema ?? 1) < 3) {
-          const caS2 = rawSf.kalmanCaJerk === 17 && (rawSf.kalmanCaAngJerk ?? 1500) === 1500
-            && rawSf.kalmanCaPosNoiseMm === 5.7 && rawSf.kalmanCaOriNoiseDeg === 5.75
-            && (rawSf.kalmanCaAccelTauMs ?? 150) === 150 && !(rawSf.kalmanCaExactCov ?? false);
-          if (rawSf.velocityFixMode === 'kalmanCA' && caS2) {
-            rawSf.kalmanCaJerk = 4;
-            rawSf.kalmanCaPosNoiseMm = 1.5;
-            rawSf.kalmanCaOriNoiseDeg = 1.5;
-            rawSf.kalmanCaAccelTauMs = 20;
-            rawSf.kalmanCaExactCov = true;
-          }
-          rawSf.streamFrameSchema = 3;
-          queueMicrotask(() => this.save());
-        }
-        // schema-4 migration (2026-08-25, 1.0.0): UNCONDITIONAL. the angular
-        // velocity frame fix (kalmanAngularOutFrame) invalidated every
-        // Direction Lead tuning - under the corrected frame any non-zero Td
-        // bends throws off target - and retired Freeze Coast Turn. unlike
-        // schema 2/3 this does not check for old defaults: custom values are
-        // reset too, on purpose. mirrors the driver-side migration.
+        // schema 2-4 (2026-08-15 .. 2026-08-25) retuned the Kalman controller
+        // modes, which are gone (2026-10-04). what is left of schema 4
+        // (1.0.0), mirroring the driver-side migration:
         if (rawSf && canMigrate && (rawSf.streamFrameSchema ?? 1) < 4) {
-          rawSf.kalmanDirLeadMs = 0;
-          rawSf.kalmanFreezeCoastTurn = 0;
           // controller offsets from the previous release were measured
           // against the old grip origin, which moved in 1.0.0 (grip
           // convention + official pose components). they no longer mean
@@ -263,18 +220,6 @@ export class GalaxySettingsBase {
             rawSf.postPack.enable = true; rawSf.postPack.casEnable = true;
           }
           rawSf.nvencSettingsVersion = 4;
-          queueMicrotask(() => this.save());
-        }
-        // kalmanAngularOutFrame is an int in the driver (0 world / 1 body /
-        // 2 zero) and a string enum here; older driver builds published the
-        // int, and a reset against that wrote the int back into settings.
-        // normalise both so the select renders and the reset arrow agrees.
-        const frameNames: { [k: number]: string } = { 0: 'world', 1: 'body', 2: 'zero' };
-        if (typeof this.defaults.kalmanAngularOutFrame === 'number') {
-          this.defaults.kalmanAngularOutFrame = frameNames[this.defaults.kalmanAngularOutFrame as any] ?? 'body';
-        }
-        if (rawSf && canMigrate && typeof rawSf.kalmanAngularOutFrame === 'number') {
-          rawSf.kalmanAngularOutFrame = frameNames[rawSf.kalmanAngularOutFrame] ?? 'body';
           queueMicrotask(() => this.save());
         }
         this.rootSetting.streamFrame = fillDefaults(this.rootSetting.streamFrame, defaultStreamFrame());
@@ -533,12 +478,9 @@ export class GalaxySettingsBase {
     return a.leftH != d.leftH || a.leftV != d.leftV || a.rightH != d.rightH || a.rightV != d.rightV;
   }
 
-  velocityFixTip = "Choose a controller-motion correction mode. Start with the normal filter; the other options are intended for comparisons and specific compatibility problems.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Game Link layout): Kalman CA with the controllers placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart.";
-  velocityFixTipFull = "Choose a controller-motion correction mode, including older experiments. Some legacy modes are kept only for compatibility and are not recommended for normal play.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Game Link layout): Kalman CA with the controllers placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart. Graveyard modes - Classic/Full: first-generation fixes, superseded. Derive: the legacy pose-derivation pipeline; retired after field testing, kept intact for reproducibility. Kalman CA Magnitude: transitional CA variant that swapped only the throw-strength channel; superseded by CA Full (retired 2026-08-15).";
-
   resetGraveyard() {
     if (!this.settings) return;
-    const archived: (keyof StreamFrameConfig)[] = ['deriveDirSource', 'deriveDirWeightPow', 'deriveDirWindowMs', 'deriveLatchAngMinSpeed', 'deriveLatchHoldMs', 'deriveLatchMinSpeed', 'deriveLatchWindowMs', 'deriveMagSource', 'derivePreFilter', 'derivePreSmoothMs', 'derivePreSmoothScope', 'deriveReleaseLatch', 'deriveSmoothAngSeparate', 'deriveSmoothAngSpeedHigh', 'deriveSmoothAngSpeedLow', 'deriveSmoothAngTauFastMs', 'deriveSmoothAngTauSlowMs', 'deriveSmoothSpeedHigh', 'deriveSmoothSpeedLow', 'deriveSmoothTauFastMs', 'deriveSmoothTauSlowMs', 'deriveSplitDirAngular', 'deriveSplitDirLinear', 'kalmanAngDirSmoothMs', 'kalmanDirSmoothMs', 'kalmanDupCoastMaxMs', 'kalmanGazeAssist', 'kalmanGazeMaxDeg', 'kalmanGazeMinSpeed', 'kalmanReleaseRewindMs', 'kalmanRewindHoldMs', 'kalmanSmoothLagMs', 'zeroCopyV3'];
+    const archived: (keyof StreamFrameConfig)[] = ['zeroCopyV3'];
     for (const k of archived) { (this.settings as any)[k] = JSON.parse(JSON.stringify((this.defaults as any)[k])); }
     // FOV tangents live inside eyeGaze; reset only those subkeys so
     // gaze prediction is untouched
@@ -581,25 +523,6 @@ export class GalaxySettingsBase {
   shareStatus = signal('');
   // any calibration overlay/mode that would be visible or disruptive in a
   // normal play session — drives the warning banner at the top of the page
-  // the CA experiment modes share the mode-4 machinery (dup handling,
-  // device time), so those rows show for any kalman-family mode
-  retiredVelocityModes: string[] = ['classic', 'full', 'derive', 'kalmanCAM'];
-  retiredVelocityModeLabels: { [k: string]: string } = {
-    classic: 'Classic (legacy)',
-    full: 'Full (legacy)',
-    derive: 'Derive (legacy, retired)',
-    kalmanCAM: 'Kalman CA \u2014 Magnitude (retired)',
-  };
-  // a stored graveyarded mode still renders (as the sole extra option)
-  // when the graveyard is hidden, so old configs never break
-  isRetiredVelocityMode(m: string | undefined): boolean {
-    return !!m && this.retiredVelocityModes.includes(m);
-  }
-
-  isKalmanMode(): boolean {
-    const m = this.settings?.velocityFixMode;
-    return m == 'kalman' || m == 'kalmanCAM' || m == 'kalmanCA' || m == 'kalmanCAGameLink';
-  }
   calibrationActive(): boolean {
     const s = this.settings;
     const c = this.controllerSettings;
