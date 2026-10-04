@@ -1471,8 +1471,8 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 	// releases carry true peak speed. cheap unsynchronized bool reads keep
 	// the hot path free when both features are disabled.
 	int velocityFixMode = driverConfig.streamFrame.velocityFixMode;
-	// native mode is Samsung's controller placement and identity
-	// (Config/NativeControllerPolicy.h); the motion is Kalman CA's. field
+	// mode 7 is Samsung's controller placement and identity
+	// (Config/GameLinkLayoutPolicy.h); the motion is Kalman CA's. field
 	// 2026-10-04: the stream's own velocities, reported as they come the
 	// way Samsung's driver reports its own, made Half-Life: Alyx throws
 	// fly sideways, while the same placement with Kalman CA threw straight.

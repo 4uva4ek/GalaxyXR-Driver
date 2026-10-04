@@ -863,10 +863,11 @@ struct StreamFrameConfig{
 	// the ramp-lag magnitude deficit is removed by the model instead of
 	// rescaled away. both CA modes skip the legacy blend/peak-hold
 	// stack entirely (clean state reporting).
-	// 7 = native ("native", 2026-10-04): the controllers are placed and
+	// 7 = kalmanCAGameLink ("kalmanCAGameLink", 2026-10-04; "native" in
+	// the first builds, still parsed): the controllers are placed and
 	// identified the way Samsung's own PC driver does it (vrlink's raw pose,
 	// Samsung's pose components and input profile, see
-	// Config/NativeControllerPolicy.h); the motion is mode 6's estimator
+	// Config/GameLinkLayoutPolicy.h); the motion is mode 6's estimator
 	// with its tuning.
 	int velocityFixMode = 6; // kalmanCA: release default 2026-08-15
 	// (supersedes the 2026-08-11 CV consolidation — the CA campaign

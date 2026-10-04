@@ -160,6 +160,11 @@ export class GalaxySettingsBase {
         // it. only exact-old-default configs are upgraded - custom tuning
         // and deliberate mode choices pass through untouched.
         const rawSf: any = this.rootSetting.streamFrame;
+        // the Game Link layout mode was stored as 'native' by its first builds
+        if (rawSf && canMigrate && rawSf.velocityFixMode === 'native') {
+          rawSf.velocityFixMode = 'kalmanCAGameLink';
+          queueMicrotask(() => this.save());
+        }
         if (rawSf && canMigrate && (rawSf.streamFrameSchema ?? 1) < 2) {
           const cvDef = (rawSf.kalmanProcessAccel ?? 1) === 1 && (rawSf.kalmanPosNoiseMm ?? 2.7) === 2.7
             && (rawSf.kalmanProcessAngAccel ?? 400) === 400 && (rawSf.kalmanOriNoiseDeg ?? 1.25) === 1.25;
@@ -528,8 +533,8 @@ export class GalaxySettingsBase {
     return a.leftH != d.leftH || a.leftV != d.leftV || a.rightH != d.rightH || a.rightV != d.rightV;
   }
 
-  velocityFixTip = "Choose a controller-motion correction mode. Start with the normal filter; the other options are intended for comparisons and specific compatibility problems.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Native: the controllers are placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile; motion is Kalman CA's. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart.";
-  velocityFixTipFull = "Choose a controller-motion correction mode, including older experiments. Some legacy modes are kept only for compatibility and are not recommended for normal play.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Native: the controllers are placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile; motion is Kalman CA's. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart. Graveyard modes - Classic/Full: first-generation fixes, superseded. Derive: the legacy pose-derivation pipeline; retired after field testing, kept intact for reproducibility. Kalman CA Magnitude: transitional CA variant that swapped only the throw-strength channel; superseded by CA Full (retired 2026-08-15).";
+  velocityFixTip = "Choose a controller-motion correction mode. Start with the normal filter; the other options are intended for comparisons and specific compatibility problems.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Game Link layout): Kalman CA with the controllers placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart.";
+  velocityFixTipFull = "Choose a controller-motion correction mode, including older experiments. Some legacy modes are kept only for compatibility and are not recommended for normal play.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Game Link layout): Kalman CA with the controllers placed and identified the way Samsung's own PC driver (Game Link) does, with its controller model, pose points and input profile. While it is selected the Grip Convention, the pose offsets, the model scale and the aim trim are not applied. Requires a SteamVR restart. Graveyard modes - Classic/Full: first-generation fixes, superseded. Derive: the legacy pose-derivation pipeline; retired after field testing, kept intact for reproducibility. Kalman CA Magnitude: transitional CA variant that swapped only the throw-strength channel; superseded by CA Full (retired 2026-08-15).";
 
   resetGraveyard() {
     if (!this.settings) return;
@@ -593,7 +598,7 @@ export class GalaxySettingsBase {
 
   isKalmanMode(): boolean {
     const m = this.settings?.velocityFixMode;
-    return m == 'kalman' || m == 'kalmanCAM' || m == 'kalmanCA' || m == 'native';
+    return m == 'kalman' || m == 'kalmanCAM' || m == 'kalmanCA' || m == 'kalmanCAGameLink';
   }
   calibrationActive(): boolean {
     const s = this.settings;

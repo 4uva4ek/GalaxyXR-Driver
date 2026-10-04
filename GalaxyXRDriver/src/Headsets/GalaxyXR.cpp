@@ -5,7 +5,7 @@
 #include <chrono>
 #include "../Config/ConfigLoader.h"
 #include "../Config/SdrColorPolicy.h"
-#include "../Config/NativeControllerPolicy.h"
+#include "../Config/GameLinkLayoutPolicy.h"
 #include "../Config/StreamTiers.h"
 #include "../Config/VrlinkSettingsRouting.h"
 #include "GalaxyXRStatusIcons.h"
@@ -1155,15 +1155,15 @@ void GalaxyXRControllerShim::ApplyIdentity(){
 			DriverLog("GalaxyXRControllerShim: rendermodel %s applied for %s", model.c_str(), serial.c_str());
 		}
 	}
-	if(gxr::NativeControllerMode(driverConfig)){
-		// native mode: Samsung's own input profile and controller type, the
+	if(gxr::GameLinkLayoutMode(driverConfig)){
+		// Game Link layout: Samsung's own input profile and controller type, the
 		// identity its PC driver gives the controllers. its remapping tells
 		// Touch-authored games they talk to a Touch, like Game Link does.
 		std::string profile = "{" + driverConfigLoader.info.driverName + "}/input/samsung_touch/samsung_touch_profile.json";
 		bool wroteProfile = SetStringIfDifferent(container, vr::Prop_InputProfilePath_String, profile);
 		bool wroteType = SetStringIfDifferent(container, vr::Prop_ControllerType_String, "samsung_touch");
 		if(wroteProfile || wroteType){
-			DriverLog("GalaxyXRControllerShim: Samsung input profile applied for %s (native mode)", serial.c_str());
+			DriverLog("GalaxyXRControllerShim: Samsung input profile applied for %s (Game Link layout)", serial.c_str());
 		}
 	}else if(driverConfig.galaxyXr.nativeInputProfile){
 		SyncTouchLayout();

@@ -2,7 +2,8 @@
 #include "Config.h"
 
 namespace gxr {
-// 2026-10-04: Controller Fix Mode "native" (velocityFixMode 7) places and
+// 2026-10-04: Controller Fix Mode "kalmanCAGameLink" (velocityFixMode 7,
+// shown as "Kalman CA (Game Link layout)") is Kalman CA that places and
 // identifies the streamed controllers the way Samsung's own PC driver (Game
 // Link / XR Link, driver_SamsungVST.dll 1.22) does. Applied only to the
 // runtime copy, after all persisted migrations: the stored choices come back
@@ -20,11 +21,11 @@ namespace gxr {
 //             reports its headset's velocities unfiltered; vrlink's, reported
 //             the same way, threw sideways in Half-Life: Alyx.
 // controllerBypass still wins: with it on the controllers stay vrlink's.
-inline bool NativeControllerMode(const Config& config) {
+inline bool GameLinkLayoutMode(const Config& config) {
     return config.streamFrame.velocityFixMode == 7;
 }
-inline void ApplyNativeControllerPolicy(Config& config) {
-    if (!NativeControllerMode(config)) return;
+inline void ApplyGameLinkLayoutPolicy(Config& config) {
+    if (!GameLinkLayoutMode(config)) return;
     auto& g = config.galaxyXr;
     g.gripConvention = false;
     g.officialComponents = true;

@@ -171,14 +171,14 @@ export class DriverSettingsPage extends BasePage {
           );
         }
 
-        // native runs Kalman CA's estimator, so the CA tuning rows show for both
-        const caMode = settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'native';
+        // the Game Link layout mode runs Kalman CA's estimator, so the CA tuning rows show for both
+        const caMode = settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAGameLink';
         // Controller Fix Mode (velocityFixMode) with retired-mode escape hatch
         const modeOptions = [
           { value: 'off', label: 'Off' },
           { value: 'kalman', label: 'Kalman' },
           { value: 'kalmanCA', label: 'Kalman CA (recommended)' },
-          { value: 'native', label: 'Native (as Samsung Game Link)' },
+          { value: 'kalmanCAGameLink', label: 'Kalman CA (Game Link layout)' },
         ];
         if (advanced && settings.graveyardEnable) {
           for (const m of ['classic', 'full', 'derive', 'kalmanCAM']) modeOptions.push({ value: m, label: galaxy.retiredVelocityModeLabels[m] ?? m });
