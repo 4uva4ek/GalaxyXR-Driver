@@ -171,11 +171,14 @@ export class DriverSettingsPage extends BasePage {
           );
         }
 
+        // native runs Kalman CA's estimator, so the CA tuning rows show for both
+        const caMode = settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'native';
         // Controller Fix Mode (velocityFixMode) with retired-mode escape hatch
         const modeOptions = [
           { value: 'off', label: 'Off' },
           { value: 'kalman', label: 'Kalman' },
           { value: 'kalmanCA', label: 'Kalman CA (recommended)' },
+          { value: 'native', label: 'Native (as Samsung Game Link)' },
         ];
         if (advanced && settings.graveyardEnable) {
           for (const m of ['classic', 'full', 'derive', 'kalmanCAM']) modeOptions.push({ value: m, label: galaxy.retiredVelocityModeLabels[m] ?? m });
@@ -209,7 +212,7 @@ export class DriverSettingsPage extends BasePage {
           );
         }
 
-        if (advanced && (settings.velocityFixMode == 'kalmanCA')) {
+        if (advanced && (caMode)) {
           body.push(
             fieldRow(t('Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg, lead ms)'), html`
               <span>J</span><app-number .value=${settings.kalmanCaJerk} step="50" min="1" max="50000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaJerk = e.detail; save(); } }}></app-number>
@@ -267,7 +270,7 @@ export class DriverSettingsPage extends BasePage {
           body.push(
             sectionGroup(t('Kalman Advanced Settings'), 2),
           );
-            if (advanced && (settings.velocityFixMode == 'kalmanCA')) {
+            if (advanced && (caMode)) {
               body.push(
                 fieldRow(t('Kalman CA Accel Decay τ (ms)'), html`
                   <span>τ</span><app-number .value=${settings.kalmanCaAccelTauMs} step="25" min="20" max="10000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaAccelTauMs = e.detail; save(); } }}></app-number>
@@ -277,7 +280,7 @@ export class DriverSettingsPage extends BasePage {
                 }),
               );
             }
-            if (advanced && (settings.velocityFixMode == 'kalmanCA' || settings.velocityFixMode == 'kalmanCAM')) {
+            if (advanced && (caMode || settings.velocityFixMode == 'kalmanCAM')) {
               body.push(
                 settingFieldRow('streamFrame.kalmanCaExactCov', html`<app-switch .checked=${!!settings.kalmanCaExactCov} @change=${(e: CustomEvent) => { settings.kalmanCaExactCov = e.detail; save(); }}></app-switch>`, {
                   tip: "Try an experimental acceleration model with a matching noise calculation. Leave it off unless you are comparing filter behavior deliberately.\n\nExperiment: propagate the filter's uncertainty with the same Singer transition the state prediction actually uses, instead of the simpler approximation. Makes the filter's self-model consistent, which matters most at low Accel Decay tau values (in CA-Magnitude mode it applies to the fast magnitude channel). Changes effective gains slightly, so NIS and the J/P/O tuning shift a little; off reproduces the previously tuned behavior exactly.",
