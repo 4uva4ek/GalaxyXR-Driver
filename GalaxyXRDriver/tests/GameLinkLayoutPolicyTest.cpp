@@ -1,5 +1,5 @@
 // Offline checks for the Game Link layout toggle: the runtime preset
-// (Config/GameLinkLayoutPolicy.h), the velocity cutoff and the rest smoothing
+// (Config/GameLinkLayoutPolicy.h), the velocity cutoff
 // (Driver/GameLinkMotion.h), Velocity Only's angular rebase
 // (Driver/VelocityOnly.h). no driver, no SteamVR.
 #include "../src/Config/GameLinkLayoutPolicy.h"
@@ -139,35 +139,6 @@ int main() {
         double same[3] = {0.3, -1.0, 2.0};
         gxr::VelocityOnlyRebaseAngular(qStream, qStream, same);
         Check(std::fabs(same[0] - 0.3) < 1e-9 && std::fabs(same[1] + 1.0) < 1e-9 && std::fabs(same[2] - 2.0) < 1e-9, "Velocity Only: equal orientations leave it unchanged");
-    }
-    {
-        // rest smoothing: a still controller's jitter is damped, motion passes
-        gxr::GameLinkSmoother s;
-        const double zero[3] = {0, 0, 0};
-        double p0[3] = {0, 0, 0};
-        double q0[4] = {1, 0, 0, 0};
-        gxr::GameLinkSmooth(s, 0.0, 6.0, zero, zero, p0, q0);
-        double p1[3] = {0.002, 0, 0};                 // 2 mm jitter, 11 ms later
-        double q1[4] = {1, 0, 0, 0};
-        gxr::GameLinkSmooth(s, 0.011, 6.0, zero, zero, p1, q1);
-        Check(p1[0] > 0 && p1[0] < 0.001, "rest smoothing: jitter at rest is damped");
-        gxr::GameLinkSmoother m;
-        double a0[3] = {0, 0, 0};
-        gxr::GameLinkSmooth(m, 0.0, 6.0, zero, zero, a0, q0);
-        const double fast[3] = {2.0, 0, 0};           // 2 m/s
-        double a1[3] = {0.022, 0, 0};
-        double qa[4] = {1, 0, 0, 0};
-        gxr::GameLinkSmooth(m, 0.011, 6.0, fast, zero, a1, qa);
-        Check(a1[0] > 0.02, "rest smoothing: fast motion passes almost unchanged");
-        gxr::GameLinkSmoother off;
-        double o0[3] = {0, 0, 0};
-        gxr::GameLinkSmooth(off, 0.0, 0.0, zero, zero, o0, q0);
-        double o1[3] = {0.002, 0, 0};
-        double qo[4] = {1, 0, 0, 0};
-        gxr::GameLinkSmooth(off, 0.011, 0.0, zero, zero, o1, qo);
-        Check(o1[0] == 0.002, "rest smoothing: 0 Hz is off");
-        Config c;
-        Check(c.streamFrame.controllerSmoothingHz == 6.0, "rest smoothing default is 6 Hz");
     }
     std::cout << checks << " checks, " << failures << " failures\n";
     return failures == 0 ? 0 : 1;

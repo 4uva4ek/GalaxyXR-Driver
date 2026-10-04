@@ -1420,13 +1420,6 @@ struct StreamFrameConfig{
 	// velocity as it comes.
 	double gameLinkLinearVelocityCutoff = 0.05;
 	double gameLinkAngularVelocityCutoffDeg = 10.0;
-	// 2026-10-04 rest smoothing of the streamed controllers' pose with the
-	// mode Off or Velocity Only (Driver/GameLinkMotion.h): low-pass cutoff in
-	// Hz while the controller is still; it opens with the reported speed, so
-	// motion is not delayed. lower = steadier pointers and more lag in very
-	// slow motion. 0 = off. field: the raw pose makes pointers tremble
-	// slightly at rest.
-	double controllerSmoothingHz = 6.0;
 	// A/B experiment: propagate the CA covariance with the SAME Singer
 	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
 	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance

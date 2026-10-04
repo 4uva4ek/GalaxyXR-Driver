@@ -195,17 +195,6 @@ export class DriverSettingsPage extends BasePage {
           }),
         );
 
-        if (settings.velocityFixMode == 'off' || velocityOnly) {
-          body.push(
-            fieldRow(t('Controller Rest Smoothing (Hz, 0 = off)'), html`
-              <app-number .value=${settings.controllerSmoothingHz} step="1" min="0" max="30" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.controllerSmoothingHz = e.detail; save(); } }}></app-number>
-            `, {
-              tip: "Steady the controllers while they are held still. Used with Controller Fix Mode Off and Kalman CA (Velocity only), where Steam Link's own pose goes out.\n\nA low-pass on the controller pose whose cutoff is this value at rest and opens with the reported speed (40 Hz per m/s, 8 Hz per rad/s), so real motion is not delayed. Lower = steadier pointers, slightly more lag in very slow motion. 0 = off.",
-              reset: { can: settings.controllerSmoothingHz != defaults.controllerSmoothingHz, on: () => galaxy.reset('controllerSmoothingHz') },
-            }),
-          );
-        }
-
         if (advanced && (settings.velocityFixMode == 'kalman' || settings.velocityFixMode == 'kalmanCAM')) {
           body.push(
             fieldRow(t('Kalman Tuning (accel m/s², pos mm, ang accel, ori deg, lead ms)'), html`

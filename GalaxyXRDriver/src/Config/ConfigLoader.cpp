@@ -1097,9 +1097,6 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["gameLinkAngularVelocityCutoffDeg"].is_number()){
 				newConfig.streamFrame.gameLinkAngularVelocityCutoffDeg = streamFrameData["gameLinkAngularVelocityCutoffDeg"].get<double>();
 			}
-			if(streamFrameData["controllerSmoothingHz"].is_number()){
-				newConfig.streamFrame.controllerSmoothingHz = streamFrameData["controllerSmoothingHz"].get<double>();
-			}
 			if(streamFrameData["kalmanLeadMs"].is_number()){
 				newConfig.streamFrame.kalmanLeadMs = streamFrameData["kalmanLeadMs"].get<double>();
 			}
@@ -1996,7 +1993,6 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanLeadMs", defaultSettings.streamFrame.kalmanLeadMs},
 				{"gameLinkLinearVelocityCutoff", defaultSettings.streamFrame.gameLinkLinearVelocityCutoff},
 				{"gameLinkAngularVelocityCutoffDeg", defaultSettings.streamFrame.gameLinkAngularVelocityCutoffDeg},
-				{"controllerSmoothingHz", defaultSettings.streamFrame.controllerSmoothingHz},
 				{"kalmanReleaseRewindMs", defaultSettings.streamFrame.kalmanReleaseRewindMs},
 				{"kalmanRewindHoldMs", defaultSettings.streamFrame.kalmanRewindHoldMs},
 				{"kalmanDirSmoothMs", defaultSettings.streamFrame.kalmanDirSmoothMs},
