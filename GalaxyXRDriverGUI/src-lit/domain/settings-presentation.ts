@@ -36,6 +36,7 @@ controllers('galaxyXr.nativeInputProfile', 'Official Controller Input Profile');
 controllers('galaxyXr.synthesizeGripTouch', 'Grip Touch From Grip Pressure', { gate: 'native-input-profile', vendorOnly: true });
 controllers('galaxyXr.officialComponents', 'Official Pose Components');
 group('driver-settings', ['Controllers', 'Controller Fix'], ['controllers', 'ctrlFix'], false, 'vendor')('galaxyXr.gripConvention', 'Grip Convention');
+group('driver-settings', ['Controllers', 'Game Link Layout'], ['controllers', 'gameLink'], false, 'vendor')('galaxyXr.gameLinkLayout', 'Game Link Layout');
 const kalman = group('driver-settings', ['Controllers', 'Controller Fix', 'Kalman Advanced Settings'], ['controllers', 'ctrlFix'], true, 'kalman');
 kalman('streamFrame.kalmanCaExactCov', 'Exact Covariance Transition (A/B)', { gate: 'kalman-ca' });
 kalman('streamFrame.kalmanDeviceTime', 'Kalman Device-Time Measurements');
@@ -171,8 +172,8 @@ export function settingUnavailable(setting: SettingPresentation, context: Presen
   if (setting.gate === 'preencode' && (sf?.postPack?.enable && sf.postPack.casEnable || !sf?.cas?.enable)) return 'This control is available when CAS Sharpening uses Pre-encode.';
   if (setting.gate === 'encoder' && !sf?.nvencTap) return 'NVENC Tap is off. Its saved adjustments are kept.';
   if (setting.gate === 'graveyard' && !sf?.graveyardEnable) return 'Retired experiments are hidden. Showing a setting will not enable them.';
-  if ((setting.gate === 'kalman' || setting.gate === 'kalman-ca') && !['kalman', 'kalmanCA', 'kalmanCAM'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman controller mode.';
-  if (setting.gate === 'kalman-ca' && !['kalmanCA', 'kalmanCAM'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman CA controller mode.';
+  if ((setting.gate === 'kalman' || setting.gate === 'kalman-ca') && !['kalman', 'kalmanCA', 'kalmanCAM', 'velocityOnly'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman controller mode.';
+  if (setting.gate === 'kalman-ca' && !['kalmanCA', 'kalmanCAM', 'velocityOnly'].includes(sf?.velocityFixMode ?? '')) return 'This control is available with a Kalman CA controller mode.';
   if (['tuner', 'grid', 'camera-grid'].includes(setting.gate ?? '') && !sf?.distortion.tune.enable) return 'Interactive Tuner is off. Its saved adjustments are kept.';
   if (['grid', 'camera-grid'].includes(setting.gate ?? '') && sf?.distortion.tune.forceGrid) return 'Force Calibration Grid controls these overlays while the tuner is active.';
   if (setting.gate === 'camera-grid' && sf?.eyeGaze.gridMode !== 'sboys') return 'This control is available with the camera calibration pattern.';

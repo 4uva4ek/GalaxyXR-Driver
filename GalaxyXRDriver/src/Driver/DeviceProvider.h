@@ -8,6 +8,8 @@
 #include <atomic>
 
 #include "openvr_driver.h"
+#include "GameLinkMotion.h"
+#include "VelocityOnly.h"
 
 class ShimDefinition;
 
@@ -91,6 +93,9 @@ private:
 	};
 	std::map<uint32_t, PoseLogState> poseLogStates = {};
 	std::mutex poseLogLock = {};
+	// rest smoothing state per streamed controller (GameLinkMotion.h)
+	std::map<uint32_t, gxr::GameLinkSmoother> poseSmoothers = {};
+	std::mutex poseSmootherLock;
 	uint64_t poseDiagnosticGeneration = 0; // guarded by poseLogLock
 	uint64_t kalDiagnosticGeneration = 0; // guarded by deriveFilterLock
 	// Caller holds the corresponding state lock; never acquire another lock.

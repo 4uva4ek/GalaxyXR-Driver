@@ -458,6 +458,14 @@ struct GalaxyXrConfig{
 	// by this (it has its own mode switch). for A/B against stock and for
 	// people who only want the image processing.
 	bool controllerBypass = false;
+	// 2026-10-04 Game Link layout: place and identify the streamed
+	// controllers the way Samsung's own PC driver does it (vrlink's raw pose,
+	// Samsung's pose components and input profile, see
+	// Config/GameLinkLayoutPolicy.h). an add-on to any Controller Fix Mode:
+	// the motion stays the selected mode's. with controllerBypass it still
+	// applies, without the driver's own corrections. requires a SteamVR
+	// restart.
+	bool gameLinkLayout = false;
 	// controller identity experiment (2026-08-24): when true the driver
 	// adds an oculus_touch layout (priority 95, above knuckles) to the
 	// shipped remapping json at startup so Touch-authored game bindings
@@ -863,6 +871,14 @@ struct StreamFrameConfig{
 	// the ramp-lag magnitude deficit is removed by the model instead of
 	// rescaled away. both CA modes skip the legacy blend/peak-hold
 	// stack entirely (clean state reporting).
+	// 7 = velocityOnly ("velocityOnly", 2026-10-04): the stream's pose and
+	// time stamp untouched, only the velocities replaced with mode 6's
+	// estimate (Driver/VelocityOnly.h). the stream's own velocities point
+	// away from the hand's motion in a throw.
+	// the Game Link layout is not a mode: it is the galaxyXr.gameLinkLayout
+	// toggle, on top of whichever mode is selected. the mode strings of its
+	// first builds are still parsed: "kalmanCAGameLink" / "native" = 6 with
+	// the toggle on, "nativeGameLink" = 0 with the toggle on.
 	int velocityFixMode = 6; // kalmanCA: release default 2026-08-15
 	// (supersedes the 2026-08-11 CV consolidation — the CA campaign
 	// closed with relDirOff 4.3deg / relAngOff 3.8deg / rel/pk 1.00 at
@@ -1395,6 +1411,22 @@ struct StreamFrameConfig{
 	// latency — but it doubles prediction overshoot risk, hence its own
 	// toggle, off for the first clean A/B.
 	bool kalmanCaReportAccel = false;
+	// Game Link layout (galaxyXr.gameLinkLayout) with the mode Off or
+	// Velocity Only: the velocities (the stream's, or the estimate) go out
+	// the way Samsung's driver reports its own (Driver/GameLinkMotion.h). a
+	// reported velocity whose length is not above the cutoff is zeroed, so a
+	// resting hand is not extrapolated by sensor noise. the values are the
+	// ones compiled into Samsung's driver (m/s, deg/s). 0 = report every
+	// velocity as it comes.
+	double gameLinkLinearVelocityCutoff = 0.05;
+	double gameLinkAngularVelocityCutoffDeg = 10.0;
+	// 2026-10-04 rest smoothing of the streamed controllers' pose with the
+	// mode Off or Velocity Only (Driver/GameLinkMotion.h): low-pass cutoff in
+	// Hz while the controller is still; it opens with the reported speed, so
+	// motion is not delayed. lower = steadier pointers and more lag in very
+	// slow motion. 0 = off. field: the raw pose makes pointers tremble
+	// slightly at rest.
+	double controllerSmoothingHz = 6.0;
 	// A/B experiment: propagate the CA covariance with the SAME Singer
 	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
 	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance
@@ -1516,6 +1548,15 @@ struct ControllersConfig{
 	double leftPositionOffsetCm[3] = {0, 0, 0};
 	double rightRotationOffsetDeg[3] = {0, 0, 0};
 	double rightPositionOffsetCm[3] = {0, 0, 0};
+	// Game Link layout offsets (2026-10-04): the only pose offsets applied
+	// while galaxyXr.gameLinkLayout is on (Config/GameLinkLayoutPolicy.h
+	// drops the offsets above, they are measured against the grip
+	// convention frame). authored for the LEFT controller, always mirrored
+	// for the right; same axis conventions as the shared offsets. settings
+	// key controllers.gameLinkLayout, live reloaded. defaults = the field
+	// tuning on the Galaxy XR controllers under this layout.
+	double gameLinkRotationOffsetDeg[3] = {2, -5, -9};
+	double gameLinkPositionOffsetCm[3] = {0.5, -1.5, 0.5};
 	ControllerAlignerConfig aligner = {};
 };
 
