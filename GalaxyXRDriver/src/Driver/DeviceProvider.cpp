@@ -4693,26 +4693,6 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 			pose.vecAngularAcceleration[a2] = 0;
 		}
 	}
-	// rest smoothing (GameLinkMotion.h) where the stream's own pose goes out:
-	// mode Off and Velocity only (Kalman modes already filter the pose).
-	// field: the raw pose makes pointers tremble slightly at rest. a sample
-	// without valid tracking passes as it is and restarts the filter.
-	if((velocityFixMode == 0 || velocityOnly) && openVRID != vr::k_unTrackedDeviceIndex_Hmd
-			&& IsStreamedController(openVRID)){
-		const double smoothNow = std::chrono::duration_cast<std::chrono::microseconds>(
-			std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
-		const bool trackingOk = rawPoseValid && rawResult == (int)vr::TrackingResult_Running_OK;
-		double q[4] = {pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z};
-		std::lock_guard<std::mutex> smoothGuard(poseSmootherLock);
-		gxr::GameLinkSmoother &smoother = poseSmoothers[openVRID];
-		if(!trackingOk){
-			smoother.have = false;
-		}else{
-			gxr::GameLinkSmooth(smoother, smoothNow, driverConfig.streamFrame.controllerSmoothingHz,
-				pose.vecVelocity, pose.vecAngularVelocity, pose.vecPosition, q);
-			pose.qRotation = {q[0], q[1], q[2], q[3]};
-		}
-	}
 	// mixed-space velocity frame fix (playspace-override setups): the
 	// openvr header leaves vecVelocity's frame unspecified while positions
 	// are driver-space + WorldFromDriver. an overrider aligning lighthouse

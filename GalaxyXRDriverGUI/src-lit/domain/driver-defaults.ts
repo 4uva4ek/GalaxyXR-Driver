@@ -333,7 +333,6 @@ const nativeDefaults = {
     "kalmanLeadMs": 0.0,
     "gameLinkLinearVelocityCutoff": 0.05,
     "gameLinkAngularVelocityCutoffDeg": 10.0,
-    "controllerSmoothingHz": 6.0,
     "kalmanReleaseRewindMs": 0.0,
     "kalmanRewindHoldMs": 100.0,
     "kalmanDirSmoothMs": 0.0,

@@ -286,7 +286,6 @@ export type StreamFrameConfig = {
   kalmanLeadMs: number;
   gameLinkLinearVelocityCutoff: number;
   gameLinkAngularVelocityCutoffDeg: number;
-  controllerSmoothingHz: number;
   kalmanReleaseRewindMs: number;
   kalmanRewindHoldMs: number;
   kalmanDirSmoothMs: number;
