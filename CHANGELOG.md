@@ -6,6 +6,20 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.6.0] - 2026-10-04
+
+### Features
+
+- Game Link Layout, the controllers as Samsung's own PC driver presents them (`abe0633`)
+
+### Fixes
+
+- gui: declare @types/node as a dev dependency (`3c77780`)
+
+### Other changes
+
+- Update README with new installation image and instructions (`fcd2d61`)
+
 ## [1.5.0] - 2026-10-01
 
 ### Features
