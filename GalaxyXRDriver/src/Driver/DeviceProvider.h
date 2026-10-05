@@ -8,8 +8,6 @@
 #include <atomic>
 
 #include "openvr_driver.h"
-#include "GameLinkMotion.h"
-#include "VelocityOnly.h"
 
 class ShimDefinition;
 

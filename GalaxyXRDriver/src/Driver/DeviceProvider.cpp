@@ -1471,31 +1471,6 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 	// releases carry true peak speed. cheap unsynchronized bool reads keep
 	// the hot path free when both features are disabled.
 	int velocityFixMode = driverConfig.streamFrame.velocityFixMode;
-	// mode 7 (velocityOnly, see VelocityOnly.h): the Kalman CA estimator runs
-	// for its velocities; the stream's pose is put back after it.
-	const bool velocityOnly = velocityFixMode == 7;
-	vr::DriverPose_t velocityOnlyIn = {};
-	if(velocityOnly){
-		velocityOnlyIn = pose;
-		velocityFixMode = 6;
-	}
-	// Game Link layout with the mode Off: what Samsung's driver reports
-	// (GameLinkMotion.h): the stream's pose, time stamp and velocities as
-	// they come, a velocity below the cutoff zeroed, no accelerations.
-	// field 2026-10-04: reported this way the stream's velocities made
-	// Half-Life: Alyx throws fly sideways, while the same placement with
-	// Kalman CA threw straight.
-	if(velocityFixMode == 0 && driverConfig.galaxyXr.gameLinkLayout
-			&& openVRID != vr::k_unTrackedDeviceIndex_Hmd && IsStreamedController(openVRID)){
-		double linCut = driverConfig.streamFrame.gameLinkLinearVelocityCutoff;
-		double angCut = driverConfig.streamFrame.gameLinkAngularVelocityCutoffDeg * 3.14159265358979323846 / 180.0;
-		if(linCut > 0){ gxr::GameLinkVelocityCutoff(pose.vecVelocity, linCut); }
-		if(angCut > 0){ gxr::GameLinkVelocityCutoff(pose.vecAngularVelocity, angCut); }
-		for(int a2 = 0; a2 < 3; a2++){
-			pose.vecAcceleration[a2] = 0;
-			pose.vecAngularAcceleration[a2] = 0;
-		}
-	}
 	// flagged-loss bookkeeping (kalman mode): the estimator gate below
 	// skips flagged samples entirely, so the filter never eats them —
 	// this pre-block records loss runs for KALDIAG and pins ks.have =
@@ -4665,32 +4640,6 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 				+ pose.vecVelocity[2] * pose.vecVelocity[2]);
 			snap.trackingOk = false;
 			snap.result = (int)pose.result;
-		}
-	}
-	// velocityOnly: the stream's pose and time stamp, the estimator's
-	// velocities. a sample the estimator did not touch passes unchanged.
-	if(velocityOnly && openVRID != vr::k_unTrackedDeviceIndex_Hmd && IsStreamedController(openVRID)){
-		double w[3] = {pose.vecAngularVelocity[0], pose.vecAngularVelocity[1], pose.vecAngularVelocity[2]};
-		if(driverConfig.streamFrame.kalmanAngularOutFrame == 1){
-			const double qEst[4] = {pose.qRotation.w, pose.qRotation.x, pose.qRotation.y, pose.qRotation.z};
-			const double qIn[4] = {velocityOnlyIn.qRotation.w, velocityOnlyIn.qRotation.x, velocityOnlyIn.qRotation.y, velocityOnlyIn.qRotation.z};
-			gxr::VelocityOnlyRebaseAngular(qEst, qIn, w);
-		}
-		double v[3] = {pose.vecVelocity[0], pose.vecVelocity[1], pose.vecVelocity[2]};
-		// with the Game Link layout the estimate goes out the way Samsung's
-		// driver reports motion: a velocity below the cutoff is zero
-		if(driverConfig.galaxyXr.gameLinkLayout){
-			double linCut = driverConfig.streamFrame.gameLinkLinearVelocityCutoff;
-			double angCut = driverConfig.streamFrame.gameLinkAngularVelocityCutoffDeg * 3.14159265358979323846 / 180.0;
-			if(linCut > 0){ gxr::GameLinkVelocityCutoff(v, linCut); }
-			if(angCut > 0){ gxr::GameLinkVelocityCutoff(w, angCut); }
-		}
-		pose = velocityOnlyIn;
-		for(int a2 = 0; a2 < 3; a2++){
-			pose.vecVelocity[a2] = v[a2];
-			pose.vecAngularVelocity[a2] = w[a2];
-			pose.vecAcceleration[a2] = 0;
-			pose.vecAngularAcceleration[a2] = 0;
 		}
 	}
 	// mixed-space velocity frame fix (playspace-override setups): the

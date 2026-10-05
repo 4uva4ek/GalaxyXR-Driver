@@ -45,7 +45,7 @@ export class DriverSettingService extends JsonSettingServiceBase<Settings> {
   // "velocityFix" bool for months; the default-diff serializer then
   // pruned the explicit velocityFixMode the moment it matched the new
   // published default, and the fossil took over mode selection.
-  private static readonly retiredStreamFrameKeys = ['velocityFix', 'kalmanDupSkip', 'kalmanAdaptiveBoost'];
+  private static readonly retiredStreamFrameKeys = ['velocityFix', 'kalmanDupSkip', 'kalmanAdaptiveBoost', 'gameLinkLinearVelocityCutoff', 'gameLinkAngularVelocityCutoffDeg'];
   protected override migrateLoadedValues(values: Settings): Settings {
     const sf = (values as any)?.streamFrame;
     if (sf) {

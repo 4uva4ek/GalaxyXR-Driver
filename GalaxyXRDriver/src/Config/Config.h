@@ -871,10 +871,6 @@ struct StreamFrameConfig{
 	// the ramp-lag magnitude deficit is removed by the model instead of
 	// rescaled away. both CA modes skip the legacy blend/peak-hold
 	// stack entirely (clean state reporting).
-	// 7 = velocityOnly ("velocityOnly", 2026-10-04): the stream's pose and
-	// time stamp untouched, only the velocities replaced with mode 6's
-	// estimate (Driver/VelocityOnly.h). the stream's own velocities point
-	// away from the hand's motion in a throw.
 	// the Game Link layout is not a mode: it is the galaxyXr.gameLinkLayout
 	// toggle, on top of whichever mode is selected. the mode strings of its
 	// first builds are still parsed: "kalmanCAGameLink" / "native" = 6 with
@@ -1411,15 +1407,6 @@ struct StreamFrameConfig{
 	// latency — but it doubles prediction overshoot risk, hence its own
 	// toggle, off for the first clean A/B.
 	bool kalmanCaReportAccel = false;
-	// Game Link layout (galaxyXr.gameLinkLayout) with the mode Off or
-	// Velocity Only: the velocities (the stream's, or the estimate) go out
-	// the way Samsung's driver reports its own (Driver/GameLinkMotion.h). a
-	// reported velocity whose length is not above the cutoff is zeroed, so a
-	// resting hand is not extrapolated by sensor noise. the values are the
-	// ones compiled into Samsung's driver (m/s, deg/s). 0 = report every
-	// velocity as it comes.
-	double gameLinkLinearVelocityCutoff = 0.05;
-	double gameLinkAngularVelocityCutoffDeg = 10.0;
 	// A/B experiment: propagate the CA covariance with the SAME Singer
 	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
 	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance

@@ -982,11 +982,13 @@ void ConfigLoader::ParseConfig(){
 				std::string mode = streamFrameData["velocityFixMode"].get<std::string>();
 				// the Game Link layout was a mode in its first builds; it is the
 				// galaxyXr.gameLinkLayout toggle now. Companion rewrites the file.
+				// "velocityOnly" (Kalman CA's velocities on the stream's pose) is
+				// removed; it is read as Kalman CA.
 				bool layoutKalmanCa = mode == "kalmanCAGameLink" || mode == "native";
 				if(layoutKalmanCa || mode == "nativeGameLink"){
 					newConfig.galaxyXr.gameLinkLayout = true;
 				}
-				newConfig.streamFrame.velocityFixMode = mode == "velocityOnly" ? 7 : (mode == "kalmanCA" || layoutKalmanCa) ? 6 : (mode == "kalmanCAM" ? 5 : (mode == "kalman" ? 4 : (mode == "derive" ? 3 : (mode == "full" ? 2 : (mode == "classic" ? 1 : 0)))));
+				newConfig.streamFrame.velocityFixMode = (mode == "kalmanCA" || layoutKalmanCa || mode == "velocityOnly") ? 6 : (mode == "kalmanCAM" ? 5 : (mode == "kalman" ? 4 : (mode == "derive" ? 3 : (mode == "full" ? 2 : (mode == "classic" ? 1 : 0)))));
 			}
 			// mode provenance (2x incident 2026-08-11): a round-trip
 			// preserved legacy "velocityFix" bool with no
@@ -1090,12 +1092,6 @@ void ConfigLoader::ParseConfig(){
 			}
 			if(streamFrameData["kalmanOriNoiseDeg"].is_number()){
 				newConfig.streamFrame.kalmanOriNoiseDeg = streamFrameData["kalmanOriNoiseDeg"].get<double>();
-			}
-			if(streamFrameData["gameLinkLinearVelocityCutoff"].is_number()){
-				newConfig.streamFrame.gameLinkLinearVelocityCutoff = streamFrameData["gameLinkLinearVelocityCutoff"].get<double>();
-			}
-			if(streamFrameData["gameLinkAngularVelocityCutoffDeg"].is_number()){
-				newConfig.streamFrame.gameLinkAngularVelocityCutoffDeg = streamFrameData["gameLinkAngularVelocityCutoffDeg"].get<double>();
 			}
 			if(streamFrameData["kalmanLeadMs"].is_number()){
 				newConfig.streamFrame.kalmanLeadMs = streamFrameData["kalmanLeadMs"].get<double>();
@@ -1960,7 +1956,7 @@ void ConfigLoader::WriteInfo(){
 				{"nvencQpFovea", defaultSettings.streamFrame.nvencQpFovea},
 				{"nvencQpPeriphery", defaultSettings.streamFrame.nvencQpPeriphery},
 				{"nvencVerbose", defaultSettings.streamFrame.nvencVerbose},
-				{"velocityFixMode", defaultSettings.streamFrame.velocityFixMode == 7 ? "velocityOnly" : defaultSettings.streamFrame.velocityFixMode == 6 ? "kalmanCA" : (defaultSettings.streamFrame.velocityFixMode == 5 ? "kalmanCAM" : (defaultSettings.streamFrame.velocityFixMode == 4 ? "kalman" : (defaultSettings.streamFrame.velocityFixMode == 3 ? "derive" : (defaultSettings.streamFrame.velocityFixMode == 2 ? "full" : (defaultSettings.streamFrame.velocityFixMode == 1 ? "classic" : "off")))))},
+				{"velocityFixMode", defaultSettings.streamFrame.velocityFixMode == 6 ? "kalmanCA" : (defaultSettings.streamFrame.velocityFixMode == 5 ? "kalmanCAM" : (defaultSettings.streamFrame.velocityFixMode == 4 ? "kalman" : (defaultSettings.streamFrame.velocityFixMode == 3 ? "derive" : (defaultSettings.streamFrame.velocityFixMode == 2 ? "full" : (defaultSettings.streamFrame.velocityFixMode == 1 ? "classic" : "off")))))},
 				{"deriveSmoothTauSlowMs", defaultSettings.streamFrame.deriveSmoothTauSlowMs},
 				{"deriveSmoothTauFastMs", defaultSettings.streamFrame.deriveSmoothTauFastMs},
 				{"deriveSmoothSpeedLow", defaultSettings.streamFrame.deriveSmoothSpeedLow},
@@ -1991,8 +1987,6 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanProcessAngAccel", defaultSettings.streamFrame.kalmanProcessAngAccel},
 				{"kalmanOriNoiseDeg", defaultSettings.streamFrame.kalmanOriNoiseDeg},
 				{"kalmanLeadMs", defaultSettings.streamFrame.kalmanLeadMs},
-				{"gameLinkLinearVelocityCutoff", defaultSettings.streamFrame.gameLinkLinearVelocityCutoff},
-				{"gameLinkAngularVelocityCutoffDeg", defaultSettings.streamFrame.gameLinkAngularVelocityCutoffDeg},
 				{"kalmanReleaseRewindMs", defaultSettings.streamFrame.kalmanReleaseRewindMs},
 				{"kalmanRewindHoldMs", defaultSettings.streamFrame.kalmanRewindHoldMs},
 				{"kalmanDirSmoothMs", defaultSettings.streamFrame.kalmanDirSmoothMs},
