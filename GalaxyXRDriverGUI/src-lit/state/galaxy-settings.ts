@@ -282,6 +282,12 @@ export class GalaxySettingsBase {
           (this.rootSetting.galaxyXr ??= {} as any).gameLinkLayout = true;
           queueMicrotask(() => this.save());
         }
+        // 'velocityOnly' (Kalman CA's velocities on the stream's pose) is
+        // removed; the driver reads it as Kalman CA.
+        if (rawSf && canMigrate && rawSf.velocityFixMode === 'velocityOnly') {
+          rawSf.velocityFixMode = 'kalmanCA';
+          queueMicrotask(() => this.save());
+        }
         this.rootSetting.streamFrame = fillDefaults(this.rootSetting.streamFrame, defaultStreamFrame());
         this.rootSetting.controllers = fillDefaults(this.rootSetting.controllers, defaultControllers());
         this.controllerSettings = this.rootSetting.controllers;
@@ -550,8 +556,8 @@ export class GalaxySettingsBase {
     return a.leftH != d.leftH || a.leftV != d.leftV || a.rightH != d.rightH || a.rightV != d.rightV;
   }
 
-  velocityFixTip = "Choose a controller-motion correction mode. Start with the normal filter; the other options are intended for comparisons and specific compatibility problems.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Velocity only): the controller pose exactly as Steam Link sends it, with only the velocities replaced by Kalman CA's estimate; Steam Link's own velocities point away from the hand in a throw.";
-  velocityFixTipFull = "Choose a controller-motion correction mode, including older experiments. Some legacy modes are kept only for compatibility and are not recommended for normal play.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Kalman CA (Velocity only): the controller pose exactly as Steam Link sends it, with only the velocities replaced by Kalman CA's estimate; Steam Link's own velocities point away from the hand in a throw. Graveyard modes - Classic/Full: first-generation fixes, superseded. Derive: the legacy pose-derivation pipeline; retired after field testing, kept intact for reproducibility. Kalman CA Magnitude: transitional CA variant that swapped only the throw-strength channel; superseded by CA Full (retired 2026-08-15).";
+  velocityFixTip = "Choose a controller-motion correction mode. Start with the normal filter; the other options are intended for comparisons and specific compatibility problems.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator.";
+  velocityFixTipFull = "Choose a controller-motion correction mode, including older experiments. Some legacy modes are kept only for compatibility and are not recommended for normal play.\n\nOff: pass the native runtime velocities through untouched. Kalman: a single estimator produces position, rotation, velocity and spin as one coherent state, the same architecture native tracked controllers use. Kalman CA (recommended): A constant-acceleration variant that tracks the throw ramp itself instead of rescaling it away. Replaces the whole estimator. Graveyard modes - Classic/Full: first-generation fixes, superseded. Derive: the legacy pose-derivation pipeline; retired after field testing, kept intact for reproducibility. Kalman CA Magnitude: transitional CA variant that swapped only the throw-strength channel; superseded by CA Full (retired 2026-08-15).";
 
   resetGraveyard() {
     if (!this.settings) return;
@@ -615,7 +621,7 @@ export class GalaxySettingsBase {
 
   isKalmanMode(): boolean {
     const m = this.settings?.velocityFixMode;
-    return m == 'kalman' || m == 'kalmanCAM' || m == 'kalmanCA' || m == 'velocityOnly';
+    return m == 'kalman' || m == 'kalmanCAM' || m == 'kalmanCA';
   }
   calibrationActive(): boolean {
     const s = this.settings;

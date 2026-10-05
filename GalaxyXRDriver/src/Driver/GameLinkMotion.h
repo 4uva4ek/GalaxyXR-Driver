@@ -6,7 +6,8 @@
 // no filter: the pose goes out with the stream's velocities and zero
 // accelerations, and a linear / angular velocity whose length is not above a
 // cutoff (0.05 m/s, 10 deg/s in that driver) is zeroed, so a resting hand is
-// not extrapolated by sensor noise.
+// not extrapolated by sensor noise. we keep the cutoff but not the zeroed
+// accelerations: those go out as the stream has them.
 //
 // Header-only and free of OpenVR types so tests/GameLinkLayoutPolicyTest.cpp
 // runs the code the driver runs.

@@ -1,10 +1,8 @@
 // Offline checks for the Game Link layout toggle: the runtime preset
 // (Config/GameLinkLayoutPolicy.h), the velocity cutoff
-// (Driver/GameLinkMotion.h), Velocity Only's angular rebase
-// (Driver/VelocityOnly.h). no driver, no SteamVR.
+// (Driver/GameLinkMotion.h). no driver, no SteamVR.
 #include "../src/Config/GameLinkLayoutPolicy.h"
 #include "../src/Driver/GameLinkMotion.h"
-#include "../src/Driver/VelocityOnly.h"
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -125,20 +123,6 @@ int main() {
         Check(moving[0] == 0.03 && moving[2] == 0.041, "kept velocity is untouched");
         Config c;
         Check(c.streamFrame.gameLinkLinearVelocityCutoff == 0.05 && c.streamFrame.gameLinkAngularVelocityCutoffDeg == 10.0, "cutoff defaults are Samsung's values");
-    }
-    {
-        // Velocity Only: a controller-local angular velocity keeps its world
-        // rotation rate when the pose carries another orientation
-        const double h = std::sqrt(0.5);
-        const double qEst[4] = {1, 0, 0, 0};          // estimator: identity
-        const double qStream[4] = {h, 0, h, 0};       // stream: 90deg about +Y
-        double w[3] = {2.0, 0.0, 0.0};                // world +X rate
-        gxr::VelocityOnlyRebaseAngular(qEst, qStream, w);
-        // local +Z of the stream orientation points along world +X
-        Check(std::fabs(w[0]) < 1e-9 && std::fabs(w[1]) < 1e-9 && std::fabs(w[2] - 2.0) < 1e-9, "Velocity Only: angular velocity is re-expressed in the stream's orientation");
-        double same[3] = {0.3, -1.0, 2.0};
-        gxr::VelocityOnlyRebaseAngular(qStream, qStream, same);
-        Check(std::fabs(same[0] - 0.3) < 1e-9 && std::fabs(same[1] + 1.0) < 1e-9 && std::fabs(same[2] - 2.0) < 1e-9, "Velocity Only: equal orientations leave it unchanged");
     }
     std::cout << checks << " checks, " << failures << " failures\n";
     return failures == 0 ? 0 : 1;

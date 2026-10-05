@@ -171,15 +171,12 @@ export class DriverSettingsPage extends BasePage {
           );
         }
 
-        // Velocity Only runs Kalman CA's estimator, so the CA rows show for both
-        const velocityOnly = settings.velocityFixMode == 'velocityOnly';
-        const caMode = settings.velocityFixMode == 'kalmanCA' || velocityOnly;
+        const caMode = settings.velocityFixMode == 'kalmanCA';
         // Controller Fix Mode (velocityFixMode) with retired-mode escape hatch
         const modeOptions = [
           { value: 'off', label: 'Off' },
           { value: 'kalman', label: 'Kalman' },
           { value: 'kalmanCA', label: 'Kalman CA (recommended)' },
-          { value: 'velocityOnly', label: 'Kalman CA (Velocity only)' },
         ];
         if (advanced && settings.graveyardEnable) {
           for (const m of ['classic', 'full', 'derive', 'kalmanCAM']) modeOptions.push({ value: m, label: galaxy.retiredVelocityModeLabels[m] ?? m });
@@ -215,12 +212,12 @@ export class DriverSettingsPage extends BasePage {
 
         if (advanced && (caMode)) {
           body.push(
-            fieldRow(velocityOnly ? t('Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg)') : t('Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg, lead ms)'), html`
+            fieldRow(t('Kalman CA Tuning (jerk m/s³, ang jerk, pos mm, ori deg, lead ms)'), html`
               <span>J</span><app-number .value=${settings.kalmanCaJerk} step="50" min="1" max="50000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaJerk = e.detail; save(); } }}></app-number>
               <span>Wj</span><app-number .value=${settings.kalmanCaAngJerk} step="250" min="50" max="500000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaAngJerk = e.detail; save(); } }}></app-number>
               <span>P</span><app-number .value=${settings.kalmanCaPosNoiseMm} step="0.5" min="0.2" max="20" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaPosNoiseMm = e.detail; save(); } }}></app-number>
               <span>O</span><app-number .value=${settings.kalmanCaOriNoiseDeg} step="0.1" min="0.05" max="10" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanCaOriNoiseDeg = e.detail; save(); } }}></app-number>
-              ${velocityOnly ? html`` : html`<span>L</span><app-number .value=${settings.kalmanLeadMs} step="5" min="0" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLeadMs = e.detail; save(); } }}></app-number>`}
+              <span>L</span><app-number .value=${settings.kalmanLeadMs} step="5" min="0" max="50" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLeadMs = e.detail; save(); } }}></app-number>
             `, {
               tip: "Use a motion filter that also estimates acceleration. It can change throwing behavior and responsiveness; compare carefully with the normal filter.\n\nThe constant-acceleration state tracks a changing speed estimate rather than treating every speed change as noise. It can reduce lag in some motions but can also change overshoot and throwing behavior; compare it with the normal filter. J (jerk noise) adjusts responsiveness: higher follows faster changes, lower is calmer. Wj is the rotation equivalent. P/O are sensor-noise settings. L leads the report to compensate for timing delay.",
               reset: {
@@ -300,14 +297,12 @@ export class DriverSettingsPage extends BasePage {
                 reset: { can: (settings as any).kalmanAngularOutFrame != defaults.kalmanAngularOutFrame, on: () => galaxy.reset('kalmanAngularOutFrame' as any) },
               }),
             );
-            if (!velocityOnly) {
-              body.push(
-                fieldRow(t('Kalman Loss Coast (ms)'), html`<app-number .value=${settings.kalmanLossCoastMs} step="50" min="0" max="1000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLossCoastMs = e.detail; save(); } }}></app-number>`, {
-                  tip: "Choose how long controller movement may continue briefly after tracking is lost. Longer coasting can hide interruptions but can also move the controller incorrectly.\n\nWhen the controller briefly leaves tracking (hand out of camera view), the stream freezes the hand in place with zero velocity until it is seen again. For up to this many ms of tracking loss, the driver instead keeps the hand moving along the filter's last known motion (with the usual acceleration decay so it cannot run away).",
-                  reset: { can: settings.kalmanLossCoastMs != defaults.kalmanLossCoastMs, on: () => galaxy.reset('kalmanLossCoastMs') },
-                }),
-              );
-            }
+            body.push(
+              fieldRow(t('Kalman Loss Coast (ms)'), html`<app-number .value=${settings.kalmanLossCoastMs} step="50" min="0" max="1000" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.kalmanLossCoastMs = e.detail; save(); } }}></app-number>`, {
+                tip: "Choose how long controller movement may continue briefly after tracking is lost. Longer coasting can hide interruptions but can also move the controller incorrectly.\n\nWhen the controller briefly leaves tracking (hand out of camera view), the stream freezes the hand in place with zero velocity until it is seen again. For up to this many ms of tracking loss, the driver instead keeps the hand moving along the filter's last known motion (with the usual acceleration decay so it cannot run away).",
+                reset: { can: settings.kalmanLossCoastMs != defaults.kalmanLossCoastMs, on: () => galaxy.reset('kalmanLossCoastMs') },
+              }),
+            );
             body.push(
               fieldRow(t('Kalman Duplicate-Sample Handling'), html`
                 <app-select .value=${settings.kalmanDupMode} .options=${[
@@ -353,14 +348,14 @@ export class DriverSettingsPage extends BasePage {
             }),
           );
           if (gx.gameLinkLayout) {
-            const cutoffOff = settings.velocityFixMode != 'off' && settings.velocityFixMode != 'velocityOnly';
+            const cutoffOff = settings.velocityFixMode != 'off';
             body.push(
               fieldRow(t('Game Link Velocity Cutoff (linear m/s, angular deg/s)'), html`
-                ${cutoffOff ? html`<span class="note-inline">used with Controller Fix Mode Off or Kalman CA (Velocity only)</span>` : html``}
+                ${cutoffOff ? html`<span class="note-inline">used with Controller Fix Mode Off</span>` : html``}
                 <span>V</span><app-number .value=${settings.gameLinkLinearVelocityCutoff} ?disabled=${cutoffOff} step="0.01" min="0" max="1" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkLinearVelocityCutoff = e.detail; save(); } }}></app-number>
                 <span>W</span><app-number .value=${settings.gameLinkAngularVelocityCutoffDeg} ?disabled=${cutoffOff} step="1" min="0" max="90" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkAngularVelocityCutoffDeg = e.detail; save(); } }}></app-number>
               `, {
-                tip: "With the Game Link layout on and the mode Off or Kalman CA (Velocity only), the controller motion is sent the way Samsung's own PC driver (Game Link) does: the velocities as they come (Steam Link's in Off, the estimate in Kalman CA (Velocity only)).\n\nA reported speed below V, or a spin below W, is sent as zero so a resting hand does not drift on sensor noise. The defaults are Samsung's own values; 0 sends every velocity as it comes.",
+                tip: "With the Game Link layout on and the mode Off, the controller motion is sent the way Samsung's own PC driver (Game Link) does: Steam Link's velocities as they come.\n\nA reported speed below V, or a spin below W, is sent as zero so a resting hand does not drift on sensor noise. The defaults are Samsung's own values; 0 sends every velocity as it comes.",
                 reset: {
                   can: settings.gameLinkLinearVelocityCutoff != defaults.gameLinkLinearVelocityCutoff || settings.gameLinkAngularVelocityCutoffDeg != defaults.gameLinkAngularVelocityCutoffDeg,
                   on: () => { galaxy.reset('gameLinkLinearVelocityCutoff'); galaxy.reset('gameLinkAngularVelocityCutoffDeg'); },

@@ -124,6 +124,15 @@ describe('schema migrations', () => {
     expect(saved.length).toBeGreaterThan(0);
   });
 
+  it('turns the removed velocityOnly mode into kalmanCA and leaves the layout toggle alone', async () => {
+    const stored: any = { streamFrame: { velocityFixMode: 'velocityOnly', streamFrameSchema: 5 }, galaxyXr: {} };
+    const { saved, flush } = buildHarness(stored);
+    await flush();
+    expect(stored.streamFrame.velocityFixMode).toBe('kalmanCA');
+    expect(stored.galaxyXr.gameLinkLayout).toBeFalsy();
+    expect(saved.length).toBeGreaterThan(0);
+  });
+
   it.each(['off', 'kalman', 'kalmanCA'])('leaves mode %s as chosen and the layout off', async (mode) => {
     const stored: any = { streamFrame: { velocityFixMode: mode, streamFrameSchema: 5 }, galaxyXr: {} };
     const { flush } = buildHarness(stored);
