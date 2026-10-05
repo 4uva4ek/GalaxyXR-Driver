@@ -1,8 +1,6 @@
 // Offline checks for the Game Link layout toggle: the runtime preset
-// (Config/GameLinkLayoutPolicy.h), the velocity cutoff
-// (Driver/GameLinkMotion.h). no driver, no SteamVR.
+// (Config/GameLinkLayoutPolicy.h). no driver, no SteamVR.
 #include "../src/Config/GameLinkLayoutPolicy.h"
-#include "../src/Driver/GameLinkMotion.h"
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -112,17 +110,6 @@ int main() {
         c.galaxyXr.controllerBypass = true;
         gxr::ApplyGameLinkLayoutPolicy(c);
         Check(c.galaxyXr.controllerBypass, "toggle off: controller bypass is left as chosen");
-    }
-    {
-        // cutoff: at or below the threshold is zero, above is untouched
-        double still[3] = {0.03, 0.0, 0.04};
-        Check(gxr::GameLinkVelocityCutoff(still, 0.05), "a velocity of exactly the cutoff is zeroed");
-        Check(still[0] == 0 && still[1] == 0 && still[2] == 0, "zeroed velocity is all zero");
-        double moving[3] = {0.03, 0.0, 0.041};
-        Check(!gxr::GameLinkVelocityCutoff(moving, 0.05), "a velocity above the cutoff is kept");
-        Check(moving[0] == 0.03 && moving[2] == 0.041, "kept velocity is untouched");
-        Config c;
-        Check(c.streamFrame.gameLinkLinearVelocityCutoff == 0.05 && c.streamFrame.gameLinkAngularVelocityCutoffDeg == 10.0, "cutoff defaults are Samsung's values");
     }
     std::cout << checks << " checks, " << failures << " failures\n";
     return failures == 0 ? 0 : 1;

@@ -199,6 +199,17 @@ describe('vendor defaults before info.json exists', () => {
     expect(driverDefaults.controllers?.positionOffsetCm).toEqual({ x: 0.5, y: 0, z: 0 });
   });
 
+  it('drops the removed Game Link velocity cutoff keys on load and save', async () => {
+    const service = await load('galaxyxr', { streamFrame: { gameLinkLinearVelocityCutoff: 0.1, gameLinkAngularVelocityCutoffDeg: 5, saturation: 1.1 } });
+    expect(service.values()?.streamFrame).not.toHaveProperty('gameLinkLinearVelocityCutoff');
+    expect(service.values()?.streamFrame).not.toHaveProperty('gameLinkAngularVelocityCutoffDeg');
+    expect(await service.save(service.values()!)).toBe(true);
+    const stored = JSON.parse(storage.files.get(filePath)!);
+    expect(stored.streamFrame).not.toHaveProperty('gameLinkLinearVelocityCutoff');
+    expect(stored.streamFrame).not.toHaveProperty('gameLinkAngularVelocityCutoffDeg');
+    expect(stored.streamFrame.saturation).toBe(1.1);
+  });
+
   it('retains an explicit true in the neutral build through save and reload', async () => {
     const service = await load('', { galaxyXr: { nativeIdentity: true } });
     expect(service.values()?.galaxyXr?.nativeIdentity).toBe(true);

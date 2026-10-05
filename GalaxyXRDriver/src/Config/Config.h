@@ -1407,15 +1407,6 @@ struct StreamFrameConfig{
 	// latency — but it doubles prediction overshoot risk, hence its own
 	// toggle, off for the first clean A/B.
 	bool kalmanCaReportAccel = false;
-	// Game Link layout (galaxyXr.gameLinkLayout) with the mode Off: the
-	// stream's velocities go out the way Samsung's driver reports its own
-	// (Driver/GameLinkMotion.h). a
-	// reported velocity whose length is not above the cutoff is zeroed, so a
-	// resting hand is not extrapolated by sensor noise. the values are the
-	// ones compiled into Samsung's driver (m/s, deg/s). 0 = report every
-	// velocity as it comes.
-	double gameLinkLinearVelocityCutoff = 0.05;
-	double gameLinkAngularVelocityCutoffDeg = 10.0;
 	// A/B experiment: propagate the CA covariance with the SAME Singer
 	// transition the state actually uses (F12 = tau(1-e^(-dt/tau)) instead
 	// of dt, F02 = dt*F12/2 instead of dt^2/2). the legacy covariance

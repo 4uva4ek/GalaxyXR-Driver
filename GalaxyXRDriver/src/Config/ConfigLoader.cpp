@@ -1093,12 +1093,6 @@ void ConfigLoader::ParseConfig(){
 			if(streamFrameData["kalmanOriNoiseDeg"].is_number()){
 				newConfig.streamFrame.kalmanOriNoiseDeg = streamFrameData["kalmanOriNoiseDeg"].get<double>();
 			}
-			if(streamFrameData["gameLinkLinearVelocityCutoff"].is_number()){
-				newConfig.streamFrame.gameLinkLinearVelocityCutoff = streamFrameData["gameLinkLinearVelocityCutoff"].get<double>();
-			}
-			if(streamFrameData["gameLinkAngularVelocityCutoffDeg"].is_number()){
-				newConfig.streamFrame.gameLinkAngularVelocityCutoffDeg = streamFrameData["gameLinkAngularVelocityCutoffDeg"].get<double>();
-			}
 			if(streamFrameData["kalmanLeadMs"].is_number()){
 				newConfig.streamFrame.kalmanLeadMs = streamFrameData["kalmanLeadMs"].get<double>();
 			}
@@ -1993,8 +1987,6 @@ void ConfigLoader::WriteInfo(){
 				{"kalmanProcessAngAccel", defaultSettings.streamFrame.kalmanProcessAngAccel},
 				{"kalmanOriNoiseDeg", defaultSettings.streamFrame.kalmanOriNoiseDeg},
 				{"kalmanLeadMs", defaultSettings.streamFrame.kalmanLeadMs},
-				{"gameLinkLinearVelocityCutoff", defaultSettings.streamFrame.gameLinkLinearVelocityCutoff},
-				{"gameLinkAngularVelocityCutoffDeg", defaultSettings.streamFrame.gameLinkAngularVelocityCutoffDeg},
 				{"kalmanReleaseRewindMs", defaultSettings.streamFrame.kalmanReleaseRewindMs},
 				{"kalmanRewindHoldMs", defaultSettings.streamFrame.kalmanRewindHoldMs},
 				{"kalmanDirSmoothMs", defaultSettings.streamFrame.kalmanDirSmoothMs},

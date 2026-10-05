@@ -1471,20 +1471,6 @@ bool GalaxyXRDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::Driv
 	// releases carry true peak speed. cheap unsynchronized bool reads keep
 	// the hot path free when both features are disabled.
 	int velocityFixMode = driverConfig.streamFrame.velocityFixMode;
-	// Game Link layout with the mode Off: what Samsung's driver reports
-	// (GameLinkMotion.h): the stream's pose, time stamp and velocities as
-	// they come, a velocity below the cutoff zeroed. the accelerations stay
-	// the stream's (Samsung's driver zeroes them).
-	// field 2026-10-04: reported this way the stream's velocities made
-	// Half-Life: Alyx throws fly sideways, while the same placement with
-	// Kalman CA threw straight.
-	if(velocityFixMode == 0 && driverConfig.galaxyXr.gameLinkLayout
-			&& openVRID != vr::k_unTrackedDeviceIndex_Hmd && IsStreamedController(openVRID)){
-		double linCut = driverConfig.streamFrame.gameLinkLinearVelocityCutoff;
-		double angCut = driverConfig.streamFrame.gameLinkAngularVelocityCutoffDeg * 3.14159265358979323846 / 180.0;
-		if(linCut > 0){ gxr::GameLinkVelocityCutoff(pose.vecVelocity, linCut); }
-		if(angCut > 0){ gxr::GameLinkVelocityCutoff(pose.vecAngularVelocity, angCut); }
-	}
 	// flagged-loss bookkeeping (kalman mode): the estimator gate below
 	// skips flagged samples entirely, so the filter never eats them —
 	// this pre-block records loss runs for KALDIAG and pins ks.have =

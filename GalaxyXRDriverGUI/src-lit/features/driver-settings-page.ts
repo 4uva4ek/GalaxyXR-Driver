@@ -347,22 +347,6 @@ export class DriverSettingsPage extends BasePage {
               reset: { can: !!gx.gameLinkLayout, on: () => { gx.gameLinkLayout = false; save(); } },
             }),
           );
-          if (gx.gameLinkLayout) {
-            const cutoffOff = settings.velocityFixMode != 'off';
-            body.push(
-              fieldRow(t('Game Link Velocity Cutoff (linear m/s, angular deg/s)'), html`
-                ${cutoffOff ? html`<span class="note-inline">used with Controller Fix Mode Off</span>` : html``}
-                <span>V</span><app-number .value=${settings.gameLinkLinearVelocityCutoff} ?disabled=${cutoffOff} step="0.01" min="0" max="1" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkLinearVelocityCutoff = e.detail; save(); } }}></app-number>
-                <span>W</span><app-number .value=${settings.gameLinkAngularVelocityCutoffDeg} ?disabled=${cutoffOff} step="1" min="0" max="90" @change=${(e: CustomEvent) => { if (e.detail !== undefined) { settings.gameLinkAngularVelocityCutoffDeg = e.detail; save(); } }}></app-number>
-              `, {
-                tip: "With the Game Link layout on and the mode Off, the controller motion is sent the way Samsung's own PC driver (Game Link) does: Steam Link's velocities as they come.\n\nA reported speed below V, or a spin below W, is sent as zero so a resting hand does not drift on sensor noise. The defaults are Samsung's own values; 0 sends every velocity as it comes.",
-                reset: {
-                  can: settings.gameLinkLinearVelocityCutoff != defaults.gameLinkLinearVelocityCutoff || settings.gameLinkAngularVelocityCutoffDeg != defaults.gameLinkAngularVelocityCutoffDeg,
-                  on: () => { galaxy.reset('gameLinkLinearVelocityCutoff'); galaxy.reset('gameLinkAngularVelocityCutoffDeg'); },
-                },
-              }),
-            );
-          }
           const gl = galaxy.controllerSettings?.gameLinkLayout;
           const gd = galaxy.controllerDefaults.gameLinkLayout;
           if (gl && gd) {
