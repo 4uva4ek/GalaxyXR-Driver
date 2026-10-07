@@ -6,6 +6,12 @@ New release entries are generated from commits on `main`: `fix:` bumps the patch
 version, `feat:` bumps the minor version, and `rework:` bumps the major version. See
 [the release workflow guide](Docs/Galaxy-XR-Companion/GITHUB-ACTIONS-RELEASE.md).
 
+## [1.7.0] - 2026-10-07
+
+### Features
+
+- pose time stamp bias for headset-side controller prediction (`24823bb`)
+
 ## [1.6.2] - 2026-10-05
 
 ### Fixes
